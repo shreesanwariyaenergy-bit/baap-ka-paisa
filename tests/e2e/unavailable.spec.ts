@@ -24,3 +24,9 @@ test('archive and cities stay honest', async ({ page }) => {
   await expect(page.locator('.city-card')).toHaveCount(5);
   await expect(page.locator('body')).not.toContainText(/on the board/);
 });
+test('Rank Up and Hall of Fame stay closed', async ({ page }) => {
+  await page.goto('/rank-up');
+  await expect(page.getByTestId('rankup-closed')).toBeVisible();
+  await page.goto('/board?view=hall');
+  await expect(page.getByTestId('board-empty')).toBeVisible();
+});

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent } from '@/lib/data/types';
-import { CITIES, STATES, cityById, DEFAULT_CITY_ID, scopeName, type Level, type Scope } from '@/lib/geo';
+import { STATES, cityById, DEFAULT_CITY_ID, scopeName, type Level, type Scope } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { RankNumber } from '@/components/RankNumber';
@@ -128,7 +128,6 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
         </div>
       </div>
       {isDemo && <p className="notice"><b>Demo data.</b> Every name, amount and movement on this site is invented for design review. No backend is connected and payments are off.</p>}
-      <nav aria-label="Cities" className="sr-only">{CITIES.map((c) => <Link key={c.id} href={`/?city=${c.id}`}>{c.name}</Link>)}</nav>
     </>
   );
 }

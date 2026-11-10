@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
+import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
 import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
@@ -10,19 +11,22 @@ import { CITY_NAMES } from '@/components/cityNames';
 
 export const metadata: Metadata = { title: 'The Board' };
 
-export default async function BoardPage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; q?: string }> }) {
+export default async function BoardPage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; q?: string; view?: string }> }) {
   const sp = await searchParams;
   const ds = await getDataSource();
   const viewer = await ds.viewer();
   const scope = parseScope(sp, viewer?.member.cityId, viewer?.member.locality);
-  const query = (sp.q ?? '').slice(0, 60);
-  const board = await ds.board(scope, { limit: 100, query });
+  const view = parseView(sp.view);
+  const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
+  const seasonBoard = await ds.board(scope, { limit: 100, query });
+  const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const season = ds.season();
   const left = timeLeft(season, ds.now());
-  const levelHref = (l: string) => `/board?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`;
-  const v = board.viewerRow;
+  const href = (l: string, vw: string) => `/board?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}${vw !== 'season' ? `&view=${vw}` : ''}`;
+  const levelHref = (l: string) => href(l, view);
+  const v = seasonBoard.viewerRow;
   const unavailable = !rankingsOpen(ds);
 
   return (
@@ -35,27 +39,35 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
         <span role="group" aria-label="Board level" style={{ display: 'contents' }}>
           {LEVELS.map((l) => <Link key={l} href={levelHref(l)} aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
         </span>
-        <BoardFilters level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
+        <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
           cities={CITIES.map((c) => ({ id: c.id, name: c.name }))} localities={city.localities} />
       </div>
+      <nav className="view-tabs" aria-label="Board view">
+        {BOARD_VIEWS.map((vw) => <Link key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</Link>)}
+      </nav>
+      <p className="view-note">{view === 'season' ? `Season Score, ${season.label}. Resets when the season ends.` : view === 'movers' ? 'Members who climbed or entered this board in the last 24 hours, biggest climb first. Numbers are their current season rank.' : 'Lifetime Score across every season. Never resets. The gold crown belongs only to the current season #01.'}</p>
       <div className="board-layout">
         <div className="board-panel">
           <div className="panel-head">
             <h3 data-testid="board-title">{name} / {LEVEL_LABEL[scope.level]} board</h3>
-            <span>{board.total > 0 ? `${board.total} on this board · ${season.label}` : season.label}{ds.availability === 'demo' ? ' · Demo data' : ''}</span>
+            <span>{VIEW_LABEL[view]}{board.total > 0 ? ` · ${board.total} on this board` : ''}{ds.availability === 'demo' ? ' · Demo data' : ''}</span>
           </div>
           <BoardList board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
-            emptyTitle={unavailable ? 'Rankings are not open yet.' : `No one rules ${name} yet.`}
-            emptyText={unavailable ? 'This board will fill as soon as the first season opens. Nothing here is hidden; there is simply no one ranked yet.' : `Be the first. The first ranked member in ${name} earns the Pioneer of ${name} flag.`} />
-          {board.total > 0 && <div className="board-foot">Showing {board.rows.length} of {board.total}{query ? ` matching “${query}”` : ''}. Select a row to open the profile.</div>}
+            crownLive={view !== 'hall'} valueLabel={view === 'hall' ? 'lifetime' : 'season'}
+            emptyTitle={unavailable ? 'Rankings are not open yet.' : view === 'hall' ? `No lifetime record in ${name} yet.` : `No one rules ${name} yet.`}
+            emptyText={unavailable ? 'This board will fill as soon as the first season opens. Nothing here is hidden; there is simply no one ranked yet.'
+              : view === 'movers' ? `Nobody climbed or entered the ${name} board in the last 24 hours.`
+              : view === 'hall' ? 'The Hall of Fame lists Lifetime Score from every season once members have ranked.'
+              : `Be the first. The first ranked member in ${name} earns the Pioneer of ${name} flag.`} />
+          {board.rows.length > 0 && <div className="board-foot">{view === 'movers' ? `${board.rows.length} ${board.rows.length === 1 ? 'mover' : 'movers'} of ${board.total} on this board` : `Showing ${board.rows.length} of ${board.total}`}{query ? ` matching “${query}”` : ''}. Select a row to open the profile.</div>}
         </div>
         <aside className="board-aside" aria-label="Your place on this board">
-          <div className="eyebrow">Your place in {name}</div>
+          <div className="eyebrow">Your season place in {name}</div>
           {v ? (
             <>
               <div className="big">#{pad2(v.rank)}</div>
               <h3>{v.rank === 1 ? <>You hold<br />the crown.</> : <>On the board.<br />Not yet on top.</>}</h3>
-              <p>You are listed at {inr(v.member.seasonScore)} this season, #{v.rank} of {board.total} in {name}.</p>
+              <p>You are listed at {inr(v.member.seasonScore)} this season, #{v.rank} of {seasonBoard.total} in {name}.</p>
             </>
           ) : (
             <>
@@ -68,7 +80,8 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           <div className="aside-stat"><span>Scheduled close</span><b>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days} days`}</b></div>
           <div className="aside-stat"><span>Rank up</span><b>Not open</b></div>
           <p style={{ marginBottom: 0 }}>Rank purchases stay switched off until legal and payment-provider approval is in place.</p>
-          <Link className="btn block" href="/seal">View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
+          <Link className="btn block" href="/rank-up">Preview Rank Up <span className="arrow" aria-hidden="true">↗</span></Link>
+          <Link className="btn light block" href="/seal" style={{ marginTop: 10 }}>View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
         </aside>
       </div>
     </>

@@ -6,7 +6,7 @@ export function RankNumber({ rank, className = 'rank-no', live = true }: { rank:
   if (rank === 1 && live) {
     return (
       <span className={`${className} is-crowned`}>
-        <Crown />
+        <Crown variant={className === 'rank-no' ? 'compact' : 'full'} />
         <span className="rank-number" aria-hidden="true">01</span>
         <span className="sr-only">Rank 01, current number-one holder</span>
       </span>

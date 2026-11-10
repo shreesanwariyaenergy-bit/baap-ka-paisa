@@ -29,6 +29,9 @@ BKP_DATA_SOURCE=demo npm run build && npm run e2e   # starts two servers: demo (
 | `/seal` | The Seal (replaces My Card) |
 | `/archive` | Archive |
 | `/u/[username]` | Public profile |
+| `/board?view=movers\|hall` | Today's Movers, Hall of Fame |
+| `/rank-up` | Rank Up preview (payments off) |
+| `/legal/[terms\|privacy\|refunds\|grievance\|community]` | Draft policies |
 | `/api/seal-card/[username]` | Seal share image, 1080 × 1920 PNG |
 
 ## Data
@@ -48,6 +51,7 @@ Payments are not implemented and stay off.
 |---|---|
 | `…0000_core_schema` | States, cities, localities, seasons, members, private member data (18+ trigger), append-only rank ledger, frozen season results. RLS on every table. |
 | `…0100_reference_data` | The five launch cities and their blueprint locality lists. |
+| `…0300_hall_of_fame` | `get_hall_of_fame`: Lifetime Score ranking. |
 | `…0200_read_functions` | `get_board`, `get_member`, `get_standings`, `get_city_summaries`, `get_season`, `get_archive`. Ranking (Season Score, earliest-to-reach tie-break, 24-hour movement) happens here. |
 
 Guarantees, each tested against the live database inside rolled-back transactions:
@@ -60,3 +64,5 @@ Guarantees, each tested against the live database inside rolled-back transaction
 Not built yet: sign-up and sign-in (needs an SMS provider with DLT registration), profile editing, season open/close jobs, admin console, payments.
 
 Running this app inside a sandbox with an HTTPS proxy needs `NODE_USE_ENV_PROXY=1` for Node's fetch.
+
+See `docs/STATUS.md` for what is built, what still uses demo data, and what is blocked.

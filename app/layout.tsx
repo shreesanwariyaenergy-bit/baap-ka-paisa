@@ -67,7 +67,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <footer className="site-footer">
               <span>BAAP KA PAISA © {season.year}</span>
               <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
-              <span>Made for the public record</span>
+              <nav aria-label="Policies" className="footer-links">
+                <Link href="/legal/terms">Terms</Link><Link href="/legal/privacy">Privacy</Link><Link href="/legal/refunds">Refunds</Link><Link href="/legal/community">Guidelines</Link><Link href="/legal/grievance">Grievance</Link>
+              </nav>
             </footer>
           </div>
         </ProfileDialogProvider>

@@ -47,6 +47,13 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
       if (opts.query && rows.length === 0) total = (await rpc<BoardDbRow[]>(cfg, 'get_board', { ...boardArgs(scope), p_limit: 1, p_query: null }))[0]?.total ?? 0;
       return { scope, rows: top.map(toRow), total, viewerRow: viewer ? toRow(viewer) : null } satisfies Board;
     },
+    async hallOfFame(scope, opts = {}) {
+      const limit = opts.limit ?? 100;
+      const rows = await rpc<(MemberRow & { rank: number; total: number; is_viewer: boolean; lifetime_paise: number })[]>(cfg, 'get_hall_of_fame', { ...boardArgs(scope), p_limit: limit });
+      const toRow = (r: (typeof rows)[number]): BoardRow => ({ rank: r.rank, member: toMember({ ...r, season_score_paise: 0 }), movement: null, score: Math.round(Number(r.lifetime_paise) / 100) });
+      const viewer = rows.find((r) => r.is_viewer);
+      return { scope, rows: rows.filter((r) => r.rank <= limit).map(toRow), total: rows[0]?.total ?? 0, viewerRow: viewer ? toRow(viewer) : null } satisfies Board;
+    },
     async events(scope, limit) {
       const b = await src.board(scope, { limit: 100 });
       return b.rows.filter((r) => r.movement && ['up', 'down', 'new', 'took'].includes(r.movement.kind))

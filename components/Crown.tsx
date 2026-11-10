@@ -1,14 +1,26 @@
 // The official BAAP KA PAISA crown. One unisex mark, refined from the prototype's crown geometry:
 // three points with round finials over a solid band. Gold is used for this mark and nothing else.
-export function Crown({ className = 'crown' }: { className?: string }) {
+export const CROWN_GEOMETRY = {
+  viewBox: '-1.5 -1.5 43 28',
+  body: 'M4 18.6 2.6 6.9 12 12.5 20 3.6 28 12.5 37.4 6.9 36 18.6Z',
+  finials: [[2.6, 5.5, 1.75], [20, 2.2, 1.95], [37.4, 5.5, 1.75]] as const,
+  band: { x: 3.4, y: 18.6, w: 33.2, h: 4.8 },
+  highlight: 'M5.8 20.5H34.2',
+};
+
+/**
+ * `full` for large displays (leader panel, Seal, share image). `compact` for ranking rows:
+ * heavier outline and no hairline highlight, so it stays crisp at 24–34px.
+ */
+export function Crown({ className = 'crown', variant = 'full' }: { className?: string; variant?: 'full' | 'compact' }) {
+  const g = CROWN_GEOMETRY;
+  const sw = variant === 'compact' ? 1.7 : 1.25;
   return (
-    <svg className={className} viewBox="0 0 40 26" aria-hidden="true" focusable="false">
-      <path d="M3.4 17.2 2.1 6.2 11.7 11.6 20 2.9 28.3 11.6 37.9 6.2 36.6 17.2Z" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth="1.3" strokeLinejoin="round" />
-      <circle cx="2.1" cy="5.4" r="1.75" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth="0.9" />
-      <circle cx="20" cy="2.2" r="1.95" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth="0.9" />
-      <circle cx="37.9" cy="5.4" r="1.75" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth="0.9" />
-      <rect x="3" y="19.3" width="34" height="4.6" rx="0.8" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth="1.1" />
-      <path d="M5.2 20.7H34.8" stroke="var(--crown-highlight)" strokeWidth="0.9" strokeLinecap="round" />
+    <svg className={className} viewBox={g.viewBox} aria-hidden="true" focusable="false" data-variant={variant}>
+      <path d={g.body} fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth={sw} strokeLinejoin="round" />
+      {g.finials.map(([cx, cy, r]) => <circle key={cx} cx={cx} cy={cy} r={variant === 'compact' ? r + 0.25 : r} fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth={sw * 0.75} />)}
+      <rect x={g.band.x} y={g.band.y} width={g.band.w} height={g.band.h} rx="0.8" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth={sw} />
+      {variant === 'full' && <path d={g.highlight} stroke="var(--crown-highlight)" strokeWidth="0.9" strokeLinecap="round" />}
     </svg>
   );
 }

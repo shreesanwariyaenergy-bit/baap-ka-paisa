@@ -29,6 +29,8 @@ export interface BoardRow {
   rank: number;
   member: PublicMember;
   movement: Movement | null; // null when the source has no 24-hour history
+  /** Value shown in the score column when it is not the Season Score (Hall of Fame shows Lifetime Score). */
+  score?: number;
 }
 
 export interface Board {
@@ -84,6 +86,8 @@ export interface DataSource {
   now(): Date;
   season(): SeasonInfo;
   board(scope: Scope, opts?: { limit?: number; query?: string }): Promise<Board>;
+  /** Lifetime Score ranking across all seasons. Never resets. */
+  hallOfFame(scope: Scope, opts?: { limit?: number }): Promise<Board>;
   events(scope: Scope, limit: number): Promise<BoardEvent[]>;
   member(username: string): Promise<PublicMember | null>;
   standings(username: string): Promise<Standing[]>;

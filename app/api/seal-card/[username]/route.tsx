@@ -5,6 +5,7 @@ import { ImageResponse } from 'next/og';
 import { getDataSource } from '@/lib/data';
 import { STATES, cityById } from '@/lib/geo';
 import { memberNo, pad2 } from '@/lib/format';
+import { CROWN_GEOMETRY } from '@/components/Crown';
 
 export const runtime = 'nodejs';
 
@@ -18,14 +19,13 @@ const fonts = Promise.all([
 const C = { paper: '#F1EFE6', ink: '#172B27', forest: '#183F37', lime: '#D5E29A', orange: '#ED6847', white: '#FFFDF7', muted: '#B9C9BD', gold: '#C39322', goldDk: '#8C681E', goldHi: '#FFE9A2' };
 
 function CrownMark({ width }: { width: number }) {
+  const g = CROWN_GEOMETRY;
   return (
-    <svg width={width} height={(width * 26) / 40} viewBox="0 0 40 26">
-      <path d="M3.4 17.2 2.1 6.2 11.7 11.6 20 2.9 28.3 11.6 37.9 6.2 36.6 17.2Z" fill={C.gold} stroke={C.goldDk} strokeWidth="1.3" strokeLinejoin="round" />
-      <circle cx="2.1" cy="5.4" r="1.75" fill={C.gold} stroke={C.goldDk} strokeWidth="0.9" />
-      <circle cx="20" cy="2.2" r="1.95" fill={C.gold} stroke={C.goldDk} strokeWidth="0.9" />
-      <circle cx="37.9" cy="5.4" r="1.75" fill={C.gold} stroke={C.goldDk} strokeWidth="0.9" />
-      <rect x="3" y="19.3" width="34" height="4.6" rx="0.8" fill={C.gold} stroke={C.goldDk} strokeWidth="1.1" />
-      <path d="M5.2 20.7H34.8" stroke={C.goldHi} strokeWidth="0.9" />
+    <svg width={width} height={(width * 28) / 43} viewBox={g.viewBox}>
+      <path d={g.body} fill={C.gold} stroke={C.goldDk} strokeWidth="1.25" strokeLinejoin="round" />
+      {g.finials.map(([cx, cy, r]) => <circle key={cx} cx={cx} cy={cy} r={r} fill={C.gold} stroke={C.goldDk} strokeWidth="0.95" />)}
+      <rect x={g.band.x} y={g.band.y} width={g.band.w} height={g.band.h} rx="0.8" fill={C.gold} stroke={C.goldDk} strokeWidth="1.25" />
+      <path d={g.highlight} stroke={C.goldHi} strokeWidth="0.9" />
     </svg>
   );
 }

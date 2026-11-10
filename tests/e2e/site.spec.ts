@@ -170,12 +170,62 @@ test.describe('The Seal', () => {
   });
 });
 
+test.describe('board views', () => {
+  test("Today's Movers shows only climbers; crown stays on the real #01", async ({ page }) => {
+    await page.goto('/board?level=city&city=surat&view=movers');
+    await expect(page.locator('.view-tabs [data-view="movers"]')).toHaveAttribute('aria-current', 'true');
+    const rows = page.getByTestId('board-rows').locator('.rank-row');
+    expect(await rows.count()).toBeGreaterThan(0);
+    const crowned = page.getByTestId('board-rows').locator('.rank-row:has(.rank-no.is-crowned)');
+    expect(await crowned.count()).toBeLessThanOrEqual(1);
+    if (await crowned.count()) await expect(crowned).toHaveAttribute('data-rank', '1');
+  });
+  test('Hall of Fame has no gold crown and keeps the level and city', async ({ page }) => {
+    await page.goto('/board?level=state&city=mumbai&view=hall');
+    await expect(page.getByTestId('board-title')).toHaveText('Maharashtra / State board');
+    await expect(page.getByTestId('board-rows').locator('svg.crown')).toHaveCount(0);
+    await expect(page.getByTestId('board-rows').locator('.rank-row').first()).toHaveClass(/first-past/);
+    await page.locator('[data-level="india"]').click();
+    await expect(page).toHaveURL(/level=india.*view=hall/);
+  });
+});
+
+test.describe('Rank Up preview', () => {
+  test('shows the exact amount and four-board preview, confirmation disabled', async ({ page }) => {
+    await page.goto('/rank-up');
+    await page.getByRole('link', { name: /Take #1 in Vesu/ }).click();
+    const preview = page.getByTestId('rankup-preview');
+    await expect(preview.locator('.history-row')).toHaveCount(4);
+    await expect(page.getByTestId('rankup-confirm')).toBeDisabled();
+    await expect(page.getByTestId('rankup-confirm')).toHaveText('Payments are not open');
+  });
+  test('rejects amounts that are not steps of ₹500', async ({ page }) => {
+    await page.goto('/rank-up?target=custom&add=700');
+    await expect(page.getByRole('alert').filter({ hasText: 'steps' })).toContainText('₹500');
+    await expect(page.getByTestId('rankup-preview')).toHaveCount(0);
+  });
+});
+
+test.describe('policy pages', () => {
+  for (const slug of ['terms', 'privacy', 'refunds', 'grievance', 'community']) {
+    test(`${slug} is marked as a draft`, async ({ page }) => {
+      await page.goto(`/legal/${slug}`);
+      await expect(page.getByTestId('legal-draft')).toContainText('DRAFT — LEGAL REVIEW REQUIRED');
+    });
+  }
+  test('footer links reach the policies', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('navigation', { name: 'Policies' }).getByRole('link', { name: 'Privacy' }).click();
+    await expect(page).toHaveURL(/\/legal\/privacy$/);
+  });
+});
+
 test.describe('responsive layout and screenshots', () => {
-  for (const w of [390, 768, 1440]) {
+  for (const w of [320, 390, 768, 1024, 1440]) {
     test(`no horizontal overflow at ${w}px`, async ({ browser }) => {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, deviceScaleFactor: 1 });
       const page = await ctx.newPage();
-      for (const p of [...PAGES.map((x) => x.path), '/u/kinjal.adajan', '/board?level=india']) {
+      for (const p of [...PAGES.map((x) => x.path), '/u/kinjal.adajan', '/board?level=india', '/board?view=hall', '/board?view=movers', '/rank-up?target=loc1', '/legal/terms']) {
         await page.goto(p);
         await page.evaluate(() => document.fonts.ready);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

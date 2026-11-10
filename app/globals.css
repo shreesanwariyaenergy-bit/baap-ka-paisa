@@ -116,9 +116,9 @@ a { color: inherit; text-decoration: none; }
 .crown { display: block; width: 100%; height: auto; overflow: visible; }
 .rank-no { font: 600 34px/.9 var(--font-display); color: #6F7C73; font-variant-numeric: tabular-nums; }
 .rank-no.is-crowned { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--forest); }
-.rank-no.is-crowned .crown { width: 1.05em; max-width: 34px; }
+.rank-no.is-crowned .crown { width: 1em; max-width: 36px; }
 .rank-number { display: block; letter-spacing: -.04em; }
-.feature-rank { font: 700 105px/.76 var(--font-display); color: var(--lime); letter-spacing: -.04em; display: inline-flex; flex-direction: column; align-items: center; gap: .06em; }
+.feature-rank { font: 700 105px/.76 var(--font-display); color: var(--lime); letter-spacing: -.04em; display: inline-flex; flex-direction: column; align-items: center; gap: .02em; }
 .feature-rank .crown { width: .62em; }
 .past-mark { display: inline-flex; align-items: center; gap: 6px; font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--forest-2); border: 1px solid var(--line); padding: 4px 7px; white-space: nowrap; }
 .past-mark svg { width: 16px; height: auto; }
@@ -423,3 +423,14 @@ a { color: inherit; text-decoration: none; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: 0s !important; animation: none !important; }
 }
+
+/* Hall of Fame #1: lifetime leader. Not the live crown, so no gold. */
+.rank-row.first-past { background: #EFEDE3; border-left: 4px solid var(--forest-2); padding-left: 15px; }
+.rank-row.first-past .rank-no { color: var(--forest); }
+.view-tabs { display: flex; gap: 0; border: 1px solid var(--line); background: var(--white); margin: 0 0 14px; overflow-x: auto; }
+.view-tabs a { padding: 12px 16px; font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #5F6B63; white-space: nowrap; border-right: 1px solid var(--line); }
+.view-tabs a[aria-current="true"] { background: var(--ink); color: var(--white); }
+.view-note { font: 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted-strong); margin: -4px 0 14px; }
+@media (max-width: 720px) { .rank-row.first-past { padding-left: 8px; } }
+.footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.footer-links a:hover { color: var(--ink); text-decoration: underline; }

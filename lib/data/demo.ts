@@ -157,6 +157,12 @@ export const demoSource: DataSource = {
     const viewerRow = all.find((r) => r.member.username === VIEWER) ?? null;
     return { scope, rows, total: all.length, viewerRow } satisfies Board;
   },
+  async hallOfFame(scope, opts = {}) {
+    const list = MEMBERS.filter((m) => inScope(m, scope));
+    const ranked = rankEntries(list.map((m) => ({ id: m.pub.username, score: m.lifetime, reachedAt: m.reachedAt, m })));
+    const all = ranked.map((e, i): BoardRow => ({ rank: i + 1, member: e.m.pub, movement: null, score: e.m.lifetime }));
+    return { scope, rows: all.slice(0, opts.limit ?? 100), total: all.length, viewerRow: all.find((r) => r.member.username === VIEWER) ?? null } satisfies Board;
+  },
   async events(scope, limit) {
     const at = new Date(AS_OF.getTime() - 3_600_000);
     return rankedRows(scope)

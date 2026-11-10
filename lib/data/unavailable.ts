@@ -9,6 +9,7 @@ export function unavailableSource(seasonOneMonth?: string | null): DataSource {
     now: () => new Date(),
     season: () => seasonFor(new Date(), seasonOneMonth),
     async board(scope) { return { scope, rows: [], total: 0, viewerRow: null }; },
+    async hallOfFame(scope) { return { scope, rows: [], total: 0, viewerRow: null }; },
     async events() { return []; },
     async member() { return null; },
     async standings() { return []; },

@@ -31,3 +31,20 @@ export const LIFETIME_TIERS = [
 export function lifetimeTier(lifetime: number): 'Bronze' | 'Silver' | 'Gold' | 'Black' | null {
   return LIFETIME_TIERS.find((t) => lifetime >= t.min)?.name ?? null;
 }
+
+/**
+ * Preview only: where a member would land on a board if their Season Score became `newScore`.
+ * Anyone already at or above that score stays ahead (they reached it first). The backend decides real ranks.
+ */
+export function projectedRank(others: { username: string; score: number }[], me: string, newScore: number): number {
+  return 1 + others.filter((o) => o.username !== me && o.score >= newScore).length;
+}
+
+/** Blueprint amounts: first entry at least ₹1,000, every payment a multiple of ₹500. */
+export function validTopUp(currentScore: number, add: number): string | null {
+  if (!Number.isInteger(add) || add <= 0) return 'Enter an amount.';
+  if (add % 500 !== 0) return 'Amounts go up in steps of ₹500.';
+  if (currentScore === 0 && add < 1000) return 'Entering a season starts at ₹1,000.';
+  if (add > 1000000) return 'That is above the preview limit of ₹10,00,000.';
+  return null;
+}
