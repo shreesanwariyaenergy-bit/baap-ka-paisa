@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource } from '@/lib/data';
+import { getDataSource, rankingsOpen } from '@/lib/data';
 import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: 'The Board' };
 
 export default async function BoardPage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; q?: string }> }) {
   const sp = await searchParams;
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const viewer = await ds.viewer();
   const scope = parseScope(sp, viewer?.member.cityId, viewer?.member.locality);
   const query = (sp.q ?? '').slice(0, 60);
@@ -23,7 +23,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const left = timeLeft(season, ds.now());
   const levelHref = (l: string) => `/board?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`;
   const v = board.viewerRow;
-  const unavailable = ds.availability === 'unavailable';
+  const unavailable = !rankingsOpen(ds);
 
   return (
     <>
@@ -65,7 +65,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
             </>
           )}
           <div className="aside-stat"><span>Season</span><b>{season.label}</b></div>
-          <div className="aside-stat"><span>Scheduled close</span><b>{left.closed ? 'Closed' : `${left.days} days`}</b></div>
+          <div className="aside-stat"><span>Scheduled close</span><b>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days} days`}</b></div>
           <div className="aside-stat"><span>Rank up</span><b>Not open</b></div>
           <p style={{ marginBottom: 0 }}>Rank purchases stay switched off until legal and payment-provider approval is in place.</p>
           <Link className="btn block" href="/seal">View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Barlow_Condensed, Changa_One, DM_Mono, Karla } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
-import { getDataSource } from '@/lib/data';
+import { getDataSource, rankingsOpen } from '@/lib/data';
 import { timeLeft } from '@/lib/season';
 import { initials } from '@/lib/format';
 import { MainNav } from '@/components/MainNav';
@@ -24,9 +24,10 @@ export const dynamic = 'force-dynamic';
 export const viewport: Viewport = { themeColor: '#183F37', width: 'device-width', initialScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const season = ds.season();
   const left = timeLeft(season, ds.now());
+  const open = rankingsOpen(ds);
   const viewer = await ds.viewer();
   const viewerLabel = viewer ? (viewer.member.masked ? viewer.member.publicLabel : viewer.member.displayName ?? viewer.member.username) : null;
   return (
@@ -36,11 +37,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="topline">
           <div className="live"><i className="dot" aria-hidden="true" /> The public status register <span style={{ opacity: .5 }}>/</span> India</div>
           <div className="rightline">
-            <span className="opt">{season.label}</span>
-            <span className="opt" aria-hidden="true">•</span>
-            <span className="opt">{left.closed ? 'Season closed' : `${left.days} days left`}</span>
+            {open && <>
+              <span className="opt">{season.label}</span>
+              <span className="opt" aria-hidden="true">•</span>
+              <span className="opt">{left.closed ? 'Season closed' : `${left.days} days left`}</span>
+            </>}
             {ds.availability === 'demo' && <span className="demo-flag" data-testid="demo-flag">Demo data</span>}
-            {ds.availability === 'unavailable' && <span className="demo-flag">Not open yet</span>}
+            {!open && <span className="demo-flag">Rankings not open yet</span>}
           </div>
         </div>
         <ProfileDialogProvider>

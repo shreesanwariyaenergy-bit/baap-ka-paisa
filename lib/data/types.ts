@@ -16,8 +16,8 @@ export interface PublicMember {
   cityId: string;
   state: StateCode;
   locality: string;
-  /** Permanent member number. Never changes with rank. */
-  memberNo: number;
+  /** Permanent member number. Never changes with rank. Null when hidden by Mystery mode. */
+  memberNo: number | null;
   seasonScore: number; // rupees, display only
   lifetimeTier: 'Bronze' | 'Silver' | 'Gold' | 'Black' | null;
 }

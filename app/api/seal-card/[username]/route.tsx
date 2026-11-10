@@ -32,7 +32,7 @@ function CrownMark({ width }: { width: number }) {
 
 export async function GET(_req: Request, { params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) return new Response('Member not found', { status: 404 });
   const standings = await ds.standings(m.username);

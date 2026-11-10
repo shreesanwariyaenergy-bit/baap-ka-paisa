@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource } from '@/lib/data';
+import { getDataSource, rankingsOpen } from '@/lib/data';
 import { cityById, DEFAULT_CITY_ID } from '@/lib/geo';
 import { inrShort, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -9,7 +9,7 @@ import { CITY_NAMES } from '@/components/cityNames';
 export const metadata: Metadata = { title: 'India' };
 
 export default async function IndiaPage() {
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const season = ds.season();
   const [summaries, viewer] = await Promise.all([ds.cities(), ds.viewer()]);
   const homeCity = cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
@@ -45,7 +45,7 @@ export default async function IndiaPage() {
         <div className="national-card wide board-panel">
           <div className="panel-head"><h3>India / National board</h3><Link className="textlink" href="/board?level=india">Full national board ↗</Link></div>
           <BoardList board={national} scopeLabel="India" metaMode="city" cityNames={CITY_NAMES} limit={5}
-            emptyTitle={ds.availability === 'unavailable' ? 'Rankings are not open yet.' : 'No one rules India yet.'} emptyText="The national board lists every ranked member across all launch cities." />
+            emptyTitle={!rankingsOpen(ds) ? 'Rankings are not open yet.' : 'No one rules India yet.'} emptyText="The national board lists every ranked member across all launch cities." />
         </div>
       </div>
     </>

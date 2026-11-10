@@ -11,7 +11,7 @@ const fmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 
 
 export default async function ArchivePage({ searchParams }: { searchParams: Promise<{ year?: string; city?: string }> }) {
   const sp = await searchParams;
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const all = await ds.archive();
   const years = [...new Set(all.map((s) => s.year))].sort((a, b) => b - a);
   const year = years.includes(Number(sp.year)) ? Number(sp.year) : null;

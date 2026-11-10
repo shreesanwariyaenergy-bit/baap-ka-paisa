@@ -6,7 +6,7 @@ test('home shows an empty leader and no demo notice', async ({ page }) => {
   await expect(page.getByTestId('leader-feature')).toContainText('No one rules Surat yet.');
   await expect(page.locator('body')).not.toContainText('Demo data');
   await expect(page.locator('svg.crown')).toHaveCount(0);
-  await page.screenshot({ path: 'tests/e2e/screens/unavailable-scene-1440.png', fullPage: true });
+  await page.screenshot({ path: `tests/e2e/screens/${test.info().project.name}-scene-1440.png`, fullPage: true });
 });
 test('board says rankings are not open', async ({ page }) => {
   await page.goto('/board');

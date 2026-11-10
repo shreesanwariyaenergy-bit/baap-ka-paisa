@@ -8,13 +8,13 @@ import { Crown } from '@/components/Crown';
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
-  const m = await getDataSource().member(decodeURIComponent(username));
+  const m = await (await getDataSource()).member(decodeURIComponent(username));
   return { title: m ? (m.masked ? m.publicLabel : m.displayName ?? m.username) : 'Member not found' };
 }
 
 export default async function MemberPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) notFound();
   const standings = await ds.standings(m.username);

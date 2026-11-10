@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getDataSource } from '@/lib/data';
+import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent } from '@/lib/data/types';
 import { CITIES, STATES, cityById, DEFAULT_CITY_ID, scopeName, type Level, type Scope } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
@@ -20,7 +20,7 @@ function eventText(e: BoardEvent) {
 
 export default async function ScenePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const season = ds.season();
   const left = timeLeft(season, ds.now());
   const viewer = await ds.viewer();
@@ -43,7 +43,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const tickerItems = [
     cityBoard.total ? `${city.name}: ${cityBoard.total} on the board` : null,
     ...events.map((e) => eventText(e).ticker).filter(Boolean),
-    left.closed ? null : `${season.label} / ${left.days} days left`,
+    left.closed || !rankingsOpen(ds) ? null : `${season.label} / ${left.days} days left`,
   ].filter(Boolean) as string[];
 
   return (
@@ -66,11 +66,11 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
               <div className="feature-user"><b>{leader.member.masked ? leader.member.publicLabel : leader.member.displayName}</b><span>{leader.member.locality} · {city.name} · {STATES[city.state]}</span></div>
             </div>
           ) : (
-            <div className="feature-empty"><h2>No one rules {city.name} yet.</h2><p>{ds.availability === 'unavailable' ? 'Rankings are not open yet. The first ranked member here will hold the crown.' : 'Be the first.'}</p></div>
+            <div className="feature-empty"><h2>No one rules {city.name} yet.</h2><p>{!rankingsOpen(ds) ? 'Rankings are not open yet. The first ranked member here will hold the crown.' : 'Be the first.'}</p></div>
           )}
           <div className="feature-bottom">
             <div><strong>{leader ? inr(leader.member.seasonScore) : '—'}</strong><span>Season Score</span></div>
-            <div style={{ textAlign: 'right' }}><strong style={{ fontSize: 20 }}>{left.closed ? 'Closed' : `${left.days}D : ${pad2(left.hours)}H`}</strong><span>Until scheduled close</span></div>
+            <div style={{ textAlign: 'right' }}><strong style={{ fontSize: 20 }}>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days}D : ${pad2(left.hours)}H`}</strong><span>{rankingsOpen(ds) ? 'Until scheduled close' : 'Season status'}</span></div>
           </div>
         </div>
       </section>

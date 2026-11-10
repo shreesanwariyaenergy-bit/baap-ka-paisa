@@ -37,6 +37,26 @@ All pages read from one typed boundary, `lib/data/types.ts` (`DataSource`). Rank
 the browser never sorts to decide a rank.
 
 - `BKP_DATA_SOURCE=demo` — invented review data (`lib/data/demo.ts`). Every page shows a "Demo data" flag.
+- `BKP_DATA_SOURCE=supabase` — the live database (`lib/data/supabase.ts`), Supabase project `baap-ka-paisa` (`kxbqaqbistbmxczyqbvq`, Mumbai).
 - `BKP_DATA_SOURCE=unavailable` — no backend connected; honest empty states. Default for production builds.
 
-No BAAP KA PAISA Supabase project exists yet, so there is no live adapter. Payments are not implemented and stay off.
+Payments are not implemented and stay off.
+
+## Database (`supabase/migrations`)
+
+| Migration | What it does |
+|---|---|
+| `…0000_core_schema` | States, cities, localities, seasons, members, private member data (18+ trigger), append-only rank ledger, frozen season results. RLS on every table. |
+| `…0100_reference_data` | The five launch cities and their blueprint locality lists. |
+| `…0200_read_functions` | `get_board`, `get_member`, `get_standings`, `get_city_summaries`, `get_season`, `get_archive`. Ranking (Season Score, earliest-to-reach tie-break, 24-hour movement) happens here. |
+
+Guarantees, each tested against the live database inside rolled-back transactions:
+- Ledger rows cannot be updated, deleted or truncated; corrections are new compensating rows.
+- Credits must be positive multiples of ₹500 (50,000 paise) and carry a payment reference.
+- Mystery-mode members return no name, title, flex line or member number, and cannot be found by their real username.
+- Anonymous clients can read reference data and call the `get_*` functions only. Members, private data, the ledger and the internal ranking function are closed to them; nothing is writable.
+- No season exists yet, so every board is honestly empty until Season 1 is created.
+
+Not built yet: sign-up and sign-in (needs an SMS provider with DLT registration), profile editing, season open/close jobs, admin console, payments.
+
+Running this app inside a sandbox with an HTTPS proxy needs `NODE_USE_ENV_PROXY=1` for Node's fetch.

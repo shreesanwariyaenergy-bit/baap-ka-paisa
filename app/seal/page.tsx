@@ -10,7 +10,7 @@ import { movementLabel } from '@/components/movement';
 export const metadata: Metadata = { title: 'The Seal' };
 
 export default async function SealPage() {
-  const ds = getDataSource();
+  const ds = await getDataSource();
   const season = ds.season();
   const viewer = await ds.viewer();
   const intro = (

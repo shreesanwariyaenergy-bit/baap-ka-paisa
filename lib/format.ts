@@ -12,7 +12,7 @@ export function inrShort(rupees: number): string {
 }
 
 export const pad2 = (n: number) => String(n).padStart(2, '0');
-export const memberNo = (n: number) => String(n).padStart(5, '0');
+export const memberNo = (n: number | null) => (n === null ? 'Hidden' : String(n).padStart(5, '0'));
 
 export function initials(name: string): string {
   const parts = name.replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/);
