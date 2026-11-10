@@ -1,11 +1,11 @@
 import 'server-only';
 // Live data source: calls the read-only Postgres functions in the BAAP KA PAISA Supabase project
 // with the publishable key. All ranking happens in the database (see supabase/migrations).
-import { cityById, type Level, type Scope, type StateCode } from '../geo';
+import { CITIES, cityById, scopeName, type Level, type Scope, type StateCode } from '../geo';
 import { seasonFor, type SeasonInfo } from '../season';
 import { monthName, monthShort } from '../format';
 import { movement } from './ranking';
-import type { ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, DataSource, PublicMember, Standing } from './types';
+import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing } from './types';
 
 interface Cfg { url: string; key: string; }
 
@@ -28,6 +28,19 @@ const toMember = (r: MemberRow): PublicMember => ({
   title: r.title, flexLine: r.flex_line, cityId: r.city_id, state: r.state_code as StateCode, locality: r.locality,
   memberNo: r.member_no, seasonScore: Math.round(Number(r.season_score_paise) / 100), lifetimeTier: r.lifetime_tier,
 });
+
+/** Database scope key ('india' | state code | city id | 'city/locality') back to a website scope. */
+function scopeFromKey(level: Level, key: string): Scope {
+  if (level === 'india') return { level, cityId: CITIES[0].id, locality: CITIES[0].localities[0] };
+  if (level === 'state') { const c = CITIES.find((x) => x.state === key) ?? CITIES[0]; return { level, cityId: c.id, locality: c.localities[0] }; }
+  if (level === 'city') return { level, cityId: key, locality: cityById(key)?.localities[0] ?? '' };
+  const [city, loc] = key.split('/'); return { level, cityId: city, locality: loc };
+}
+/** Minimal public member for lists that do not return full profiles. */
+function lite(name: string, display: string | null, masked: boolean, cityId: string, locality: string): PublicMember {
+  return { username: name, displayName: display, masked, publicLabel: name, title: null, flexLine: null, cityId, state: (cityById(cityId)?.state ?? 'GJ') as StateCode,
+    locality, memberNo: null, seasonScore: 0, lifetimeTier: null };
+}
 
 export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
   const boardArgs = (s: Scope) => ({ p_level: s.level, p_city: s.level === 'india' ? null : s.cityId, p_locality: s.level === 'locality' ? s.locality : null });
@@ -78,12 +91,38 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
         cityId: r.city_id, members: r.members, seasonTotal: Math.round(Number(r.season_total_paise) / 100), leader: null, rank: r.rank!, previousRank: r.prev_rank,
       }));
     },
-    // Filled in by the season-engine migration (see supabase/migrations/…0400).
-    async respectBoard(scope) { return { scope, unit: 'count', rows: [], total: 0, viewerRow: null }; },
-    async throneHistory() { return []; },
-    async crownMoments() { return []; },
-    async achievements() { return []; },
-    async social() { return null; },
+    async respectBoard(scope, opts = {}) {
+      const rows = await rpc<{ rank: number; total: number; public_name: string; display_name: string | null; masked: boolean; city_id: string; state_code: string; locality: string; respect_count: number }[]>(cfg, 'get_respect_board', { ...boardArgs(scope), p_limit: opts.limit ?? 100 });
+      return { scope, unit: 'count', total: rows[0]?.total ?? 0, viewerRow: null,
+        rows: rows.map((r) => ({ rank: r.rank, movement: null, score: r.respect_count, member: lite(r.public_name, r.display_name, r.masked, r.city_id, r.locality) })) } satisfies Board;
+    },
+    async throneHistory({ scope, username, limit = 50 }) {
+      const rows = await rpc<{ season_id: number; level: Level; scope_key: string; public_name: string; display_name: string | null; masked: boolean; started_at: string; ended_at: string | null; end_reason: ReignView['endReason']; untouchable: boolean; revenge: boolean }[]>(cfg, 'get_throne_history', {
+        p_level: scope ? scope.level : null, p_city: scope && scope.level !== 'india' ? scope.cityId : null, p_locality: scope?.level === 'locality' ? scope.locality : null, p_name: username ?? null, p_limit: limit });
+      return rows.map((r): ReignView => {
+        const sc = scopeFromKey(r.level, r.scope_key);
+        const from = new Date(r.started_at); const to = r.ended_at ? new Date(r.ended_at) : null;
+        return { seasonLabel: `Season ${r.season_id}`, scope: sc, boardName: scopeName(sc), member: lite(r.public_name, r.display_name, r.masked, sc.cityId, sc.locality),
+          from, to, endReason: r.end_reason, hours: Math.round(((to ?? new Date()).getTime() - from.getTime()) / 3_600_000), current: to === null, untouchable: r.untouchable, revenge: r.revenge };
+      });
+    },
+    async crownMoments(scope, since) {
+      const rows = await rpc<{ season_id: number; level: Level; scope_key: string; from_name: string | null; from_masked: boolean | null; from_display: string | null; to_name: string; to_masked: boolean; to_display: string | null; at: string }[]>(cfg, 'get_crown_moments', { ...boardArgs(scope), p_since: since.toISOString() });
+      return rows.map((r): CrownMomentView => ({ seasonLabel: `Season ${r.season_id}`, scope, boardName: scopeName(scope), at: new Date(r.at),
+        from: r.from_name ? lite(r.from_name, r.from_display, !!r.from_masked, scope.cityId, scope.locality) : null, to: lite(r.to_name, r.to_display, r.to_masked, scope.cityId, scope.locality) }));
+    },
+    async achievements(name) {
+      const rows = await rpc<{ achievement: string; label: string; detail: string; season_id: number | null; level: Level | null; scope_key: string | null; awarded_at: string }[]>(cfg, 'get_achievements', { p_name: name });
+      return rows.map((r): AchievementView => ({ id: r.achievement, label: r.label, detail: r.detail, at: new Date(r.awarded_at), seasonLabel: r.season_id ? `Season ${r.season_id}` : null,
+        boardName: r.level && r.scope_key ? scopeName(scopeFromKey(r.level, r.scope_key)) : null }));
+    },
+    async social(name) {
+      const rows = await rpc<{ followers: number; following: number; respect_this_season: number; rival_names: string[] }[]>(cfg, 'get_social', { p_name: name });
+      const r = rows[0];
+      if (!r) return null;
+      const rivals = (await Promise.all(r.rival_names.map((n) => src.member(n)))).filter((m): m is PublicMember => !!m).map((m): BoardRow => ({ rank: 0, member: m, movement: null }));
+      return { followers: r.followers, following: r.following, respectThisSeason: r.respect_this_season, rivals } satisfies SocialSummary;
+    },
     async archive() {
       const rows = await rpc<{ season_id: number; starts_at: string; ends_at: string; level: string; scope_key: string; public_name: string; display_name: string | null; masked: boolean }[]>(cfg, 'get_archive');
       const bySeason = new Map<number, ArchiveSeason>();
