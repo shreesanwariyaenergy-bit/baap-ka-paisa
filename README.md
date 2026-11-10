@@ -32,6 +32,11 @@ BKP_DATA_SOURCE=demo npm run build && npm run e2e   # starts two servers: demo (
 | `/board?view=movers\|hall` | Today's Movers, Hall of Fame |
 | `/rank-up` | Rank Up preview (payments off) |
 | `/legal/[terms\|privacy\|refunds\|grievance\|community]` | Draft policies |
+| `/board?view=respect` | Most Respected |
+| `/throne` | Throne History |
+| `/simulator` | Season simulator (practice season, server-side) |
+| `/join` | Onboarding preview (nothing stored) |
+| `/me` | Profile editing and Mystery mode |
 | `/api/seal-card/[username]` | Seal share image, 1080 × 1920 PNG |
 
 ## Data
@@ -45,6 +50,10 @@ the browser never sorts to decide a rank.
 
 Payments are not implemented and stay off.
 
+## Season engine (`lib/engine`)
+
+A pure, server-side engine that replays an event log: season status and anti-snipe, four-board rankings, Crown Moments, throne reigns, frozen results and automatic achievements. The demo data and `/simulator` run through it; the database migrations implement the same rules for live data.
+
 ## Database (`supabase/migrations`)
 
 | Migration | What it does |
@@ -52,6 +61,8 @@ Payments are not implemented and stay off.
 | `…0000_core_schema` | States, cities, localities, seasons, members, private member data (18+ trigger), append-only rank ledger, frozen season results. RLS on every table. |
 | `…0100_reference_data` | The five launch cities and their blueprint locality lists. |
 | `…0300_hall_of_fame` | `get_hall_of_fame`: Lifetime Score ranking. |
+| `…0400_season_engine` | Throne reigns, Crown Moment events, anti-snipe, achievements, Respect, follows, rivals; `season_tick` / `close_season` / `award_climbers` (not scheduled); public read functions. |
+| `…0410_ledger_effects_time_order` | Ledger effects consider rows in time order, so batch inserts behave like single ones. |
 | `…0200_read_functions` | `get_board`, `get_member`, `get_standings`, `get_city_summaries`, `get_season`, `get_archive`. Ranking (Season Score, earliest-to-reach tie-break, 24-hour movement) happens here. |
 
 Guarantees, each tested against the live database inside rolled-back transactions:
