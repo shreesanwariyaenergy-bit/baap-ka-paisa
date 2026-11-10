@@ -6,6 +6,9 @@ import { LEVEL_LABEL, STATES, cityById, scopeName } from '@/lib/geo';
 import { inr, memberNo, pad2 } from '@/lib/format';
 import { Crown } from '@/components/Crown';
 import { groupAchievements } from '@/lib/achievements';
+import { SocialActions } from '@/components/SocialActions';
+import { readDemoSocial } from '@/lib/demo-social';
+import { istDay } from '@/lib/engine/engine';
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
@@ -20,6 +23,10 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   if (!m) notFound();
   const [standings, achievements, reigns, social] = await Promise.all([ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 10 }), ds.social(m.username)]);
   const grouped = groupAchievements(achievements);
+  const viewer = await ds.viewer();
+  const isSelf = viewer?.member.username === m.username;
+  const demoState = viewer ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
+  const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
   const top = standings.find((s) => s.rank === 1);
@@ -50,6 +57,12 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
           ))}
           <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Phone number, exact address, date of birth and live location are never shown.</p>
         </div>
+        {!isSelf && (
+          <SocialActions username={m.username} label={name} enabled={!!viewer && ds.availability === 'demo'}
+            note={viewer && ds.availability === 'demo' ? 'Demo: actions are checked on the server and kept only in this browser.' : 'Sign in to follow, give Respect or add rivals. Sign-in is not open yet.'}
+            initial={{ following: !!demoState?.follows.includes(m.username), rival: !!demoState?.rivals.includes(m.username), respectedToday: demoState?.respected[m.username] === today }} />
+        )}
+        {isSelf && <div className="history"><h3>This is you</h3><p><Link href="/me" style={{ textDecoration: 'underline' }}>Edit your profile</Link> or open <Link href="/seal" style={{ textDecoration: 'underline' }}>The Seal</Link>.</p></div>}
         <div className="history" data-testid="profile-achievements">
           <h3>Achievements</h3>
           {grouped.length === 0 ? <p>No achievements yet.</p> : grouped.map((g) => (

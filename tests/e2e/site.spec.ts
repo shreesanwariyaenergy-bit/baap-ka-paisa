@@ -9,6 +9,11 @@ const PAGES = [
   { path: '/archive', heading: /the ones/i, nav: 'Archive' },
 ];
 
+async function dismissCrownMoment(page: Page) {
+  const m = page.getByTestId('crown-moment');
+  if (await m.isVisible().catch(() => false)) { await page.keyboard.press('Escape'); await expect(m).toBeHidden(); }
+}
+
 async function crownedRows(page: Page, scope = page.locator('body')) {
   return scope.locator('.rank-row:has(.rank-no.is-crowned)');
 }
@@ -33,6 +38,7 @@ test.describe('navigation', () => {
       await expect(page.locator('body')).not.toContainText(/my card/i);
     }
     await page.goto('/');
+    await dismissCrownMoment(page);
     await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'The Seal' }).click();
     await expect(page).toHaveURL(/\/seal$/);
   });
@@ -75,6 +81,7 @@ test.describe('the crown on #01', () => {
 
   test('home board tabs move the crown to each level’s #01', async ({ page }) => {
     await page.goto('/');
+    await dismissCrownMoment(page);
     for (const tab of ['Locality', 'City', 'State', 'India']) {
       await page.getByRole('tab', { name: tab }).click();
       const crowned = await crownedRows(page, page.locator('#home-board'));
@@ -215,6 +222,7 @@ test.describe('policy pages', () => {
   }
   test('footer links reach the policies', async ({ page }) => {
     await page.goto('/');
+    await dismissCrownMoment(page);
     await page.getByRole('navigation', { name: 'Policies' }).getByRole('link', { name: 'Privacy' }).click();
     await expect(page).toHaveURL(/\/legal\/privacy$/);
   });
@@ -225,7 +233,7 @@ test.describe('responsive layout and screenshots', () => {
     test(`no horizontal overflow at ${w}px`, async ({ browser }) => {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, deviceScaleFactor: 1 });
       const page = await ctx.newPage();
-      for (const p of [...PAGES.map((x) => x.path), '/u/kinjal.adajan', '/board?level=india', '/board?view=hall', '/board?view=movers', '/rank-up?target=loc1', '/legal/terms']) {
+      for (const p of [...PAGES.map((x) => x.path), '/u/kinjal.adajan', '/board?level=india', '/board?view=hall', '/board?view=movers', '/rank-up?target=loc1', '/legal/terms', '/throne', '/simulator?step=7', '/join', '/me', '/board?view=respect']) {
         await page.goto(p);
         await page.evaluate(() => document.fonts.ready);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -236,4 +244,98 @@ test.describe('responsive layout and screenshots', () => {
       await ctx.close();
     });
   }
+});
+
+test.describe('Crown Moment and Throne History', () => {
+  test('a new #01 in the last 24 hours plays the Crown Moment once and can be replayed', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('crown-moment')).toBeVisible();
+    await expect(page.getByTestId('crown-moment')).toContainText('Kinjal Shah');
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await expect(page.getByTestId('crown-moment')).toBeHidden();
+    await page.getByTestId('crown-replay').click();
+    await expect(page.getByTestId('crown-moment')).toBeVisible();
+  });
+  test('throne history: one current reign with the gold crown, past reigns without it', async ({ page }) => {
+    await page.goto('/throne?level=city&city=surat');
+    await expect(page.locator('.reign.current')).toHaveCount(1);
+    await expect(page.locator('.reign.current')).toContainText('Kinjal Shah');
+    await expect(page.locator('.reign:not(.current) svg.crown')).toHaveCount(0);
+    await expect(page.locator('.reign .chip', { hasText: 'Untouchable' }).first()).toBeVisible();
+    await expect(page.locator('.reign .chip', { hasText: 'Revenge Taken' }).first()).toBeVisible();
+  });
+  test('Most Respected view has no gold crown', async ({ page }) => {
+    await page.goto('/board?level=city&city=surat&view=respect');
+    await expect(page.getByTestId('board-rows').locator('.rank-row').first()).toContainText('Respect');
+    await expect(page.getByTestId('board-rows').locator('svg.crown')).toHaveCount(0);
+  });
+});
+
+test.describe('season simulator (server-side engine)', () => {
+  test('rejects a ₹700 step and a credit after the close', async ({ page }) => {
+    await page.goto('/simulator?step=3');
+    await expect(page.getByTestId('sim-rejected')).toContainText('500');
+    await page.goto('/simulator?step=9');
+    await expect(page.getByTestId('sim-rejected')).toContainText('no open season');
+  });
+  test('an overtake in the last 15 minutes plays the Crown Moment and extends the season', async ({ page }) => {
+    await page.goto('/simulator?step=7');
+    await expect(page.getByTestId('crown-moment')).toContainText('Zoya');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('sim-result')).toContainText('Season extended');
+    await expect(page.locator('.rank-row.first')).toHaveAttribute('data-member', 'sim.zoya');
+  });
+  test('closing freezes the result and awards the Season Crown', async ({ page }) => {
+    await page.goto('/simulator?step=10');
+    await expect(page.getByTestId('sim-closed')).toContainText('2 extensions');
+    await expect(page.getByTestId('sim-result')).toContainText('Season Crown: Aman');
+  });
+});
+
+test.describe('The Seal: achievements and QR', () => {
+  test('reverse shows a QR with a placeholder note, and achievement history is listed', async ({ page }) => {
+    await page.goto('/seal');
+    await expect(page.getByTestId('seal-qr').locator('svg')).toHaveCount(1);
+    await expect(page.getByTestId('seal')).toContainText('Placeholder link');
+    await expect(page.getByTestId('achievement-history')).toContainText('Streak ×3');
+  });
+});
+
+test.describe('onboarding, profile and social actions (demo, nothing stored)', () => {
+  test('join: under-18 is refused; a valid profile previews without creating an account', async ({ page }) => {
+    await page.goto('/join');
+    await page.fill('input[name=dateOfBirth]', '2010-01-01');
+    await page.fill('input[name=displayName]', 'Riya Shah');
+    await page.fill('input[name=username]', 'riya.vesu');
+    await page.getByTestId('join-submit').click();
+    await expect(page.locator('.field-error').first()).toContainText('18');
+    await page.fill('input[name=dateOfBirth]', '1996-03-14');
+    await page.selectOption('select[name=locality]', 'Vesu');
+    await page.check('input[name=mystery]');
+    await page.getByTestId('join-submit').click();
+    await expect(page.getByTestId('join-result')).toContainText('nothing was saved');
+    await expect(page.getByTestId('join-preview')).toContainText('Mystery mode');
+    await expect(page.locator('input[name=mystery]')).toBeChecked();
+  });
+  test('profile edit: phone numbers are refused; Mystery mode preview follows the toggle', async ({ page }) => {
+    await page.goto('/me');
+    await page.getByTestId('mystery-toggle').check();
+    await expect(page.getByTestId('mystery-preview')).toContainText('ANON-xx');
+    await page.fill('input[name=flexLine]', 'call 9876543210');
+    await page.getByTestId('profile-save').click();
+    await expect(page.locator('.field-error')).toContainText('Phone numbers');
+    await expect(page.getByTestId('mystery-toggle')).toBeChecked();
+  });
+  test('Respect once per profile per day; up to 5 rivals', async ({ page }) => {
+    await page.goto('/u/kinjal.adajan');
+    await page.getByRole('button', { name: 'Give Respect' }).click();
+    await expect(page.getByTestId('social-actions').getByRole('status')).toContainText('Respect given');
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Respect given today' })).toBeDisabled();
+    for (const u of ['kinjal.adajan', 'diamondwala']) { await page.goto(`/u/${u}`); await page.getByRole('button', { name: 'Add rival' }).click(); await expect(page.getByTestId('social-actions').getByRole('status')).toContainText('Added'); }
+    await page.goto('/u/athwa.ace');
+    await page.getByRole('button', { name: 'Add rival' }).click();
+    await expect(page.getByTestId('social-actions').getByRole('status')).toContainText('up to 5');
+  });
 });

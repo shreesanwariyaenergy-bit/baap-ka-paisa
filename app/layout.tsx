@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {viewer ? (
                   <Link className="avatar-mini" href="/seal" aria-label={`Signed in as ${viewerLabel}. Open The Seal.`}>{initials(viewerLabel!)}</Link>
                 ) : (
-                  <span className="signin-note">Sign-in not open</span>
+                  <Link className="signin-note" href="/join">Join (preview)</Link>
                 )}
               </div>
             </header>
@@ -68,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span>BAAP KA PAISA © {season.year}</span>
               <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
               <nav aria-label="Explore" className="footer-links">
-                <Link href="/throne">Throne history</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
+                <Link href="/me">Edit profile</Link><Link href="/join">Join preview</Link><Link href="/throne">Throne history</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
               </nav>
               <nav aria-label="Policies" className="footer-links">
                 <Link href="/legal/terms">Terms</Link><Link href="/legal/privacy">Privacy</Link><Link href="/legal/refunds">Refunds</Link><Link href="/legal/community">Guidelines</Link><Link href="/legal/grievance">Grievance</Link>

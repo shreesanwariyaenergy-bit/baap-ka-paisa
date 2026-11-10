@@ -77,6 +77,7 @@ export default async function SealPage() {
               </Link>
             ))}
             <div style={{ marginTop: 17 }}><SealShare username={m.username} label={name} /></div>
+            <Link className="textlink" href="/me" style={{ display: 'inline-block', marginTop: 14 }}>Edit profile and Mystery mode ↗</Link>
           </div>
           <div className="history" data-testid="achievement-history">
             <h3>Achievement history</h3>

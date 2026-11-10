@@ -30,3 +30,11 @@ test('Rank Up and Hall of Fame stay closed', async ({ page }) => {
   await page.goto('/board?view=hall');
   await expect(page.getByTestId('board-empty')).toBeVisible();
 });
+test('profile editing and social actions wait for sign-in; simulator still works', async ({ page }) => {
+  await page.goto('/me');
+  await expect(page.getByTestId('me-signed-out')).toBeVisible();
+  await page.goto('/throne');
+  await expect(page.getByTestId('throne-empty')).toBeVisible();
+  await page.goto('/simulator?step=1');
+  await expect(page.locator('.rank-row.first')).toHaveAttribute('data-member', 'sim.riya');
+});

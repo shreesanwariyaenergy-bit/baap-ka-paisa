@@ -482,3 +482,25 @@ a { color: inherit; text-decoration: none; }
 .board-aside .steps li::before { color: #8FA597; }
 .board-aside .steps li.done::before { color: var(--lime); }
 .board-aside .steps li.now::before { color: var(--orange-ink); }
+
+/* ---------- Forms ---------- */
+.join-form { margin: 26px 0 70px; max-width: 760px; }
+.join-steps { list-style: none; margin: 0 0 20px; padding: 0; counter-reset: js; }
+.join-steps > li { background: var(--white); border: 1px solid var(--line); padding: 18px 20px 18px 70px; margin-bottom: 12px; position: relative; }
+.join-steps > li::before { counter-increment: js; content: counter(js, decimal-leading-zero); position: absolute; left: 18px; top: 14px; font: 700 34px/1 var(--font-display); color: var(--forest-2); }
+.join-steps h3 { font: 20px var(--font-brand); text-transform: uppercase; margin: 0 0 10px; }
+.field { display: grid; gap: 5px; margin: 10px 0; }
+.field-label { font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: #5F6B63; }
+.field-hint { font-size: 12px; color: var(--muted-strong); }
+.field input, .field select { border: 1px solid var(--line); background: var(--paper); padding: 11px 12px; font-size: 15px; min-height: 44px; width: 100%; }
+.field input:disabled { background: var(--paper-2); color: var(--muted-strong); }
+.field input[aria-invalid="true"], .field select[aria-invalid="true"] { border-color: var(--orange-ink); }
+.field-error { display: block; color: var(--orange-ink); font-size: 13px; margin-top: -4px; }
+.toggle { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.toggle input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--forest); }
+.preview-row { display: grid; grid-template-columns: 38px 1fr; gap: 10px; align-items: center; margin-top: 12px; padding: 10px; background: var(--paper-2); }
+.preview-row b { display: block; font: 800 14px var(--font-body); text-transform: uppercase; }
+.preview-row small { display: block; font: 10px var(--font-mono); text-transform: uppercase; color: #5F6B63; }
+.photo-preview { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2px solid var(--forest); margin-top: 6px; }
+.notice.warn { border-left-color: var(--orange-ink); }
+@media (max-width: 720px) { .join-steps > li { padding: 56px 14px 14px; } .join-steps > li::before { top: 14px; left: 14px; } }

@@ -7,6 +7,7 @@ import { inr, pad2 } from '@/lib/format';
 import { RankNumber } from '@/components/RankNumber';
 import { HomeBoard } from '@/components/HomeBoard';
 import { CrownMoment } from '@/components/CrownMoment';
+import { readDemoSocial } from '@/lib/demo-social';
 import type { PublicMember } from '@/lib/data/types';
 
 const LEVELS: Level[] = ['locality', 'city', 'state', 'india'];
@@ -46,6 +47,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const spotlight = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   const mover = events.filter((e) => e.kind === 'up').sort((a, b) => b.by - a.by)[0];
   const myCity = viewer?.standings.find((s) => s.level === 'city');
+  // Rival strip: each rival's current city rank next to yours.
+  const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
+  const rivals = (await Promise.all(rivalNames.map(async (u) => ({ m: await ds.member(u), s: (await ds.standings(u)).find((x) => x.level === 'city') })))).filter((r) => r.m);
   const tickerItems = [
     cityBoard.total ? `${city.name}: ${cityBoard.total} on the board` : null,
     ...events.map((e) => eventText(e).ticker).filter(Boolean),
@@ -109,6 +113,19 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
               <div className="activity" key={e.member.username + e.kind}><div className="activity-mark" aria-hidden="true">{t.mark}</div><div><p>{t.text}</p><small>{e.member.locality} · last 24 hours</small></div><em>{t.tag}</em></div>
             ); })}
           </div>
+          {viewer && (
+            <div className="activity-panel" data-testid="home-rivals">
+              <div className="activity-title"><h3>Rival strip</h3><span>You #{myCity?.rank ? pad2(myCity.rank) : '--'}</span></div>
+              {rivals.length === 0 && <p className="activity-empty">No rivals yet. Add up to five from any profile.</p>}
+              {rivals.map(({ m, s }) => (
+                <Link className="activity" key={m!.username} href={`/u/${encodeURIComponent(m!.username)}`}>
+                  <div className="activity-mark" aria-hidden="true">{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? '↑' : '↓') : '·'}</div>
+                  <div><p><b>{m!.masked ? m!.publicLabel : m!.displayName}</b> is #{s?.rank ? pad2(s.rank) : '--'} in {cityById(m!.cityId)?.name}.</p><small>{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? `${myCity.rank - s.rank} ahead of you` : `${s.rank - myCity.rank} behind you`) : 'Different board'}</small></div>
+                  <em>Rival</em>
+                </Link>
+              ))}
+            </div>
+          )}
           <Link className="city-map" href="/cities">
             <div className="map-index">City index / {city.indexRef}</div>
             <h3>Find your<br />side of town.</h3>
