@@ -1,0 +1,43 @@
+'use client';
+import type { BoardRow } from '@/lib/data/types';
+import { movementLabel } from './movement';
+import { inr, initials } from '@/lib/format';
+import { RankNumber } from './RankNumber';
+import { useProfileDialog } from './ProfileDialog';
+
+export function memberLabel(row: BoardRow) {
+  const m = row.member;
+  return m.masked ? m.publicLabel : (m.displayName ?? m.username);
+}
+
+export function RankRow({ row, scopeLabel, meta, isViewer }: { row: BoardRow; scopeLabel: string; meta: string; isViewer?: boolean }) {
+  const { open } = useProfileDialog();
+  const mv = movementLabel(row.movement);
+  const name = memberLabel(row);
+  return (
+    <button type="button" className={`rank-row${row.rank === 1 ? ' first' : ''}`} onClick={() => open(row, scopeLabel)}
+      data-rank={row.rank} data-username={row.member.username} aria-label={`${name}, rank ${row.rank}, ${inr(row.member.seasonScore)}. Open profile.`}>
+      {row.rank === 1 && <span className="holder-label" aria-hidden="true">Current holder</span>}
+      <RankNumber rank={row.rank} />
+      <span className="rank-avatar" aria-hidden="true">{row.member.masked ? row.member.publicLabel.slice(-2) : initials(name)}</span>
+      <span style={{ minWidth: 0 }}>
+        <span className="rank-name" style={{ display: 'block' }}>{name}{isViewer ? ' (you)' : ''}</span>
+        <span className="rank-meta" style={{ display: 'block' }}>{meta}</span>
+      </span>
+      <span className="rank-value">{inr(row.member.seasonScore)}</span>
+      <span className={`rank-change ${mv.cls}`}><span aria-hidden="true">{mv.text}</span><span className="sr-only">{mv.sr}</span></span>
+    </button>
+  );
+}
+
+export function YouRow({ row, scopeLabel, meta }: { row: BoardRow; scopeLabel: string; meta: string }) {
+  const { open } = useProfileDialog();
+  return (
+    <button type="button" className="you-row" onClick={() => open(row, scopeLabel)} data-testid="viewer-row" aria-label={`Your position: rank ${row.rank}. Open profile.`}>
+      <RankNumber rank={row.rank} live={false} />
+      <span className="rank-avatar" aria-hidden="true">{initials(memberLabel(row))}</span>
+      <span style={{ minWidth: 0 }}><span className="rank-name" style={{ display: 'block' }}>You</span><span className="rank-meta" style={{ display: 'block' }}>{meta}</span></span>
+      <span className="rank-value">{inr(row.member.seasonScore)}</span>
+    </button>
+  );
+}
