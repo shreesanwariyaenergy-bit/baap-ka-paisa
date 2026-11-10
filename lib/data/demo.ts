@@ -1,15 +1,19 @@
 import 'server-only';
-// DEMO DATA SOURCE. Every name, number, amount and season here is invented for design review.
-// It exists so the site can be reviewed before a BAAP KA PAISA backend is connected.
-// It is only used when BKP_DATA_SOURCE=demo, and every page then shows a "Demo data" notice.
+// SIMULATION DATA SOURCE (BKP_DATA_SOURCE=demo).
+// Every member, payment, Respect and season below is invented. Nothing is a real person or transaction.
+// The data is a seeded log of simulated events that runs through the season engine (lib/engine) on the
+// server, so boards, archive, throne history and achievements all follow the real rules.
 import { CITIES, cityById, type Level, type Scope } from '../geo';
-import { seasonFor, istMonthStart } from '../season';
-import { monthName } from '../format';
-import { lifetimeTier, movement, rankEntries } from './ranking';
-import type { ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, DataSource, PublicMember, Standing, ViewerSeal } from './types';
+import { istMonthStart, seasonFor, type SeasonInfo } from '../season';
+import { monthName, monthShort } from '../format';
+import { DAY, HOUR, ACHIEVEMENT_RULES, boardAt, boardKeys, rankScores, respectBoard as engineRespectBoard, runEngine, type EngineEvent, type EngineMember, type EngineResult, type Ranked, type SeasonDef } from '../engine/engine';
+import { keyName, keyToScope, scopeToKey } from '../engine/keys';
+import { lifetimeTier, movement } from './ranking';
+import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
-const AS_OF = new Date('2026-11-10T18:00:00+05:30');
-const DEMO_SEASON_ONE = '2026-08';
+export const SIM_NOW = new Date('2026-11-10T18:00:00+05:30').getTime();
+export const DEMO_AS_OF_LABEL = '10 Nov 2026, 6:00 pm IST';
+const VIEWER = 'ishaan.m';
 
 // [username, display name or null for Mystery mode, locality, title, flex line]
 type P = [string, string | null, string, string | null, string | null];
@@ -84,139 +88,213 @@ const PEOPLE: Record<string, P[]> = {
   ],
 };
 
-interface DemoMember { pub: PublicMember; score: number; yScore: number; reachedAt: number; lifetime: number; }
+// ---------- Seasons: Aug–Nov 2026 (Season 4 is open) ----------
+export const SIM_SEASONS: SeasonDef[] = [7, 8, 9, 10].map((month, i) => ({
+  id: i + 1, startsAt: istMonthStart(2026, month).getTime(), scheduledEnd: istMonthStart(2026, month + 1).getTime() - 60_000,
+}));
 
-function build(): DemoMember[] {
+// ---------- Simulated event log ----------
+function buildLog() {
   let seed = 20261110;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
-  const top: Record<string, number> = { surat: 25000, ahmedabad: 21500, mumbai: 64000, pune: 30500, delhi: 52000 };
-  const out: DemoMember[] = [];
-  for (const city of CITIES) {
-    PEOPLE[city.id].forEach((p, i, list) => {
-      const score = Math.max(1000, 500 * Math.round((top[city.id] * Math.pow(0.8, i) * (0.92 + rnd() * 0.12)) / 500));
-      const moved = rnd() < 0.35;
-      let yScore = moved ? Math.max(0, score - 500 * Math.round((500 + rnd() * (Math.min(6000, score - 500) - 500)) / 500)) : score;
-      if (i === list.length - 2 || p[0] === 'pal.prince') yScore = 0;
-      const reachedAt = AS_OF.getTime() - Math.floor(rnd() * 9 * 86_400_000);
-      const prior = 500 * Math.round((rnd() * score * 2.2) / 500);
-      const lifetime = score + prior;
-      out.push({
-        score, yScore, reachedAt, lifetime,
-        pub: {
-          username: p[0], displayName: p[1], masked: p[1] === null, publicLabel: p[1] === null ? p[0] : p[0],
-          title: p[3], flexLine: p[4], cityId: city.id, state: city.state, locality: p[2],
-          memberNo: 100 + Math.floor(rnd() * 4900), seasonScore: score, lifetimeTier: lifetimeTier(lifetime),
-        },
-      });
-    });
+  const r500 = (v: number) => Math.max(500, 500 * Math.round(v / 500));
+  const members: EngineMember[] = [];
+  const profile = new Map<string, { p: P; city: string; memberNo: number }>();
+  for (const c of CITIES) for (const p of PEOPLE[c.id]) {
+    members.push({ id: p[0], cityId: c.id, state: c.state, locality: p[2] });
+    profile.set(p[0], { p, city: c.id, memberNo: p[0] === VIEWER ? 4812 : 100 + Math.floor(rnd() * 4900) });
   }
-  // Demo storyline: Kinjal took Surat #01 from Vikram in the last 24 hours.
-  out.find((m) => m.pub.username === 'kinjal.adajan')!.yScore = 17500;
-  const me = out.find((m) => m.pub.username === 'ishaan.m')!;
-  Object.assign(me, { score: 3000, yScore: 2000, lifetime: 9500, reachedAt: new Date('2026-11-09T21:14:00+05:30').getTime() });
-  me.pub = { ...me.pub, memberNo: 4812, seasonScore: 3000, lifetimeTier: lifetimeTier(9500) };
-  return out;
+  const TOP: Record<string, number> = { surat: 15500, ahmedabad: 21500, mumbai: 64000, pune: 30500, delhi: 52000 };
+  const events: EngineEvent[] = [];
+  let n = 0;
+  const credit = (memberId: string, amount: number, at: number) => events.push({ type: 'credit', id: `sim-${++n}`, memberId, amount, at });
+  const scripted = new Set(['kinjal.adajan', 'vesu.vikram', 'diamondwala', VIEWER]);
+
+  for (const s of SIM_SEASONS) {
+    const end = Math.min(s.scheduledEnd, SIM_NOW) - HOUR;
+    for (const c of CITIES) {
+      PEOPLE[c.id].forEach((p, i) => {
+        if (scripted.has(p[0])) return;
+        if (rnd() < 0.18 && s.id < 4) return; // some members skip a season (breaks streaks)
+        const target = Math.max(1000, r500(TOP[c.id] * Math.pow(0.8, i) * (0.85 + rnd() * 0.3) * (s.id === 4 ? 0.85 : 1)));
+        const parts = 1 + Math.floor(rnd() * 3);
+        const first = Math.max(1000, r500(target / parts));
+        const times = Array.from({ length: parts }, () => s.startsAt + HOUR + rnd() * (end - s.startsAt - HOUR)).sort((a, b) => a - b);
+        let left = target;
+        times.forEach((t, k) => { const amt = k === 0 ? Math.min(first, left) : k === parts - 1 ? left : Math.min(r500(left / (parts - k)), left); if (amt >= (k === 0 ? 1000 : 500)) { credit(p[0], amt, t); left -= amt; } });
+      });
+    }
+  }
+  // Scripted Surat storylines (simulated).
+  const [s1, s2, s3, s4] = SIM_SEASONS;
+  credit('diamondwala', 9000, s1.startsAt + 2 * DAY); credit('diamondwala', 9500, s1.startsAt + 12 * DAY);
+  credit('vesu.vikram', 8000, s1.startsAt + 3 * DAY); credit('kinjal.adajan', 6000, s1.startsAt + 5 * DAY);
+  credit('kinjal.adajan', 12000, s2.startsAt + 2 * DAY); credit('kinjal.adajan', 7000, s2.startsAt + 20 * DAY);
+  credit('vesu.vikram', 9000, s2.startsAt + 4 * DAY); credit('diamondwala', 8000, s2.startsAt + 6 * DAY);
+  // Season 3: Vikram leads, Diamondwala overtakes, Vikram takes it back within 24 hours (Revenge Taken).
+  credit('vesu.vikram', 11000, s3.startsAt + 2 * DAY); credit('diamondwala', 11500, s3.startsAt + 9 * DAY);
+  credit('vesu.vikram', 1000, s3.startsAt + 9 * DAY + 5 * HOUR); credit('kinjal.adajan', 9000, s3.startsAt + 15 * DAY);
+  // Season 4: Vikram holds #01 for days, then Kinjal takes it 3 hours before "now".
+  credit('vesu.vikram', 10000, s4.startsAt + DAY); credit('vesu.vikram', 8500, s4.startsAt + 5 * DAY);
+  credit('kinjal.adajan', 9000, s4.startsAt + 2 * DAY); credit('kinjal.adajan', 8000, s4.startsAt + 6 * DAY);
+  credit('kinjal.adajan', 7500, SIM_NOW - 3 * HOUR); credit('diamondwala', 15500, s4.startsAt + 4 * DAY);
+  // The signed-in demo member: ranked in Seasons 1–4.
+  credit(VIEWER, 1500, s1.startsAt + 8 * DAY); credit(VIEWER, 3000, s2.startsAt + 9 * DAY); credit(VIEWER, 4000, s3.startsAt + 7 * DAY);
+  credit(VIEWER, 2000, s4.startsAt + 3 * DAY); credit(VIEWER, 1000, SIM_NOW - 20 * HOUR);
+
+  // Simulated Respect: a handful per day, including some duplicates the engine rejects.
+  const ids = members.map((m) => m.id);
+  for (let t = s1.startsAt + 6 * HOUR; t < SIM_NOW; t += 4 * HOUR) {
+    const giver = ids[Math.floor(rnd() * ids.length)];
+    const receiver = rnd() < 0.3 ? 'kinjal.adajan' : rnd() < 0.2 ? 'worli.w' : ids[Math.floor(rnd() * ids.length)];
+    events.push({ type: 'respect', giver, receiver, at: t });
+  }
+  // Simulated follow graph and rivals.
+  const follows = new Map<string, Set<string>>();
+  for (const m of members) {
+    const same = members.filter((x) => x.cityId === m.cityId && x.id !== m.id);
+    const set = new Set<string>();
+    for (let k = 0; k < 4; k++) set.add(same[Math.floor(rnd() * same.length)].id);
+    if (rnd() < 0.5) set.add('worli.w');
+    set.delete(m.id); follows.set(m.id, set);
+  }
+  const rivals = new Map<string, string[]>([[VIEWER, ['vesu.vikram', 'vesu.queen', 'pal.prince']]]);
+  return { members, profile, events, follows, rivals };
 }
 
-const MEMBERS = build();
-const VIEWER = 'ishaan.m';
+const LOG = buildLog();
+export const SIM: EngineResult = runEngine(LOG.members, SIM_SEASONS, LOG.events, SIM_NOW);
+const CURRENT = SIM.seasons.find((s) => s.startsAt <= SIM_NOW && !s.closed)!;
 
-function inScope(m: DemoMember, s: Scope): boolean {
-  const city = cityById(s.cityId)!;
-  if (s.level === 'india') return true;
-  if (s.level === 'state') return m.pub.state === city.state;
-  if (s.level === 'city') return m.pub.cityId === s.cityId;
-  return m.pub.cityId === s.cityId && m.pub.locality === s.locality;
+function pub(id: string, seasonScore?: number): PublicMember {
+  const { p, city, memberNo } = LOG.profile.get(id)!;
+  const c = cityById(city)!;
+  const lifetime = SIM.credits.filter((x) => x.memberId === id).reduce((a, x) => a + x.amount, 0);
+  const masked = p[1] === null;
+  return {
+    username: p[0], displayName: p[1], masked, publicLabel: p[0], title: masked ? null : p[3], flexLine: masked ? null : p[4],
+    cityId: city, state: c.state, locality: p[2], memberNo: masked ? null : memberNo,
+    seasonScore: seasonScore ?? (boardAt(SIM, CURRENT.id, 'india', SIM_NOW).find((r) => r.memberId === id)?.score ?? 0),
+    lifetimeTier: lifetimeTier(lifetime),
+  };
 }
+const seasonLabel = (id: number) => `Season ${id}`;
 
-function rankedRows(scope: Scope): BoardRow[] {
-  const list = MEMBERS.filter((m) => inScope(m, scope));
-  const now = rankEntries(list.map((m) => ({ id: m.pub.username, score: m.score, reachedAt: m.reachedAt, m })));
-  const prev = rankEntries(list.map((m) => ({ id: m.pub.username, score: m.yScore, reachedAt: m.reachedAt, m })));
-  const prevRank = new Map(prev.map((e, i) => [e.id, i + 1]));
-  return now.map((e, i) => ({ rank: i + 1, member: e.m.pub, movement: movement(i + 1, prevRank.get(e.id)) }));
+function toBoard(scope: Scope, now: Ranked[], prev: Ranked[] | null, opts: { limit?: number; query?: string } = {}, unit?: 'count'): Board {
+  const prevRank = new Map((prev ?? []).map((r) => [r.memberId, r.rank]));
+  const all: BoardRow[] = now.map((r) => ({ rank: r.rank, member: pub(r.memberId, unit ? undefined : r.score), movement: prev ? movement(r.rank, prevRank.get(r.memberId)) : null, score: unit ? r.score : undefined }));
+  const q = opts.query?.trim().toLowerCase();
+  const filtered = q ? all.filter((r) => [r.member.publicLabel, r.member.displayName ?? '', r.member.locality].some((v) => v.toLowerCase().includes(q))) : all;
+  return { scope, unit, rows: filtered.slice(0, opts.limit ?? 100), total: all.length, viewerRow: all.find((r) => r.member.username === VIEWER) ?? null };
 }
-
-const scopeFor = (m: PublicMember, level: Level): Scope => ({ level, cityId: m.cityId, locality: m.locality });
-
-const ARCHIVE_HOLDERS = [
-  { month: 9, holders: { surat: 'vesu.vikram', ahmedabad: 'sg.highway.sid', mumbai: 'worli.w', pune: 'kp.kabir', delhi: 'gk.gaurav', india: 'worli.w' } },
-  { month: 8, holders: { surat: 'kinjal.adajan', ahmedabad: 'bodakdev.b', mumbai: 'bkc.boss', pune: 'baner.b', delhi: 'vasantvihar.v', india: 'vasantvihar.v' } },
-  { month: 7, holders: { surat: 'diamondwala', ahmedabad: 'sg.highway.sid', mumbai: 'worli.w', pune: 'kp.kabir', delhi: 'cp.c', india: 'worli.w' } },
-];
 
 export const demoSource: DataSource = {
   availability: 'demo',
-  now: () => AS_OF,
-  season: () => seasonFor(AS_OF, DEMO_SEASON_ONE),
+  now: () => new Date(SIM_NOW),
+  season: (): SeasonInfo => {
+    const base = seasonFor(new Date(CURRENT.startsAt), null);
+    return { ...base, number: CURRENT.id, startsAt: new Date(CURRENT.startsAt), endsAt: new Date(CURRENT.endsAt), label: seasonLabel(CURRENT.id),
+      short: `S${String(CURRENT.id).padStart(2, '0')} / ${monthShort(base.month).toUpperCase()} '${String(base.year).slice(2)}` };
+  },
   async board(scope, opts = {}) {
-    const all = rankedRows(scope);
-    const q = opts.query?.trim().toLowerCase();
-    const filtered = q ? all.filter((r) => [r.member.publicLabel, r.member.displayName ?? '', r.member.locality].some((v) => v.toLowerCase().includes(q))) : all;
-    const rows = filtered.slice(0, opts.limit ?? 100);
-    const viewerRow = all.find((r) => r.member.username === VIEWER) ?? null;
-    return { scope, rows, total: all.length, viewerRow } satisfies Board;
+    const k = scopeToKey(scope);
+    return toBoard(scope, boardAt(SIM, CURRENT.id, k, SIM_NOW), boardAt(SIM, CURRENT.id, k, SIM_NOW - DAY), opts);
   },
   async hallOfFame(scope, opts = {}) {
-    const list = MEMBERS.filter((m) => inScope(m, scope));
-    const ranked = rankEntries(list.map((m) => ({ id: m.pub.username, score: m.lifetime, reachedAt: m.reachedAt, m })));
-    const all = ranked.map((e, i): BoardRow => ({ rank: i + 1, member: e.m.pub, movement: null, score: e.m.lifetime }));
-    return { scope, rows: all.slice(0, opts.limit ?? 100), total: all.length, viewerRow: all.find((r) => r.member.username === VIEWER) ?? null } satisfies Board;
+    const k = scopeToKey(scope);
+    const life = new Map<string, { score: number; reachedAt: number }>();
+    for (const c of SIM.credits) { const p = life.get(c.memberId); life.set(c.memberId, { score: (p?.score ?? 0) + c.amount, reachedAt: c.at }); }
+    const ids = LOG.members.filter((m) => boardKeys(m).includes(k)).map((m) => m.id);
+    const ranked = rankScores(life, ids);
+    const b = toBoard(scope, ranked, null, opts);
+    b.rows = b.rows.map((r) => ({ ...r, score: ranked.find((x) => x.memberId === r.member.username)!.score }));
+    if (b.viewerRow) b.viewerRow = { ...b.viewerRow, score: life.get(VIEWER)?.score };
+    return b;
+  },
+  async respectBoard(scope, opts = {}) {
+    return toBoard(scope, engineRespectBoard(SIM, CURRENT.id, scopeToKey(scope)), null, opts, 'count');
   },
   async events(scope, limit) {
-    const at = new Date(AS_OF.getTime() - 3_600_000);
-    return rankedRows(scope)
-      .filter((r) => r.movement && ['up', 'down', 'new', 'took'].includes(r.movement.kind))
-      .sort((a, b) => (b.movement!.kind === 'took' ? 99 : b.movement!.by) - (a.movement!.kind === 'took' ? 99 : a.movement!.by))
+    const b = await this.board(scope, { limit: 100 });
+    return b.rows.filter((r) => r.movement && ['up', 'down', 'new', 'took'].includes(r.movement.kind))
+      .sort((a, c) => (c.movement!.kind === 'took' ? 99 : c.movement!.by) - (a.movement!.kind === 'took' ? 99 : a.movement!.by))
       .slice(0, limit)
-      .map((r): BoardEvent => ({ kind: r.movement!.kind as BoardEvent['kind'], member: r.member, rank: r.rank, by: r.movement!.by, scope, at }));
+      .map((r): BoardEvent => ({ kind: r.movement!.kind as BoardEvent['kind'], member: r.member, rank: r.rank, by: r.movement!.by, scope, at: new Date(SIM_NOW) }));
   },
-  async member(username) {
-    return MEMBERS.find((m) => m.pub.username === username)?.pub ?? null;
-  },
+  async member(username) { return LOG.profile.has(username) ? pub(username) : null; },
   async standings(username) {
-    const m = MEMBERS.find((x) => x.pub.username === username);
+    const m = SIM.members.get(username);
     if (!m) return [];
     return (['locality', 'city', 'state', 'india'] as Level[]).map((level): Standing => {
-      const scope = scopeFor(m.pub, level); const rows = rankedRows(scope);
-      return { level, scope, rank: rows.find((r) => r.member.username === username)?.rank ?? null, of: rows.length };
+      const scope: Scope = { level, cityId: m.cityId, locality: m.locality };
+      const b = boardAt(SIM, CURRENT.id, scopeToKey(scope), SIM_NOW);
+      return { level, scope, rank: b.find((r) => r.memberId === username)?.rank ?? null, of: b.length };
     });
   },
   async viewer() {
-    const m = MEMBERS.find((x) => x.pub.username === VIEWER)!;
-    const standings = await this.standings(VIEWER);
-    const cityRow = rankedRows(scopeFor(m.pub, 'city')).find((r) => r.member.username === VIEWER);
+    const m = SIM.members.get(VIEWER)!;
+    const b = await this.board({ level: 'city', cityId: m.cityId, locality: m.locality });
+    const record = SIM.seasons.filter((s) => s.closed).reverse().map((s) => {
+      const f = SIM.frozen.get(s.id)!;
+      const cityRank = f.get(`city:${m.cityId}`)?.find((r) => r.memberId === VIEWER)?.rank ?? null;
+      const locRank = f.get(`locality:${m.cityId}:${m.locality}`)?.find((r) => r.memberId === VIEWER)?.rank ?? null;
+      const base = seasonFor(new Date(s.startsAt), null);
+      return { seasonLabel: seasonLabel(s.id), monthLabel: `${monthShort(base.month)} ${base.year}`, cityRank, localityRank: locRank, note: null };
+    });
+    const ach = await this.achievements(VIEWER);
     return {
-      member: m.pub, lifetimeScore: m.lifetime, memberSince: 'Aug 2026', standings,
-      cityMovement: cityRow?.movement ?? null,
-      record: [
-        { seasonLabel: 'Season 3', monthLabel: 'Oct 2026', cityRank: 9, localityRank: 2, note: 'Best city finish so far' },
-        { seasonLabel: 'Season 2', monthLabel: 'Sep 2026', cityRank: 15, localityRank: 4, note: null },
-        { seasonLabel: 'Season 1', monthLabel: 'Aug 2026', cityRank: 22, localityRank: 6, note: 'First season on the board' },
-      ],
-      insignia: [
-        { id: 'streak-3', name: 'Streak ×3', meaning: 'Ranked in three seasons in a row' },
-        { id: 'founding-500', name: 'Founding 500', meaning: 'One of the first 500 ranked members in Surat' },
-      ],
+      member: pub(VIEWER), lifetimeScore: SIM.credits.filter((x) => x.memberId === VIEWER).reduce((a, x) => a + x.amount, 0),
+      memberSince: 'Aug 2026', standings: await this.standings(VIEWER), record,
+      insignia: ach.map((a) => ({ id: `${a.id}-${a.at.getTime()}`, name: a.label, meaning: a.detail })),
+      cityMovement: b.viewerRow?.movement ?? null,
     } satisfies ViewerSeal;
   },
   async cities() {
-    const totals = (key: 'score' | 'yScore') => CITIES.map((c) => ({ c, t: MEMBERS.filter((m) => m.pub.cityId === c.id).reduce((a, m) => a + m[key], 0) }))
-      .sort((a, b) => b.t - a.t);
-    const now = totals('score'); const prev = totals('yScore');
-    return now.map(({ c, t }, i): CitySummary => ({
-      cityId: c.id, members: rankedRows({ level: 'city', cityId: c.id, locality: '' }).length, seasonTotal: t,
-      leader: rankedRows({ level: 'city', cityId: c.id, locality: '' })[0]?.member ?? null,
-      rank: i + 1, previousRank: prev.findIndex((p) => p.c.id === c.id) + 1,
-    }));
+    const tot = (t: number) => CITIES.map((c) => ({ c, t: boardAt(SIM, CURRENT.id, `city:${c.id}`, t).reduce((a, r) => a + r.score, 0) })).sort((a, b) => b.t - a.t);
+    const now = tot(SIM_NOW), prev = tot(SIM_NOW - DAY);
+    return now.map(({ c, t }, i): CitySummary => {
+      const b = boardAt(SIM, CURRENT.id, `city:${c.id}`, SIM_NOW);
+      return { cityId: c.id, members: b.length, seasonTotal: t, leader: b[0] ? pub(b[0].memberId) : null, rank: i + 1, previousRank: prev.findIndex((p) => p.c.id === c.id) + 1 };
+    });
   },
   async archive() {
-    return ARCHIVE_HOLDERS.map(({ month, holders }, i): ArchiveSeason => ({
-      seasonLabel: `Season ${3 - i}`, monthLabel: `${monthName(month)} 2026`, year: 2026,
-      startsAt: istMonthStart(2026, month), endsAt: new Date(istMonthStart(2026, month + 1).getTime() - 60_000),
-      champions: Object.entries(holders).map(([cityId, u]) => ({ cityId, member: MEMBERS.find((m) => m.pub.username === u)!.pub })),
-    }));
+    return SIM.seasons.filter((s) => s.closed).reverse().map((s): ArchiveSeason => {
+      const f = SIM.frozen.get(s.id)!;
+      const base = seasonFor(new Date(s.startsAt), null);
+      const champions = [...CITIES.map((c) => ({ cityId: c.id, k: `city:${c.id}` })), { cityId: 'india', k: 'india' }]
+        .filter((x) => f.get(x.k)?.[0]).map((x) => ({ cityId: x.cityId, member: pub(f.get(x.k)![0].memberId) }));
+      return { seasonLabel: seasonLabel(s.id), monthLabel: `${monthName(base.month)} ${base.year}`, year: base.year, startsAt: new Date(s.startsAt), endsAt: new Date(s.endsAt), champions };
+    });
+  },
+  async throneHistory({ scope, username, limit = 50 }) {
+    const k = scope ? scopeToKey(scope) : null;
+    return SIM.reigns
+      .filter((r) => (!k || r.board === k) && (!username || r.memberId === username))
+      .sort((a, b) => b.from - a.from).slice(0, limit)
+      .map((r): ReignView => ({
+        seasonLabel: seasonLabel(r.seasonId), scope: keyToScope(r.board), boardName: keyName(r.board), member: pub(r.memberId),
+        from: new Date(r.from), to: r.to ? new Date(r.to) : null, endReason: r.endReason, hours: Math.round(((r.to ?? SIM_NOW) - r.from) / HOUR),
+        current: r.to === null && r.seasonId === CURRENT.id,
+        untouchable: SIM.achievements.some((a) => a.id === 'untouchable' && a.memberId === r.memberId && a.board === r.board && a.seasonId === r.seasonId && a.at >= r.from && a.at <= (r.to ?? SIM_NOW)),
+        revenge: SIM.achievements.some((a) => a.id === 'revenge-taken' && a.memberId === r.memberId && a.board === r.board && a.at === r.from),
+      }));
+  },
+  async crownMoments(scope, since) {
+    const k = scopeToKey(scope);
+    return SIM.crownEvents.filter((e) => e.board === k && e.at >= since.getTime() && e.at <= SIM_NOW).sort((a, b) => b.at - a.at)
+      .map((e): CrownMomentView => ({ seasonLabel: seasonLabel(e.seasonId), scope: keyToScope(e.board), boardName: keyName(e.board), from: e.from ? pub(e.from) : null, to: pub(e.to), at: new Date(e.at) }));
+  },
+  async achievements(username) {
+    return SIM.achievements.filter((a) => a.memberId === username && a.at <= SIM_NOW).sort((a, b) => b.at - a.at)
+      .map((a): AchievementView => ({ id: a.id, label: a.label, detail: a.detail || ACHIEVEMENT_RULES[a.id], at: new Date(a.at), seasonLabel: a.seasonId ? seasonLabel(a.seasonId) : null, boardName: a.board ? keyName(a.board) : null }));
+  },
+  async social(username) {
+    if (!LOG.profile.has(username)) return null;
+    const followers = [...LOG.follows.values()].filter((s) => s.has(username)).length;
+    const respect = SIM.respects.filter((r) => r.receiver === username && r.at >= CURRENT.startsAt).length;
+    const rivalIds = LOG.rivals.get(username) ?? [];
+    const india = boardAt(SIM, CURRENT.id, 'india', SIM_NOW);
+    const rivals = rivalIds.map((id): BoardRow => { const m = SIM.members.get(id)!; const b = boardAt(SIM, CURRENT.id, `city:${m.cityId}`, SIM_NOW); const r = b.find((x) => x.memberId === id); return { rank: r?.rank ?? 0, member: pub(id, r?.score ?? india.find((x) => x.memberId === id)?.score ?? 0), movement: null }; });
+    return { followers, following: LOG.follows.get(username)?.size ?? 0, respectThisSeason: respect, rivals } satisfies SocialSummary;
   },
 };
-
-export const DEMO_AS_OF_LABEL = '10 Nov 2026, 6:00 pm IST';

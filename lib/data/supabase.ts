@@ -78,6 +78,12 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
         cityId: r.city_id, members: r.members, seasonTotal: Math.round(Number(r.season_total_paise) / 100), leader: null, rank: r.rank!, previousRank: r.prev_rank,
       }));
     },
+    // Filled in by the season-engine migration (see supabase/migrations/…0400).
+    async respectBoard(scope) { return { scope, unit: 'count', rows: [], total: 0, viewerRow: null }; },
+    async throneHistory() { return []; },
+    async crownMoments() { return []; },
+    async achievements() { return []; },
+    async social() { return null; },
     async archive() {
       const rows = await rpc<{ season_id: number; starts_at: string; ends_at: string; level: string; scope_key: string; public_name: string; display_name: string | null; masked: boolean }[]>(cfg, 'get_archive');
       const bySeason = new Map<number, ArchiveSeason>();

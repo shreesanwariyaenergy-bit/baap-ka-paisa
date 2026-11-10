@@ -35,6 +35,8 @@ export interface BoardRow {
 
 export interface Board {
   scope: Scope;
+  /** What the score column holds: rupees (default) or a count (Respect board). */
+  unit?: 'inr' | 'count';
   rows: BoardRow[]; // top rows, at most `limit`
   total: number; // honest count of everyone on this board
   /** The signed-in member's own row on this board, when they are on it. */
@@ -78,6 +80,15 @@ export interface ArchiveSeason {
   champions: { cityId: string | 'india'; member: PublicMember }[];
 }
 
+export interface ReignView {
+  seasonLabel: string; scope: Scope; boardName: string; member: PublicMember;
+  from: Date; to: Date | null; endReason: 'overtaken' | 'season-end' | null; hours: number;
+  current: boolean; untouchable: boolean; revenge: boolean;
+}
+export interface CrownMomentView { seasonLabel: string; scope: Scope; boardName: string; from: PublicMember | null; to: PublicMember; at: Date; }
+export interface AchievementView { id: string; label: string; detail: string; at: Date; seasonLabel: string | null; boardName: string | null; }
+export interface SocialSummary { followers: number; following: number; respectThisSeason: number; rivals: BoardRow[]; }
+
 export type Availability = 'live' | 'demo' | 'unavailable';
 
 export interface DataSource {
@@ -94,5 +105,13 @@ export interface DataSource {
   /** Null when nobody is signed in or sign-in is not connected. */
   viewer(): Promise<ViewerSeal | null>;
   cities(): Promise<CitySummary[]>;
+  /** Free Respect board for the current season (one Respect per profile per day). */
+  respectBoard(scope: Scope, opts?: { limit?: number }): Promise<Board>;
+  /** Reigns of #01 holders. Filter by board, or by member. Newest first. */
+  throneHistory(filter: { scope?: Scope; username?: string; limit?: number }): Promise<ReignView[]>;
+  /** #01 changes on a board since a time (for the Crown Moment). Newest first. */
+  crownMoments(scope: Scope, since: Date): Promise<CrownMomentView[]>;
+  achievements(username: string): Promise<AchievementView[]>;
+  social(username: string): Promise<SocialSummary | null>;
   archive(): Promise<ArchiveSeason[]>;
 }
