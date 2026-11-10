@@ -6,6 +6,9 @@ import { inr, memberNo, pad2 } from '@/lib/format';
 import { Seal } from '@/components/Seal';
 import { SealShare } from '@/components/SealShare';
 import { movementLabel } from '@/components/movement';
+import { profileQr } from '@/lib/qr';
+import { groupAchievements } from '@/lib/achievements';
+import { Crown, PastChampionMark } from '@/components/Crown';
 
 export const metadata: Metadata = { title: 'The Seal' };
 
@@ -35,6 +38,9 @@ export default async function SealPage() {
   const cityStanding = viewer.standings.find((s) => s.level === 'city');
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
   const mv = movementLabel(viewer.cityMovement);
+  const [qr, achievements, reigns] = await Promise.all([profileQr(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 20 })]);
+  const grouped = groupAchievements(achievements);
+  const istDate = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   return (
     <>
       {intro}
@@ -46,7 +52,8 @@ export default async function SealPage() {
               scopeLine: cityStanding?.rank ? `#${cityStanding.rank} of ${cityStanding.of} in ${city.name}` : `Not ranked in ${city.name} this season`, season: `${season.label} / ${season.monthLabel}` }}
             back={{ memberNo: memberNo(m.memberNo), lifetime: inr(viewer.lifetimeScore),
               records: viewer.record.map((r) => ({ rank: r.cityRank ? `#${pad2(r.cityRank)}` : '—', text: `${city.name} city finish${r.note ? ` · ${r.note}` : ''}`, when: `${r.seasonLabel.replace('Season ', 'S')} · ${r.monthLabel}` })),
-              insignia: viewer.insignia.map((i) => i.name) }}
+              insignia: grouped.map((g) => (g.count > 1 && g.id !== 'streak' ? `${g.label} ×${g.count}` : g.label)),
+              qr: { svg: qr.svg, caption: qr.placeholder ? 'Placeholder link until the domain is confirmed' : 'Public profile' } }}
           />
           <div className="history">
             <h3>How the story moved</h3>
@@ -71,9 +78,21 @@ export default async function SealPage() {
             ))}
             <div style={{ marginTop: 17 }}><SealShare username={m.username} label={name} /></div>
           </div>
-          {viewer.insignia.length > 0 && (
-            <div className="history"><h3>Insignias</h3>{viewer.insignia.map((i) => <div className="history-row" key={i.id}><b aria-hidden="true">✦</b><span><strong>{i.name}</strong>: {i.meaning}</span><small>Earned</small></div>)}</div>
-          )}
+          <div className="history" data-testid="achievement-history">
+            <h3>Achievement history</h3>
+            {grouped.length === 0 && <p>No achievements yet. They are awarded automatically by the season engine.</p>}
+            {grouped.map((g) => (
+              <div className="history-row" key={g.label}><b aria-hidden="true">{g.count > 1 && g.id !== 'streak' ? `×${g.count}` : '✦'}</b><span><strong>{g.label}</strong>: {g.latest.detail}{g.latest.boardName ? ` (${g.latest.boardName})` : ''}</span><small>{istDate(g.latest.at)}</small></div>
+            ))}
+          </div>
+          <div className="history" data-testid="throne-record">
+            <h3>Throne record</h3>
+            {reigns.length === 0 && <p>You have not held a #01 yet.</p>}
+            {reigns.slice(0, 6).map((r) => (
+              <div className="history-row" key={`${r.boardName}-${r.from.getTime()}`}><b style={{ width: 40 }}>{r.current ? <Crown variant="compact" /> : '#01'}</b><span>{r.boardName} · {r.seasonLabel}{r.untouchable ? ' · Untouchable' : ''}{r.revenge ? ' · Revenge Taken' : ''}</span><small>{r.current ? 'Holding now' : `${r.hours}h`}</small></div>
+            ))}
+            {reigns.length > 0 && <PastChampionMark label="Past reigns never carry the live crown" />}
+          </div>
         </div>
       </div>
     </>

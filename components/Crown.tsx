@@ -6,6 +6,8 @@ export const CROWN_GEOMETRY = {
   finials: [[2.6, 5.5, 1.75], [20, 2.2, 1.95], [37.4, 5.5, 1.75]] as const,
   band: { x: 3.4, y: 18.6, w: 33.2, h: 4.8 },
   highlight: 'M5.8 20.5H34.2',
+  /** Three engraved lozenges on the band: the signature detail at large sizes. */
+  lozenges: [11.5, 20, 28.5] as const,
 };
 
 /**
@@ -21,6 +23,7 @@ export function Crown({ className = 'crown', variant = 'full' }: { className?: s
       {g.finials.map(([cx, cy, r]) => <circle key={cx} cx={cx} cy={cy} r={variant === 'compact' ? r + 0.25 : r} fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth={sw * 0.75} />)}
       <rect x={g.band.x} y={g.band.y} width={g.band.w} height={g.band.h} rx="0.8" fill="var(--crown-gold)" stroke="var(--crown-shadow)" strokeWidth={sw} />
       {variant === 'full' && <path d={g.highlight} stroke="var(--crown-highlight)" strokeWidth="0.9" strokeLinecap="round" />}
+      {variant === 'full' && g.lozenges.map((x) => <path key={x} d={`M${x} 20.1 ${x + 1.5} 21.6 ${x} 23.1 ${x - 1.5} 21.6Z`} fill="var(--crown-shadow)" />)}
     </svg>
   );
 }

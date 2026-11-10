@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Crown } from './Crown';
 
 export interface SealFront { brandLine: string; memberNo: string; name: string; location: string; rank: string; rankIsFirst: boolean; scopeLine: string; season: string; }
-export interface SealBack { records: { rank: string; text: string; when: string }[]; insignia: string[]; lifetime: string; memberNo: string; }
+export interface SealBack { records: { rank: string; text: string; when: string }[]; insignia: string[]; lifetime: string; memberNo: string; qr?: { svg: string; caption: string } }
 
 function Emboss() {
   return (
@@ -34,10 +34,13 @@ export function Seal({ front, back }: { front: SealFront; back: SealBack }) {
           </span>
           <span className="seal-face seal-back" aria-hidden={!flipped}>
             <span className="seal-top"><span className="seal-brand">THE SEAL<small>Reverse / your record</small></span><span>No. {back.memberNo}</span></span>
+            <span className="seal-back-grid" style={{ display: 'grid', gridTemplateColumns: back.qr ? 'minmax(0,1fr) auto' : '1fr', gap: 14, alignItems: 'end', position: 'relative', zIndex: 1 }}>
             <span className="seal-records">
               <span className="seal-back-title" style={{ display: 'block', font: 'clamp(18px,2.3vw,27px) var(--font-brand)', textTransform: 'uppercase', marginBottom: 10 }}>The record stays.</span>
               {back.records.length === 0 && <span className="seal-record"><b>—</b><span>No finished seasons yet</span><small>&nbsp;</small></span>}
               {back.records.map((r) => <span className="seal-record" key={r.when + r.text}><b>{r.rank}</b><span>{r.text}</span><small>{r.when}</small></span>)}
+            </span>
+            {back.qr && <span style={{ display: 'grid', justifyItems: 'center', gap: 4 }}><span className="qr" dangerouslySetInnerHTML={{ __html: back.qr.svg }} data-testid="seal-qr" /><small style={{ font: '8px var(--font-mono)', color: '#AEB9AF', textTransform: 'uppercase', maxWidth: 110, textAlign: 'center' }}>{back.qr.caption}</small></span>}
             </span>
             <span className="seal-insignia">{back.insignia.map((i) => <span key={i}>{i}</span>)}</span>
             <span className="seal-bottom"><span>Lifetime score {back.lifetime}</span><strong>Identity no. {back.memberNo}</strong></span>

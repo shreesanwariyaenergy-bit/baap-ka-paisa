@@ -34,9 +34,9 @@ export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, empty
   return (
     <div data-testid="board-rows">
       {rows.map((r) => (
-        <RankRow key={r.member.username} row={r} scopeLabel={scopeLabel} meta={metaFor(r, metaMode, cityNames, crownLive)} isViewer={v?.member.username === r.member.username} crownLive={crownLive} />
+        <RankRow key={r.member.username} row={r} scopeLabel={scopeLabel} meta={metaFor(r, metaMode, cityNames, crownLive)} isViewer={v?.member.username === r.member.username} crownLive={crownLive} unit={board.unit ?? 'inr'} />
       ))}
-      {v && <YouRow row={v} scopeLabel={scopeLabel} meta={showViewer || !v ? viewerMeta : `You are #${pad2(v.rank)} · ${viewerMeta}`} />}
+      {v && board.unit !== 'count' && <YouRow row={v} scopeLabel={scopeLabel} meta={showViewer || !v ? viewerMeta : `You are #${pad2(v.rank)} · ${viewerMeta}`} />}
     </div>
   );
 }

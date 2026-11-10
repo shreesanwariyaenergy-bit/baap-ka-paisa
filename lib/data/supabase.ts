@@ -5,6 +5,7 @@ import { CITIES, cityById, scopeName, type Level, type Scope, type StateCode } f
 import { seasonFor, type SeasonInfo } from '../season';
 import { monthName, monthShort } from '../format';
 import { movement } from './ranking';
+import { humanizeDetail } from '../achievements';
 import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing } from './types';
 
 interface Cfg { url: string; key: string; }
@@ -113,7 +114,7 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
     },
     async achievements(name) {
       const rows = await rpc<{ achievement: string; label: string; detail: string; season_id: number | null; level: Level | null; scope_key: string | null; awarded_at: string }[]>(cfg, 'get_achievements', { p_name: name });
-      return rows.map((r): AchievementView => ({ id: r.achievement, label: r.label, detail: r.detail, at: new Date(r.awarded_at), seasonLabel: r.season_id ? `Season ${r.season_id}` : null,
+      return rows.map((r): AchievementView => ({ id: r.achievement, label: r.label, detail: humanizeDetail(r.detail), at: new Date(r.awarded_at), seasonLabel: r.season_id ? `Season ${r.season_id}` : null,
         boardName: r.level && r.scope_key ? scopeName(scopeFromKey(r.level, r.scope_key)) : null }));
     },
     async social(name) {

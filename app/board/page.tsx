@@ -19,7 +19,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const view = parseView(sp.view);
   const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
   const seasonBoard = await ds.board(scope, { limit: 100, query });
-  const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
+  const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? await ds.respectBoard(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const season = ds.season();
@@ -45,7 +45,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
       <nav className="view-tabs" aria-label="Board view">
         {BOARD_VIEWS.map((vw) => <Link key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</Link>)}
       </nav>
-      <p className="view-note">{view === 'season' ? `Season Score, ${season.label}. Resets when the season ends.` : view === 'movers' ? 'Members who climbed or entered this board in the last 24 hours, biggest climb first. Numbers are their current season rank.' : 'Lifetime Score across every season. Never resets. The gold crown belongs only to the current season #01.'}</p>
+      <p className="view-note">{view === 'season' ? `Season Score, ${season.label}. Resets when the season ends.` : view === 'movers' ? 'Members who climbed or entered this board in the last 24 hours, biggest climb first. Numbers are their current season rank.' : view === 'respect' ? 'Free Respect received this season. One Respect per profile per day. No money involved, so no gold crown.' : 'Lifetime Score across every season. Never resets. The gold crown belongs only to the current season #01.'}</p>
       <div className="board-layout">
         <div className="board-panel">
           <div className="panel-head">
@@ -53,11 +53,12 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
             <span>{VIEW_LABEL[view]}{board.total > 0 ? ` · ${board.total} on this board` : ''}{ds.availability === 'demo' ? ' · Demo data' : ''}</span>
           </div>
           <BoardList board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
-            crownLive={view !== 'hall'} valueLabel={view === 'hall' ? 'lifetime' : 'season'}
-            emptyTitle={unavailable ? 'Rankings are not open yet.' : view === 'hall' ? `No lifetime record in ${name} yet.` : `No one rules ${name} yet.`}
+            crownLive={view === 'season' || view === 'movers'} valueLabel={view === 'hall' ? 'lifetime' : 'season'}
+            emptyTitle={unavailable ? 'Rankings are not open yet.' : view === 'respect' ? `No Respect given in ${name} yet.` : view === 'hall' ? `No lifetime record in ${name} yet.` : `No one rules ${name} yet.`}
             emptyText={unavailable ? 'This board will fill as soon as the first season opens. Nothing here is hidden; there is simply no one ranked yet.'
               : view === 'movers' ? `Nobody climbed or entered the ${name} board in the last 24 hours.`
               : view === 'hall' ? 'The Hall of Fame lists Lifetime Score from every season once members have ranked.'
+              : view === 'respect' ? `Nobody in ${name} has received Respect this season yet.`
               : `Be the first. The first ranked member in ${name} earns the Pioneer of ${name} flag.`} />
           {board.rows.length > 0 && <div className="board-foot">{view === 'movers' ? `${board.rows.length} ${board.rows.length === 1 ? 'mover' : 'movers'} of ${board.total} on this board` : `Showing ${board.rows.length} of ${board.total}`}{query ? ` matching “${query}”` : ''}. Select a row to open the profile.</div>}
         </div>
@@ -80,6 +81,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           <div className="aside-stat"><span>Scheduled close</span><b>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days} days`}</b></div>
           <div className="aside-stat"><span>Rank up</span><b>Not open</b></div>
           <p style={{ marginBottom: 0 }}>Rank purchases stay switched off until legal and payment-provider approval is in place.</p>
+          <Link className="btn light block" href={`/throne?level=${scope.level}&city=${scope.cityId}${scope.level === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`} style={{ marginBottom: 10 }}>Throne history <span className="arrow" aria-hidden="true">↗</span></Link>
           <Link className="btn block" href="/rank-up">Preview Rank Up <span className="arrow" aria-hidden="true">↗</span></Link>
           <Link className="btn light block" href="/seal" style={{ marginTop: 10 }}>View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
         </aside>

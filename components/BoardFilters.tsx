@@ -4,15 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Level } from '@/lib/geo';
 
-export function BoardFilters({ view, level, cityId, locality, query, cities, localities }: {
-  view: string; level: Level; cityId: string; locality: string; query: string; cities: { id: string; name: string }[]; localities: readonly string[];
+export function BoardFilters({ view, level, cityId, locality, query, cities, localities, basePath = '/board' }: {
+  view: string; level: Level; basePath?: string; cityId: string; locality: string; query: string; cities: { id: string; name: string }[]; localities: readonly string[];
 }) {
   const router = useRouter();
   const [q, setQ] = useState(query);
   const go = (p: Record<string, string>) => {
-    const s = new URLSearchParams({ level, city: cityId, ...(level === 'locality' ? { locality } : {}), ...(view !== 'season' ? { view } : {}), ...p });
+    const s = new URLSearchParams({ level, city: cityId, ...(level === 'locality' ? { locality } : {}), ...(view !== 'season' && view !== 'none' ? { view } : {}), ...p });
     if (!s.get('q')) s.delete('q');
-    router.push(`/board?${s.toString()}`);
+    router.push(`${basePath}?${s.toString()}`);
   };
   return (
     <>

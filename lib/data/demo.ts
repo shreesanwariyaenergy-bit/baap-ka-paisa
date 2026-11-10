@@ -9,6 +9,7 @@ import { monthName, monthShort } from '../format';
 import { DAY, HOUR, ACHIEVEMENT_RULES, boardAt, boardKeys, rankScores, respectBoard as engineRespectBoard, runEngine, type EngineEvent, type EngineMember, type EngineResult, type Ranked, type SeasonDef } from '../engine/engine';
 import { keyName, keyToScope, scopeToKey } from '../engine/keys';
 import { lifetimeTier, movement } from './ranking';
+import { humanizeDetail } from '../achievements';
 import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 export const SIM_NOW = new Date('2026-11-10T18:00:00+05:30').getTime();
@@ -286,7 +287,7 @@ export const demoSource: DataSource = {
   },
   async achievements(username) {
     return SIM.achievements.filter((a) => a.memberId === username && a.at <= SIM_NOW).sort((a, b) => b.at - a.at)
-      .map((a): AchievementView => ({ id: a.id, label: a.label, detail: a.detail || ACHIEVEMENT_RULES[a.id], at: new Date(a.at), seasonLabel: a.seasonId ? seasonLabel(a.seasonId) : null, boardName: a.board ? keyName(a.board) : null }));
+      .map((a): AchievementView => ({ id: a.id, label: a.label, detail: humanizeDetail(a.detail || ACHIEVEMENT_RULES[a.id]), at: new Date(a.at), seasonLabel: a.seasonId ? seasonLabel(a.seasonId) : null, boardName: a.board ? keyName(a.board) : null }));
   },
   async social(username) {
     if (!LOG.profile.has(username)) return null;

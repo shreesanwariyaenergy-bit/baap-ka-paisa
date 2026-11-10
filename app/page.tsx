@@ -6,6 +6,8 @@ import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { RankNumber } from '@/components/RankNumber';
 import { HomeBoard } from '@/components/HomeBoard';
+import { CrownMoment } from '@/components/CrownMoment';
+import type { PublicMember } from '@/lib/data/types';
 
 const LEVELS: Level[] = ['locality', 'city', 'state', 'india'];
 
@@ -32,6 +34,10 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const cityBoard = boards.city;
   const leader = cityBoard.rows[0];
   const events = await ds.events(scopes.city, 3);
+  // Crown Moment: the newest #01 change on this city board in the last 24 hours.
+  const latestMoment = (await ds.crownMoments(scopes.city, new Date(ds.now().getTime() - 86_400_000)))[0];
+  const nm = (m: PublicMember) => (m.masked ? m.publicLabel : m.displayName ?? m.username);
+  const hoursAgo = latestMoment ? Math.max(0, Math.round((ds.now().getTime() - latestMoment.at.getTime()) / 3_600_000)) : 0;
   const isDemo = ds.availability === 'demo';
 
   // Locality spotlight: the locality with the most members in the city's top ten (from ranked rows).
@@ -74,6 +80,12 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           </div>
         </div>
       </section>
+
+      {latestMoment && (
+        <CrownMoment moment={{ id: `${latestMoment.boardName}-${latestMoment.at.getTime()}`, boardName: latestMoment.boardName, toName: nm(latestMoment.to),
+          fromName: latestMoment.from ? nm(latestMoment.from) : null, seasonLabel: latestMoment.seasonLabel,
+          whenLabel: hoursAgo < 1 ? 'just now' : `${hoursAgo} ${hoursAgo === 1 ? 'hour' : 'hours'} ago`, simulated: ds.availability === 'demo' }} />
+      )}
 
       {tickerItems.length > 0 && (
         <div className="ticker" aria-label="Board summary">

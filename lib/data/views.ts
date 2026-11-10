@@ -1,9 +1,9 @@
 // Board views from the blueprint: Season (default), Today's Movers, Hall of Fame.
 import type { Board, BoardRow } from './types';
 
-export type BoardView = 'season' | 'movers' | 'hall';
-export const BOARD_VIEWS: readonly BoardView[] = ['season', 'movers', 'hall'];
-export const VIEW_LABEL: Record<BoardView, string> = { season: 'Season', movers: "Today's Movers", hall: 'Hall of Fame' };
+export type BoardView = 'season' | 'movers' | 'hall' | 'respect';
+export const BOARD_VIEWS: readonly BoardView[] = ['season', 'movers', 'hall', 'respect'];
+export const VIEW_LABEL: Record<BoardView, string> = { season: 'Season', movers: "Today's Movers", hall: 'Hall of Fame', respect: 'Most Respected' };
 export const parseView = (v?: string): BoardView => ((BOARD_VIEWS as readonly string[]).includes(v ?? '') ? (v as BoardView) : 'season');
 
 const climb = (r: BoardRow) => (r.movement?.kind === 'took' ? 1000 + r.movement.by : r.movement?.kind === 'new' ? 500 : r.movement?.by ?? 0);

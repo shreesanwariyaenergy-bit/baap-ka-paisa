@@ -35,7 +35,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ usernam
   const ds = await getDataSource();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) return new Response('Member not found', { status: 404 });
-  const standings = await ds.standings(m.username);
+  const [standings, achievements] = await Promise.all([ds.standings(m.username), ds.achievements(m.username)]);
+  const badgeLine = [...new Set(achievements.map((a) => (a.id === 'pioneer' ? a.label : a.id === 'streak' ? '' : a.label)).filter(Boolean))].slice(0, 3).join('  ·  ');
+  const streak = achievements.find((a) => a.id === 'streak')?.label;
   const cityStanding = standings.find((s) => s.level === 'city');
   const city = cityById(m.cityId)!;
   const season = ds.season();
@@ -67,6 +69,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ usernam
             <div style={{ ...label, color: C.muted, marginTop: 28 }}>{rank ? `of ${cityStanding!.of} in ${city.name}` : `Not ranked in ${city.name}`}</div>
             <div style={{ fontFamily: 'Changa One', fontSize: 84, lineHeight: 1, marginTop: 48, textTransform: 'uppercase' }}>{name}</div>
             <div style={{ ...label, color: C.muted, marginTop: 20 }}>{`${m.locality} · ${city.name} · ${STATES[city.state]}`}</div>
+            {(badgeLine || streak) && <div style={{ ...label, fontSize: 24, color: C.lime, marginTop: 36 }}>{[streak, badgeLine].filter(Boolean).join('  ·  ')}</div>}
           </div>
           <div style={{ ...label, justifyContent: 'space-between', borderTop: '2px solid rgba(255,255,255,0.25)', paddingTop: 28, color: C.muted }}>
             <span>{`Member no. ${memberNo(m.memberNo)}`}</span><span style={{ color: C.lime }}>The record stays</span>
