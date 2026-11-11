@@ -67,7 +67,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ usernam
           <div style={{ ...label, justifyContent: 'space-between', color: C.muted }}><span>{`${city.name} / city standing`}</span><span>{season.label}</span></div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
-              {rank === 1 && <CrownMark width={190} />}
+              {rank === 1 && <CrownMark width={230} />}
               <div style={{ fontFamily: 'Barlow Condensed', fontSize: 400, lineHeight: 0.8, color: C.lime, letterSpacing: -12 }}>{rank ? (rank === 1 ? '01' : `#${pad2(rank)}`) : '—'}</div>
             </div>
             <div style={{ ...label, color: C.muted, marginTop: 28 }}>{rank ? `of ${cityStanding!.of} in ${city.name}` : `Not ranked in ${city.name}`}</div>

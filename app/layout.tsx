@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Barlow_Condensed, JetBrains_Mono, Karla } from 'next/font/google';
 import Link from 'next/link';
+import './fonts.css';
 import './globals.css';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { timeLeft } from '@/lib/season';
@@ -10,11 +10,6 @@ import { currentAccount } from '@/lib/supabase-server';
 import { MainNav } from '@/components/MainNav';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
 
-const barlow = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600', '700', '800', '900'], variable: '--font-barlow', display: 'swap' });
-// Sub-headings: Barlow Condensed ExtraBold only, so every weight request resolves to the heavy cut.
-const changa = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['800'], variable: '--font-changa', display: 'swap' });
-const karla = Karla({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600', '700', '800'], style: ['normal', 'italic'], variable: '--font-karla', display: 'swap' });
-const dmMono = JetBrains_Mono({ subsets: ['latin', 'latin-ext'], weight: ['500', '700', '800'], variable: '--font-dmmono', display: 'swap' });
 
 export const metadata: Metadata = {
   title: { default: 'BAAP KA PAISA — The Public Status Register', template: '%s · BAAP KA PAISA' },
@@ -35,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const account = viewer ? null : await currentAccount();
   const viewerLabel = viewer ? (viewer.member.masked ? viewer.member.publicLabel : viewer.member.displayName ?? viewer.member.username) : null;
   return (
-    <html lang="en-IN" className={`${barlow.variable} ${changa.variable} ${karla.variable} ${dmMono.variable}`}>
+    <html lang="en-IN">
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
         <div className="topline">
