@@ -10,6 +10,7 @@ import { DAY, HOUR, ACHIEVEMENT_RULES, boardAt, boardKeys, rankScores, respectBo
 import { keyName, keyToScope, scopeToKey } from '../engine/keys';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
+import { demoViewerOn } from '../supabase-server';
 import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 export const SIM_NOW = new Date('2026-11-10T18:00:00+05:30').getTime();
@@ -188,6 +189,9 @@ function toBoard(scope: Scope, now: Ranked[], prev: Ranked[] | null, opts: { lim
   const filtered = q ? all.filter((r) => [r.member.publicLabel, r.member.displayName ?? '', r.member.locality].some((v) => v.toLowerCase().includes(q))) : all;
   return { scope, unit, rows: filtered.slice(0, opts.limit ?? 100), total: all.length, viewerRow: all.find((r) => r.member.username === VIEWER) ?? null };
 }
+async function forViewer(b: Board): Promise<Board> {
+  return (await demoViewerOn()) ? b : { ...b, viewerRow: null };
+}
 
 export const demoSource: DataSource = {
   availability: 'demo',
@@ -199,7 +203,7 @@ export const demoSource: DataSource = {
   },
   async board(scope, opts = {}) {
     const k = scopeToKey(scope);
-    return toBoard(scope, boardAt(SIM, CURRENT.id, k, SIM_NOW), boardAt(SIM, CURRENT.id, k, SIM_NOW - DAY), opts);
+    return forViewer(toBoard(scope, boardAt(SIM, CURRENT.id, k, SIM_NOW), boardAt(SIM, CURRENT.id, k, SIM_NOW - DAY), opts));
   },
   async hallOfFame(scope, opts = {}) {
     const k = scopeToKey(scope);
@@ -210,7 +214,7 @@ export const demoSource: DataSource = {
     const b = toBoard(scope, ranked, null, opts);
     b.rows = b.rows.map((r) => ({ ...r, score: ranked.find((x) => x.memberId === r.member.username)!.score }));
     if (b.viewerRow) b.viewerRow = { ...b.viewerRow, score: life.get(VIEWER)?.score };
-    return b;
+    return forViewer(b);
   },
   async respectBoard(scope, opts = {}) {
     return toBoard(scope, engineRespectBoard(SIM, CURRENT.id, scopeToKey(scope)), null, opts, 'count');
@@ -233,6 +237,7 @@ export const demoSource: DataSource = {
     });
   },
   async viewer() {
+    if (!(await demoViewerOn())) return null;
     const m = SIM.members.get(VIEWER)!;
     const b = await this.board({ level: 'city', cityId: m.cityId, locality: m.locality });
     const record = SIM.seasons.filter((s) => s.closed).reverse().map((s) => {

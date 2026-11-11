@@ -9,6 +9,16 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 11 November 2026: redesign and public registration
+
+- **Design:** rebuilt on the Stitch "gazette" direction (newsprint paper, forest ink, lime action colour, hard shadows). New homepage order: hero, throne, board, territories, movement, The Seal, season.
+- **Crown:** an original open royal crown (five curved points, diamond centre finial, jewelled band), placed on top of the 01 on every live board, the throne, The Seal and share image. Outline-only for past champions.
+- **Registration (implemented and tested live):** `/join` five-step wizard (account, profile, eligibility, preview, done), `/signin`, sign-out, email-confirmation callback `/auth/callback`. Supabase Auth email + password; member profiles are created by the `create_member` database function. Verified end to end against the live database with a temporary account that was then removed.
+- **Signed-in state:** header shows avatar, username and permanent member ID with Profile, The Seal, Invite and Sign out. Signed-out visitors see Sign in and Create profile. Demo visitors are signed out unless they choose "Continue as the demo member".
+- **Profile saving (live):** display name, title, flex line and Mystery mode save through `update_my_profile`. Socials are not stored yet.
+- **Growth:** shareable head-to-head pages `/vs/[a]/[b]`, invite links `/join?ref=username` (recorded on the new account's sign-up metadata; no reward), WhatsApp and copy-link sharing for The Seal.
+- **Still pending:** confirmation emails use Supabase's built-in sender (low hourly limit) and the Supabase "Site URL" must be set to the public address; follows, Respect and rivals do not save in live mode yet; no season exists, so boards are empty.
+
 ## Core product
 
 | Feature | Status | Notes |

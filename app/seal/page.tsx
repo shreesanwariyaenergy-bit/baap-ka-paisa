@@ -19,7 +19,7 @@ export default async function SealPage() {
   const intro = (
     <section className="page-intro">
       <div><div className="eyebrow">Permanent member identity / 04</div><h1>The Seal.<br />Your status.</h1></div>
-      <p>The Seal is your permanent member identity. Your number stays; your monthly standing, insignias and history change with every season.</p>
+      <p>The Seal is your permanent member identity. Your number stays; your rank, achievements and history change with every season. It is a membership credential, not an official identity document.</p>
     </section>
   );
   if (!viewer) {
@@ -27,8 +27,9 @@ export default async function SealPage() {
       <>
         {intro}
         <div className="board-panel" style={{ margin: '26px 0 70px' }}>
-          <div className="state-box" data-testid="seal-signed-out"><h4>Sign-in is not open yet.</h4>
-            <p>Your Seal is issued when you create your member profile. Member sign-in will open with the first season. Until then you can browse <Link href="/board" style={{ textDecoration: 'underline' }}>the boards</Link>.</p></div>
+          <div className="state-box" data-testid="seal-signed-out"><h4>Your Seal is waiting.</h4>
+            <p>The Seal is issued the moment you create your profile: a permanent member ID, your live rank and every achievement you earn.</p>
+            <div className="hero-cta" style={{ marginTop: 16 }}><Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link><Link className="btn light" href="/signin">Sign in</Link></div></div>
         </div>
       </>
     );
@@ -40,6 +41,8 @@ export default async function SealPage() {
   const mv = movementLabel(viewer.cityMovement);
   const [qr, achievements, reigns] = await Promise.all([profileQr(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 20 })]);
   const grouped = groupAchievements(achievements);
+  const finishes = [cityStanding?.rank ?? null, ...viewer.record.map((r) => r.cityRank)].filter((n): n is number => !!n);
+  const best = finishes.length ? Math.min(...finishes) : null;
   const istDate = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   return (
     <>
@@ -49,8 +52,9 @@ export default async function SealPage() {
           <Seal
             front={{ brandLine: 'The Seal / permanent identity', memberNo: memberNo(m.memberNo), name, location: `${m.locality} · ${city.name} · ${STATES[city.state]} · India`,
               rank: cityStanding?.rank ? `${cityStanding.rank === 1 ? '' : '#'}${pad2(cityStanding.rank)}` : '—', rankIsFirst: cityStanding?.rank === 1,
-              scopeLine: cityStanding?.rank ? `#${cityStanding.rank} of ${cityStanding.of} in ${city.name}` : `Not ranked in ${city.name} this season`, season: `${season.label} / ${season.monthLabel}` }}
-            back={{ memberNo: memberNo(m.memberNo), lifetime: inr(viewer.lifetimeScore),
+              scopeLine: cityStanding?.rank ? `#${cityStanding.rank} of ${cityStanding.of} in ${city.name}` : `Not ranked in ${city.name} this season`, season: `${season.label} / ${season.monthLabel}`, marks: grouped.slice(0, 3).map((g) => g.label) }}
+            back={{ memberNo: memberNo(m.memberNo), lifetime: inr(viewer.lifetimeScore), bestRank: best ? `#${pad2(best)}` : undefined,
+              territory: viewer.standings.filter((s) => s.level !== 'city').map((s) => ({ label: s.level === 'india' ? 'India' : scopeName(s.scope), rank: s.rank ? `#${pad2(s.rank)}` : '—' })),
               records: viewer.record.map((r) => ({ rank: r.cityRank ? `#${pad2(r.cityRank)}` : '—', text: `${city.name} city finish${r.note ? ` · ${r.note}` : ''}`, when: `${r.seasonLabel.replace('Season ', 'S')} · ${r.monthLabel}` })),
               insignia: grouped.map((g) => (g.count > 1 && g.id !== 'streak' ? `${g.label} ×${g.count}` : g.label)),
               qr: { svg: qr.svg, caption: qr.placeholder ? 'Placeholder link until the domain is confirmed' : 'Public profile' } }}

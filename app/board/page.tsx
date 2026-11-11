@@ -73,8 +73,8 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           ) : (
             <>
               <div className="big">—</div>
-              <h3>{viewer ? <>Not on<br />this board.</> : <>Sign-in is<br />not open yet.</>}</h3>
-              <p>{viewer ? `Your boards are ${viewer.member.locality}, ${CITY_NAMES[viewer.member.cityId]}, and their state and India boards.` : 'Your own row appears here once you are signed in and ranked.'}</p>
+              <h3>{viewer ? <>Not on<br />this board.</> : <>Not on the<br />register yet.</>}</h3>
+              <p>{viewer ? `Your boards are ${viewer.member.locality}, ${CITY_NAMES[viewer.member.cityId]}, and their state and India boards.` : 'Create a profile to see your own row here.'}</p>
             </>
           )}
           <div className="aside-stat"><span>Season</span><b>{season.label}</b></div>

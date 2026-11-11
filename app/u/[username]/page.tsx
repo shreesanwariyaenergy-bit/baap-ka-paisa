@@ -59,7 +59,7 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
         </div>
         {!isSelf && (
           <SocialActions username={m.username} label={name} enabled={!!viewer && ds.availability === 'demo'}
-            note={viewer && ds.availability === 'demo' ? 'Demo: actions are checked on the server and kept only in this browser.' : 'Sign in to follow, give Respect or add rivals. Sign-in is not open yet.'}
+            note={viewer && ds.availability === 'demo' ? 'Demo: actions are checked on the server and kept only in this browser.' : viewer ? 'Follow, Respect and rivals open with the first season.' : 'Sign in to follow, give Respect or add rivals.'}
             initial={{ following: !!demoState?.follows.includes(m.username), rival: !!demoState?.rivals.includes(m.username), respectedToday: demoState?.respected[m.username] === today }} />
         )}
         {isSelf && <div className="history"><h3>This is you</h3><p><Link href="/me" style={{ textDecoration: 'underline' }}>Edit your profile</Link> or open <Link href="/seal" style={{ textDecoration: 'underline' }}>The Seal</Link>.</p></div>}

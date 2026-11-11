@@ -4,16 +4,16 @@ import 'server-only';
 import { CITIES, cityById, scopeName, type Level, type Scope, type StateCode } from '../geo';
 import { seasonFor, type SeasonInfo } from '../season';
 import { monthName, monthShort } from '../format';
-import { movement } from './ranking';
+import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
-import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing } from './types';
+import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 interface Cfg { url: string; key: string; }
 
-async function rpc<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}): Promise<T> {
+async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}, token?: string | null): Promise<T> {
   const res = await fetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
     method: 'POST',
-    headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' },
+    headers: { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
     cache: 'no-store',
   });
@@ -43,7 +43,10 @@ function lite(name: string, display: string | null, masked: boolean, cityId: str
     locality, memberNo: null, seasonScore: 0, lifetimeTier: null };
 }
 
-export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
+export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string | null = null): DataSource {
+  // Reads carry the member's own token when signed in, so the database can mark "your row".
+  const cfg = base;
+  const rpc = <T,>(c: Cfg, fn: string, args: Record<string, unknown> = {}) => rpcRaw<T>(c, fn, args, token);
   const boardArgs = (s: Scope) => ({ p_level: s.level, p_city: s.level === 'india' ? null : s.cityId, p_locality: s.level === 'locality' ? s.locality : null });
 
   const src: DataSource = {
@@ -85,7 +88,22 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
       const rows = await rpc<{ level: Level; rank: number | null; total: number }[]>(cfg, 'get_standings', { p_name: name });
       return rows.map((r): Standing => ({ level: r.level, scope: { level: r.level, cityId: m.cityId, locality: m.locality }, rank: r.rank, of: r.total }));
     },
-    async viewer() { return null; }, // Member sign-in is not built yet.
+    async viewer() {
+      if (!token) return null;
+      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
+      if (!me) return null; // account exists but has no member profile yet
+      const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
+      const lifetime = Math.round(Number(me.lifetime_paise) / 100);
+      // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
+      const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
+        cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
+      const [standings, archive] = await Promise.all([src.standings(publicName), rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => [])]);
+      const joined = seasonFor(new Date(me.joined_at), null);
+      const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
+      for (const r of archive) { const e = bySeason.get(r.season_id) ?? { starts: r.starts_at, city: null, loc: null }; if (r.level === 'city') e.city = r.final_rank; if (r.level === 'locality') e.loc = r.final_rank; bySeason.set(r.season_id, e); }
+      const record = [...bySeason.entries()].sort((a, b) => b[0] - a[0]).map(([id, e]) => { const s = seasonFor(new Date(e.starts), null); return { seasonLabel: `Season ${id}`, monthLabel: `${monthShort(s.month)} ${s.year}`, cityRank: e.city, localityRank: e.loc, note: null }; });
+      return { member, lifetimeScore: lifetime, memberSince: `${monthShort(joined.month)} ${joined.year}`, standings, record, insignia: [], cityMovement: null } satisfies ViewerSeal;
+    },
     async cities() {
       const rows = await rpc<{ city_id: string; members: number; season_total_paise: number; leader_name: string | null; leader_masked: boolean | null; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries');
       return rows.filter((r) => r.rank !== null).map((r): CitySummary => ({
@@ -146,7 +164,7 @@ export function supabaseSource(cfg: Cfg, seasonCache: SeasonInfo): DataSource {
 
 /** Load the current season row once per request so the header and pages agree. */
 export async function loadSeason(cfg: Cfg): Promise<SeasonInfo> {
-  const rows = await rpc<{ id: number; starts_at: string; scheduled_end: string; ends_at: string; status: string }[]>(cfg, 'get_season');
+  const rows = await rpcRaw<{ id: number; starts_at: string; scheduled_end: string; ends_at: string; status: string }[]>(cfg, 'get_season');
   const r = rows[0];
   const now = new Date();
   if (!r || r.status === 'upcoming') {

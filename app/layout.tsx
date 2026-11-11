@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { Barlow_Condensed, Changa_One, DM_Mono, Karla } from 'next/font/google';
+import { Barlow_Condensed, JetBrains_Mono, Karla } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { timeLeft } from '@/lib/season';
-import { initials } from '@/lib/format';
+import { initials, memberNo } from '@/lib/format';
+import { signOut } from './auth-actions';
+import { currentAccount } from '@/lib/supabase-server';
 import { MainNav } from '@/components/MainNav';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
 
-const barlow = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['500', '600', '700', '800'], variable: '--font-barlow', display: 'swap' });
-const changa = Changa_One({ subsets: ['latin'], weight: '400', variable: '--font-changa', display: 'swap' });
+const barlow = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600', '700', '800', '900'], variable: '--font-barlow', display: 'swap' });
+// Sub-headings: Barlow Condensed ExtraBold only, so every weight request resolves to the heavy cut.
+const changa = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['800'], variable: '--font-changa', display: 'swap' });
 const karla = Karla({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600', '700', '800'], style: ['normal', 'italic'], variable: '--font-karla', display: 'swap' });
-const dmMono = DM_Mono({ subsets: ['latin', 'latin-ext'], weight: ['400', '500'], variable: '--font-dmmono', display: 'swap' });
+const dmMono = JetBrains_Mono({ subsets: ['latin', 'latin-ext'], weight: ['500', '700', '800'], variable: '--font-dmmono', display: 'swap' });
 
 export const metadata: Metadata = {
   title: { default: 'BAAP KA PAISA — The Public Status Register', template: '%s · BAAP KA PAISA' },
@@ -21,7 +24,7 @@ export const metadata: Metadata = {
 // Rankings change constantly: render every request on the server, never from a build-time snapshot.
 export const dynamic = 'force-dynamic';
 
-export const viewport: Viewport = { themeColor: '#183F37', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#0C251F', width: 'device-width', initialScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const ds = await getDataSource();
@@ -29,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const left = timeLeft(season, ds.now());
   const open = rankingsOpen(ds);
   const viewer = await ds.viewer();
+  const account = viewer ? null : await currentAccount();
   const viewerLabel = viewer ? (viewer.member.masked ? viewer.member.publicLabel : viewer.member.displayName ?? viewer.member.username) : null;
   return (
     <html lang="en-IN" className={`${barlow.variable} ${changa.variable} ${karla.variable} ${dmMono.variable}`}>
@@ -57,9 +61,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="header-right">
                 <div className="season-pill">{season.short}</div>
                 {viewer ? (
-                  <Link className="avatar-mini" href="/seal" aria-label={`Signed in as ${viewerLabel}. Open The Seal.`}>{initials(viewerLabel!)}</Link>
+                  <details className="profile-menu" data-testid="profile-menu">
+                    <summary aria-label={`Account menu for ${viewerLabel}`}>
+                      <span className="avatar-mini" aria-hidden="true">{initials(viewerLabel!)}</span>
+                      <span className="who">{viewer.member.masked ? viewer.member.publicLabel : `@${viewer.member.username}`}<small>{ds.availability === 'demo' ? 'Demo member · ' : ''}No. {memberNo(viewer.member.memberNo)}</small></span>
+                    </summary>
+                    <div className="menu">
+                      <Link href="/seal">The Seal</Link>
+                      <Link href="/me">Profile</Link>
+                      <Link href="/invite">Invite friends</Link>
+                      <form action={signOut}><button type="submit" data-testid="sign-out">Sign out</button></form>
+                    </div>
+                  </details>
                 ) : (
-                  <Link className="signin-note" href="/join">Join (preview)</Link>
+                  <div className="auth-actions" data-testid="auth-actions">
+                    <Link className="signin" href="/signin">Sign in</Link>
+                    <Link className="btn" href="/join" data-testid="create-profile">{account ? 'Finish profile' : 'Create profile'}</Link>
+                  </div>
                 )}
               </div>
             </header>
@@ -68,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span>BAAP KA PAISA © {season.year}</span>
               <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
               <nav aria-label="Explore" className="footer-links">
-                <Link href="/me">Edit profile</Link><Link href="/join">Join preview</Link><Link href="/throne">Throne history</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
+                <Link href="/join">Create profile</Link><Link href="/invite">Invite</Link><Link href="/throne">Throne history</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
               </nav>
               <nav aria-label="Policies" className="footer-links">
                 <Link href="/legal/terms">Terms</Link><Link href="/legal/privacy">Privacy</Link><Link href="/legal/refunds">Refunds</Link><Link href="/legal/community">Guidelines</Link><Link href="/legal/grievance">Grievance</Link>

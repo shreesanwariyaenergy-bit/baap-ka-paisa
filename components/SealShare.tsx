@@ -1,12 +1,14 @@
 'use client';
 // Real share flow: the image is rendered by the server (/api/seal-card/[username]) at 1080 × 1920.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function SealShare({ username, label }: { username: string; label: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [status, setStatus] = useState('');
   const img = `/api/seal-card/${encodeURIComponent(username)}`;
   const profilePath = `/u/${encodeURIComponent(username)}`;
+  const [origin, setOrigin] = useState('');
+  useEffect(() => setOrigin(window.location.origin), []);
   const share = async () => {
     try {
       const res = await fetch(img);
@@ -39,9 +41,10 @@ export function SealShare({ username, label }: { username: string; label: string
             <div>
               <p>1080 × 1920 image for Instagram Stories, Snapchat or WhatsApp Status. It shows only what your public profile shows.</p>
               <div className="modal-actions">
-                <a className="btn" href={img} download={`baap-ka-paisa-seal-${username}.png`} data-testid="download-seal">Download image</a>
+                <a className="btn" href={img} download={`baap-ka-paisa-seal-${username}.png`} data-testid="download-seal">Download story image</a>
                 <button className="btn light" type="button" onClick={share}>Share…</button>
-                <button className="btn light" type="button" onClick={copy}>Copy profile link</button>
+                <button className="btn light" type="button" onClick={copy} data-testid="copy-seal-link">Copy share link</button>
+                <a className="btn light" href={`https://wa.me/?text=${encodeURIComponent(`My Seal on BAAP KA PAISA. Come and try to pass me. ${origin}${profilePath}`)}`} target="_blank" rel="noopener noreferrer" data-testid="whatsapp-seal">WhatsApp</a>
               </div>
               <p className="share-status" role="status">{status}</p>
             </div>

@@ -6,6 +6,8 @@ import { validateProfile, type Errors, type ProfileInput } from '@/lib/profile-r
 import { addRival, istDay } from '@/lib/engine/engine';
 import { readDemoSocial, writeDemoSocial } from '@/lib/demo-social';
 import { cityById } from '@/lib/geo';
+import { supabaseAuth } from '@/lib/supabase-server';
+import { revalidatePath } from 'next/cache';
 
 export interface FormResult { ok: boolean; errors: Errors; message: string; preview?: ProfileInput & { anonLabel?: string; cityName?: string } }
 
@@ -32,10 +34,15 @@ export async function saveProfile(_prev: FormResult | null, fd: FormData): Promi
   const p = readProfile(fd);
   const ds = await getDataSource();
   const viewer = await ds.viewer();
-  if (!viewer) return { ok: false, errors: {}, message: 'Sign-in is not open yet, so profiles cannot be edited.' };
+  if (!viewer) return { ok: false, errors: {}, message: 'Sign in to edit your profile.' };
   const errors = validateProfile(p, 'edit');
   if (Object.keys(errors).length) return { ok: false, errors, message: 'Fix the highlighted fields.' };
-  return { ok: true, errors: {}, preview: p, message: ds.availability === 'demo' ? 'Demo: your changes passed every check and are shown below, but demo profiles are not saved.' : 'Saved.' };
+  if (ds.availability === 'demo') return { ok: true, errors: {}, preview: p, message: 'Demo: your changes passed every check, but demo profiles are not saved.' };
+  const sb = await supabaseAuth();
+  const { error } = await sb!.rpc('update_my_profile', { p_display_name: p.displayName, p_title: p.title ?? '', p_flex_line: p.flexLine ?? '', p_mystery: !!p.mystery });
+  if (error) return { ok: false, errors: {}, message: error.message };
+  revalidatePath('/', 'layout');
+  return { ok: true, errors: {}, preview: p, message: 'Saved. Socials are not stored yet; they arrive with handle verification.' };
 }
 
 export interface SocialResult { ok: boolean; message: string; state?: { following: boolean; rival: boolean; respectedToday: boolean } }
@@ -43,7 +50,8 @@ export interface SocialResult { ok: boolean; message: string; state?: { followin
 export async function socialAction(kind: 'follow' | 'unfollow' | 'respect' | 'rival' | 'unrival', target: string): Promise<SocialResult> {
   const ds = await getDataSource();
   const viewer = await ds.viewer();
-  if (!viewer || ds.availability !== 'demo') return { ok: false, message: 'Sign in to follow, give Respect or add rivals. Sign-in is not open yet.' };
+  if (!viewer) return { ok: false, message: 'Sign in to follow, give Respect or add rivals.' };
+  if (ds.availability !== 'demo') return { ok: false, message: 'Follow, Respect and rivals open with the first season.' };
   const me = viewer.member.username;
   const member = await ds.member(target);
   if (!member) return { ok: false, message: 'That member does not exist.' };

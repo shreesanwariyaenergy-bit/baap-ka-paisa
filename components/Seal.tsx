@@ -4,8 +4,8 @@
 import { useState } from 'react';
 import { Crown } from './Crown';
 
-export interface SealFront { brandLine: string; memberNo: string; name: string; location: string; rank: string; rankIsFirst: boolean; scopeLine: string; season: string; }
-export interface SealBack { records: { rank: string; text: string; when: string }[]; insignia: string[]; lifetime: string; memberNo: string; qr?: { svg: string; caption: string } }
+export interface SealFront { brandLine: string; memberNo: string; name: string; location: string; rank: string; rankIsFirst: boolean; scopeLine: string; season: string; marks?: string[]; }
+export interface SealBack { records: { rank: string; text: string; when: string }[]; insignia: string[]; lifetime: string; memberNo: string; bestRank?: string; territory?: { label: string; rank: string }[]; qr?: { svg: string; caption: string } }
 
 function Emboss() {
   return (
@@ -30,13 +30,16 @@ export function Seal({ front, back }: { front: SealFront; back: SealBack }) {
               <span className="seal-rank">{front.rankIsFirst && <Crown />}{front.rank}</span>
               <span style={{ minWidth: 0 }}><span className="seal-name" style={{ display: 'block' }}>{front.name}</span><span className="seal-location" style={{ display: 'block' }}>{front.scopeLine}</span><span className="seal-location" style={{ display: 'block' }}>{front.location}</span></span>
             </span>
-            <span className="seal-bottom"><span>Member no. {front.memberNo}</span><strong>{front.season}</strong><span className="opt-hide">The record stays</span></span>
+            <span className="seal-id"><small>Permanent member ID</small><b>{front.memberNo}</b>{front.marks && front.marks.length > 0 && <span className="seal-insignia" style={{ marginTop: 8 }}>{front.marks.map((m) => <span key={m}>{m}</span>)}</span>}</span>
+            <span className="seal-bottom"><span>The Seal</span><strong>{front.season}</strong><span>The record stays</span></span>
           </span>
           <span className="seal-face seal-back" aria-hidden={!flipped}>
             <span className="seal-top"><span className="seal-brand">THE SEAL<small>Reverse / your record</small></span><span>No. {back.memberNo}</span></span>
             <span className="seal-back-grid" style={{ display: 'grid', gridTemplateColumns: back.qr ? 'minmax(0,1fr) auto' : '1fr', gap: 14, alignItems: 'end', position: 'relative', zIndex: 1 }}>
             <span className="seal-records">
-              <span className="seal-back-title" style={{ display: 'block', font: 'clamp(18px,2.3vw,27px) var(--font-brand)', textTransform: 'uppercase', marginBottom: 10 }}>The record stays.</span>
+              <span className="seal-back-title" style={{ display: 'block', font: 'clamp(20px,2.6vw,30px) var(--font-brand)', textTransform: 'uppercase', marginBottom: 10, color: 'var(--lime)' }}>The record stays.</span>
+              {back.bestRank && <span className="seal-record"><b>{back.bestRank}</b><span>Best city finish on record</span><small>Best</small></span>}
+              {back.territory?.map((t) => <span className="seal-record" key={t.label}><b>{t.rank}</b><span>{t.label}</span><small>Now</small></span>)}
               {back.records.length === 0 && <span className="seal-record"><b>—</b><span>No finished seasons yet</span><small>&nbsp;</small></span>}
               {back.records.map((r) => <span className="seal-record" key={r.when + r.text}><b>{r.rank}</b><span>{r.text}</span><small>{r.when}</small></span>)}
             </span>

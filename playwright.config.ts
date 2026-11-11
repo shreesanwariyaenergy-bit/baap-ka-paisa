@@ -1,19 +1,20 @@
 import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
-// The "live" project runs only when Supabase settings are present (e.g. in .env.local) and checks the
-// real database's empty state. It never writes to the database.
+// Servers from one production build: demo data (3200), no data source (3201) and, when Supabase settings
+// exist in .env.local, the live database (3202). Live tests never write to the database.
 const live = Boolean(process.env.SUPABASE_URL) || existsSync('.env.local');
+// Demo visitors are signed out by default; this cookie is what "Continue as the demo member" sets.
+const demoMember = { cookies: [{ name: 'bkp_demo_viewer', value: '1', domain: 'localhost', path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Lax' as const }], origins: [] };
 
-// Two servers from the same production build: one with demo data, one with no data source connected.
-// Build first: BKP_DATA_SOURCE=demo npm run build
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
   reporter: [['list']],
   use: { trace: 'off', baseURL: 'http://localhost:3200' },
   projects: [
-    { name: 'demo', testIgnore: /unavailable\.spec/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'demo', testMatch: /site\.spec/, use: { ...devices['Desktop Chrome'], storageState: demoMember } },
+    { name: 'visitor', testMatch: /visitor\.spec/, use: { ...devices['Desktop Chrome'] } },
     { name: 'unavailable', testMatch: /unavailable\.spec/, use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3201' } },
     ...(live ? [{ name: 'live', testMatch: /unavailable\.spec/, use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3202' } }] : []),
   ],

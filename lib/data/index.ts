@@ -5,6 +5,7 @@ import { demoSource } from './demo';
 import { unavailableSource } from './unavailable';
 import { loadSeason, supabaseSource } from './supabase';
 import type { DataSource } from './types';
+import { currentAccount } from '../supabase-server';
 
 /** One data source per request. The live source loads the season row once so every component agrees. */
 export const getDataSource = cache(async (): Promise<DataSource> => {
@@ -12,7 +13,7 @@ export const getDataSource = cache(async (): Promise<DataSource> => {
   if (name === 'demo') return demoSource;
   if (name === 'supabase') {
     const cfg = supabaseConfig();
-    if (cfg) return supabaseSource(cfg, await loadSeason(cfg));
+    if (cfg) { const acct = await currentAccount(); return supabaseSource(cfg, await loadSeason(cfg), acct?.token ?? null); }
   }
   return unavailableSource(seasonOneMonth());
 });

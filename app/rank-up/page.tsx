@@ -21,7 +21,7 @@ export default async function RankUpPage({ searchParams }: { searchParams: Promi
   );
   if (!viewer || !rankingsOpen(ds)) {
     return (<>{intro}<div className="board-panel" style={{ margin: '26px 0 70px' }}><div className="state-box" data-testid="rankup-closed">
-      <h4>{!rankingsOpen(ds) ? 'Rankings are not open yet.' : 'Sign-in is not open yet.'}</h4>
+      <h4>{!rankingsOpen(ds) ? 'Rankings are not open yet.' : 'Sign in to preview a Rank Up.'}</h4>
       <p>Rank Up previews appear here once the season is open and you are signed in. You can still browse <Link href="/board" style={{ textDecoration: 'underline' }}>the boards</Link>.</p></div></div></>);
   }
   const me = viewer.member;

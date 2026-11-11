@@ -56,7 +56,7 @@ export function validateProfile(p: ProfileInput, mode: 'join' | 'edit', today = 
   if (mode === 'join' || p.displayName !== undefined) {
     const n = (p.displayName ?? '').trim();
     if (n.length < 1 || n.length > 40) e.displayName = 'Display name must be 1–40 characters.';
-    else if (!/^[\p{L} .'-]+$/u.test(n)) e.displayName = 'Use letters, spaces, dots, apostrophes or hyphens.';
+    else if (!/^[\p{L}\p{N} .'-]+$/u.test(n)) e.displayName = 'Use letters, numbers, spaces, dots, apostrophes or hyphens.';
     else if (checkFlexLine(n)) e.displayName = 'That wording is not allowed. Keep it friendly.';
   }
   if (mode === 'join') {

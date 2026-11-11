@@ -16,16 +16,20 @@ const fonts = Promise.all([
   readFile(path.join(fontDir, 'DMMono-Medium.ttf')),
 ]);
 
-const C = { paper: '#F1EFE6', ink: '#172B27', forest: '#183F37', lime: '#D5E29A', orange: '#ED6847', white: '#FFFDF7', muted: '#B9C9BD', gold: '#C39322', goldDk: '#8C681E', goldHi: '#FFE9A2' };
+const C = { paper: '#F1EFE6', ink: '#0C251F', forest: '#0C251F', lime: '#CCFF00', orange: '#FF4500', white: '#FCF9F0', muted: '#B1CCC3', gold: '#E5A93C', goldDk: '#8A5E10', goldHi: '#FFE7A8' };
 
 function CrownMark({ width }: { width: number }) {
   const g = CROWN_GEOMETRY;
   return (
-    <svg width={width} height={(width * 28) / 43} viewBox={g.viewBox}>
-      <path d={g.body} fill={C.gold} stroke={C.goldDk} strokeWidth="1.25" strokeLinejoin="round" />
-      {g.finials.map(([cx, cy, r]) => <circle key={cx} cx={cx} cy={cy} r={r} fill={C.gold} stroke={C.goldDk} strokeWidth="0.95" />)}
-      <rect x={g.band.x} y={g.band.y} width={g.band.w} height={g.band.h} rx="0.8" fill={C.gold} stroke={C.goldDk} strokeWidth="1.25" />
-      <path d={g.highlight} stroke={C.goldHi} strokeWidth="0.9" />
+    <svg width={width} height={(width * 48) / 66} viewBox={g.viewBox}>
+      <path d={g.inner} fill={C.goldDk} />
+      <path d={g.body} fill={C.gold} stroke={C.goldDk} strokeWidth="0.5" />
+      <path d={g.band} fill={C.gold} stroke={C.goldDk} strokeWidth="0.5" />
+      <path d={g.finial} fill={C.goldHi} stroke={C.goldDk} strokeWidth="0.45" />
+      {g.pearls.map(([x, y]) => <circle key={x} cx={x} cy={y} r="1.5" fill={C.gold} stroke={C.goldDk} strokeWidth="0.45" />)}
+      <path d={g.engraving} fill="none" stroke={C.goldDk} strokeWidth="0.5" />
+      <path d={g.highlight} fill="none" stroke={C.goldHi} strokeWidth="0.7" />
+      {g.jewels.map(([x, y, r]) => <circle key={x} cx={x} cy={y} r={r} fill={C.goldDk} />)}
     </svg>
   );
 }

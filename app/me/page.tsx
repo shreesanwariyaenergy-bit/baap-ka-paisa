@@ -19,7 +19,7 @@ export default async function MePage() {
     </section>
   );
   if (!viewer) {
-    return (<>{intro}<div className="board-panel" style={{ margin: '26px 0 70px' }}><div className="state-box" data-testid="me-signed-out"><h4>Sign-in is not open yet.</h4><p>You can preview the sign-up flow on <Link href="/join" style={{ textDecoration: 'underline' }}>the join page</Link>.</p></div></div></>);
+    return (<>{intro}<div className="board-panel" style={{ margin: '26px 0 70px' }}><div className="state-box" data-testid="me-signed-out"><h4>Sign in to edit your profile.</h4><p><Link href="/signin" style={{ textDecoration: 'underline' }}>Sign in</Link> or <Link href="/join" style={{ textDecoration: 'underline' }}>create your profile</Link>.</p></div></div></>);
   }
   const m = viewer.member;
   const city = cityById(m.cityId)!;
