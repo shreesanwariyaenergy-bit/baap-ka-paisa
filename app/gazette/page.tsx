@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { CITIES, DEFAULT_CITY_ID, cityById, type Scope } from '@/lib/geo';
 import { buildEdition } from '@/lib/gazette';
-import { inrShort } from '@/lib/format';
+import { inr, inrShort } from '@/lib/format';
 import { CopyLink } from '@/components/CopyLink';
 
 export const metadata: Metadata = { title: 'The Gazette' };
@@ -15,11 +15,11 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
   const city = cityById(sp.city) ?? cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
   const scope: Scope = { level: 'city', cityId: city.id, locality: city.localities[0] };
   const now = ds.now();
-  const [board, reigns, moments, events, cities, respect] = await Promise.all([
+  const [board, reigns, moments, events, cities, respect, backed] = await Promise.all([
     ds.board(scope, { limit: 10 }), ds.throneHistory({ scope, limit: 40 }), ds.crownMoments(scope, new Date(now.getTime() - 7 * 86_400_000)),
-    ds.events(scope, 12), ds.cities(), ds.respectBoard(scope, { limit: 3 }),
+    ds.events(scope, 12), ds.cities(), ds.respectBoard(scope, { limit: 3 }), ds.mostBacked(city.id, 3),
   ]);
-  const ed = buildEdition({ city, season: ds.season(), now, open: rankingsOpen(ds), board, reigns, moments, events, cities, respect });
+  const ed = buildEdition({ city, season: ds.season(), now, open: rankingsOpen(ds), board, reigns, moments, events, cities, respect, backed });
   return (
     <article className="gazette" data-testid="gazette">
       <header className="gz-mast">
@@ -64,6 +64,14 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
             ))}
             <Link className="gz-more" href={`/throne?level=city&city=${city.id}`}>Full throne history ↗</Link>
           </section>
+          {rankingsOpen(ds) && ed.prices.some((c) => c.price > 1000) && (
+            <section aria-labelledby="gz-prices">
+              <h3 id="gz-prices" className="gz-sidehead">Price of each throne today</h3>
+              <ol className="gz-table" data-testid="gazette-prices">
+                {ed.prices.map((c, n) => <li key={c.name} className={c.isCity ? 'me' : undefined}><span>{n + 1}</span><b>{c.name}</b><i>{inr(c.price)}</i></li>)}
+              </ol>
+            </section>
+          )}
           {ed.standing.some((c) => c.total > 0) && (
             <section aria-labelledby="gz-cities">
               <h3 id="gz-cities" className="gz-sidehead">City against city</h3>

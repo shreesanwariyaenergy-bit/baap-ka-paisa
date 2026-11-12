@@ -9,7 +9,13 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
-## Update, 12 November 2026: launch switches, season clock, social actions
+## Update, 13 November 2026: Backing prototype, time on the throne, strongest claim
+
+- **Backing (demo prototype only; not switched on for real members):** rules in `lib/engine/backing.ts` (one per member per season, locked, contender must be on the board, never touches scores, "Backed the Crown" to backers of the final city #01, history kept across seasons). Demo interaction: confirm step and lock on a contender's profile, public backer count, "Your pick" card and past seasons on The Seal, Gazette story. The demo member's own pick is kept in a browser cookie. Live source returns nothing.
+- **Time on the throne (implemented; live with real data):** `/throne?view=time`, total time each member has held #01 on a board.
+- **Strongest claim (implemented; live with real data):** `lib/claim.ts` picks one verified line per member (holding #01, Season Crown, time held, best current rank, Backed the Crown, firsts), shown on the profile and The Seal.
+- **Price of the throne (implemented; live with real data):** the Gazette states what #01 costs today in each city (leader's score plus one ₹500 step). Display only; no rule changed.
+- **Database test additions:** signed-out public reads still work, grants on unrelated tables unchanged, rollback of the social migration restores grants and keeps rows.
 
 - **The Gazette (implemented and tested; live with real data, demo with simulated data):** `/gazette?city=…`, a daily front page per city written by `lib/gazette.ts` from board records only: change of throne, time held, numbered notices of dethronement, the gap to #01, city against city, Most Respected, Mystery-mode members by label only. With no data it reports a vacant throne. Homepage strip links to it; Archive moved to the footer.
 - **Pending, not applied:** `supabase/pending/…0800_registration_gate.sql` (database-side registration gate with an allow-list). Migration A now also removes direct write access to the three social tables.

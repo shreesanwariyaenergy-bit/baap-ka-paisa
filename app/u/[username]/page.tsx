@@ -8,6 +8,8 @@ import { Crown } from '@/components/Crown';
 import { groupAchievements } from '@/lib/achievements';
 import { SocialActions } from '@/components/SocialActions';
 import { socialState } from '@/app/actions';
+import { BackingPanel } from '@/components/BackingPanel';
+import { strongestClaim } from '@/lib/claim';
 import { readDemoSocial } from '@/lib/demo-social';
 import { istDay } from '@/lib/engine/engine';
 
@@ -29,6 +31,8 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const demo = ds.availability === 'demo';
   const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
   const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
+  const [backing, myBacking] = await Promise.all([ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null]);
+  const claim = strongestClaim({ standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
   const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
@@ -36,7 +40,8 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   return (
     <>
       <section className="page-intro">
-        <div><div className="eyebrow">Public profile</div><h1 style={{ overflowWrap: 'anywhere' }}>{name}</h1></div>
+        <div><div className="eyebrow">Public profile</div><h1 style={{ overflowWrap: 'anywhere' }}>{name}</h1>
+          {claim && <div className="claim" data-testid="claim" style={{ marginTop: 16 }}>{claim.headline}<small>{claim.proof}</small></div>}</div>
         <p>{m.masked ? 'This member uses Mystery mode. Their name, photo and socials stay hidden until they choose to reveal them.' : `@${m.username}${m.title ? ` · ${m.title}` : ''} · ${m.locality}, ${city.name}, ${STATES[city.state]}.`}</p>
       </section>
       <div className="profile-wrap">
@@ -60,6 +65,11 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
           ))}
           <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Phone number, exact address, date of birth and live location are never shown.</p>
         </div>
+        {backing && (
+          <BackingPanel username={m.username} name={name} city={city.name} season={backing.seasonLabel} backers={backing.backers}
+            mode={!backing.open ? 'closed' : isSelf ? 'self' : !viewer ? 'signed-out' : myBacking?.pick ? (myBacking.pick.member.username === m.username ? 'backing-this' : 'backing-other') : backing.contender ? 'can-back' : 'not-contender'}
+            otherPick={myBacking?.pick ? { name: myBacking.pick.member.masked ? myBacking.pick.member.publicLabel : myBacking.pick.member.displayName ?? myBacking.pick.member.username, username: myBacking.pick.member.username } : undefined} />
+        )}
         {!isSelf && (
           <SocialActions username={m.username} label={name} enabled={!!viewer && (demo || !!liveState)}
             note={!viewer ? 'Sign in to follow, give Respect or add rivals.' : demo ? 'Demo: actions are checked on the server and kept only in this browser.' : liveState ? '' : 'Follow, Respect and rivals are being switched on. Please check back soon.'}

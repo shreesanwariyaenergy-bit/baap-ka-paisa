@@ -4,7 +4,7 @@
 import { getDataSource } from '@/lib/data';
 import { validateProfile, type Errors, type ProfileInput } from '@/lib/profile-rules';
 import { addRival, istDay } from '@/lib/engine/engine';
-import { readDemoSocial, writeDemoSocial } from '@/lib/demo-social';
+import { readDemoPick, readDemoSocial, writeDemoPick, writeDemoSocial } from '@/lib/demo-social';
 import { cityById } from '@/lib/geo';
 import { supabaseAuth } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
@@ -101,4 +101,24 @@ export async function socialAction(kind: 'follow' | 'unfollow' | 'respect' | 'ri
   if (kind === 'unrival') { st.rivals = st.rivals.filter((x) => x !== target); message = 'Removed from your rivals (demo).'; }
   await writeDemoSocial(st);
   return { ok: true, message, state: { following: st.follows.includes(target), rival: st.rivals.includes(target), respectedToday: st.respected[target] === today } };
+}
+
+export interface BackResult { ok: boolean; message: string; locked?: { name: string } }
+/** Give this season's one backing. Demo prototype: stored on this browser only. Final once given. */
+export async function backAction(target: string): Promise<BackResult> {
+  const ds = await getDataSource();
+  const viewer = await ds.viewer();
+  if (!viewer) return { ok: false, message: 'Sign in to back a contender.' };
+  if (ds.availability !== 'demo') return { ok: false, message: 'Backing is not open yet.' };
+  const { DEMO_BACKING, SIM } = await import('@/lib/data/demo');
+  const { canBack, runBacking, REFUSAL_TEXT } = await import('@/lib/engine/backing');
+  const me = viewer.member.username, now = ds.now().getTime();
+  const existing = await readDemoPick();
+  const accepted = runBacking(SIM, existing && existing.seasonId === DEMO_BACKING.seasonId ? [...DEMO_BACKING.events, { id: 'mine', at: Math.min(existing.at, now), backer: me, target: existing.target }] : DEMO_BACKING.events).accepted;
+  const check = canBack(SIM, accepted, me, target, now);
+  if (!check.ok) return { ok: false, message: REFUSAL_TEXT[check.reason] };
+  await writeDemoPick({ seasonId: check.seasonId, target, at: now });
+  const m = await ds.member(target);
+  revalidatePath('/', 'layout');
+  return { ok: true, message: 'Locked for the season (demo: kept on this browser only).', locked: { name: m ? (m.masked ? m.publicLabel : m.displayName ?? m.username) : target } };
 }

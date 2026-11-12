@@ -89,6 +89,22 @@ export interface CrownMomentView { seasonLabel: string; scope: Scope; boardName:
 export interface AchievementView { id: string; label: string; detail: string; at: Date; seasonLabel: string | null; boardName: string | null; }
 export interface SocialSummary { followers: number; following: number; respectThisSeason: number; rivals: BoardRow[]; }
 
+/** Backing: one free, locked pledge per member per season. Never affects rank. */
+export interface BackingView {
+  /** A season is running and backing can be given. */
+  open: boolean;
+  seasonLabel: string;
+  /** Members backing this member this season. Public. */
+  backers: number;
+  /** On the board this season, so can be backed. */
+  contender: boolean;
+  /** Who this member backs this season (locked), with the pick's current city rank. */
+  pick: { member: PublicMember; cityRank: number | null; cityOf: number; gapToFirst: number; since: Date } | null;
+  /** Past seasons, newest first. */
+  history: { seasonLabel: string; member: PublicMember; finalRank: number | null; crowned: boolean }[];
+}
+export interface BackedRow { member: PublicMember; backers: number; rank: number }
+
 export type Availability = 'live' | 'demo' | 'unavailable';
 
 export interface DataSource {
@@ -114,4 +130,8 @@ export interface DataSource {
   achievements(username: string): Promise<AchievementView[]>;
   social(username: string): Promise<SocialSummary | null>;
   archive(): Promise<ArchiveSeason[]>;
+  /** Null where Backing is not switched on (the live site, until approved). */
+  backing(username: string): Promise<BackingView | null>;
+  /** Contenders in a city by number of backers. A popularity list, never a ranking input. */
+  mostBacked(cityId: string, limit: number): Promise<BackedRow[]>;
 }

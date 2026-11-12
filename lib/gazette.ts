@@ -1,6 +1,6 @@
 // The Gazette: each city's daily front page, written from the register's own records.
 // Every line is derived from real board data. Nothing is invented: when nothing happened, it says so.
-import type { Board, BoardEvent, CitySummary, CrownMomentView, PublicMember, ReignView } from './data/types';
+import type { BackedRow, Board, BoardEvent, CitySummary, CrownMomentView, PublicMember, ReignView } from './data/types';
 import type { City } from './geo';
 import type { SeasonInfo } from './season';
 import { cityById } from './geo';
@@ -10,6 +10,9 @@ export interface Story { kicker: string; headline: string; body: string; href?: 
 export interface Notice { no: string; text: string; at: Date; winner: string; loser: string | null; held: string | null }
 export interface Edition {
   city: City;
+  /** What #01 costs a new entrant right now, and the same for every city (dearest first). */
+  price: number;
+  prices: { name: string; price: number; isCity: boolean }[];
   issue: string;       // "Season 4 · No. 10"
   dateline: string;    // "Tuesday 10 November 2026"
   lead: Story;
@@ -24,6 +27,8 @@ export interface GazetteInput {
   city: City; season: SeasonInfo; now: Date; open: boolean;
   board: Board; reigns: ReignView[]; moments: CrownMomentView[]; events: BoardEvent[];
   cities: CitySummary[]; respect: Board;
+  /** Contenders by backers, when Backing is switched on. */
+  backed?: BackedRow[];
 }
 
 const DAY = 86_400_000;
@@ -78,6 +83,16 @@ export function buildEdition(i: GazetteInput): Edition {
       body: gap <= 500 ? `A single ${inr(500)} step by ${who(second.member)} changes who holds ${city.name}. The register notes that it has not happened yet.`
         : `${who(second.member)} sits at #02. Closing the distance takes ${Math.ceil((gap + 1) / 500)} steps.`, href: '/board?level=city&city=' + city.id });
   }
+  if (i.open && leader) {
+    const dearest = [...cities].sort((a, b) => (b.leader?.seasonScore ?? 0) - (a.leader?.seasonScore ?? 0))[0];
+    const price = leader.member.seasonScore + 500;
+    stories.push({ kicker: 'The price of the throne', headline: `${C} COSTS ${inr(price)} TODAY`, tone: 'hot', href: '/rank-up',
+      body: `That is what it takes to walk in and take #01 from ${who(leader.member)} right now. It goes up every time someone defends it.${dearest?.leader && dearest.cityId !== city.id ? ` The dearest throne in India is ${cityById(dearest.cityId)!.name} at ${inr(dearest.leader.seasonScore + 500)}.` : dearest?.cityId === city.id ? ' It is the dearest throne in India.' : ''}` });
+  }
+  const army = i.backed?.[0];
+  if (army && leader) stories.push({ kicker: 'Who the city is behind', headline: army.member.username === leader.member.username ? `${army.backers} STAND BEHIND ${surname(army.member).toUpperCase()}` : `THE CITY BACKS ${surname(army.member).toUpperCase()}, NOT THE THRONE`,
+    body: army.member.username === leader.member.username ? `${who(army.member)} holds #01 and has the most backers in ${city.name}: ${army.backers}. Each of them gave up their only backing of the season.`
+      : `${who(army.member)} is #${army.rank} but has ${army.backers} backers, more than ${who(leader.member)} on the throne. Backers cannot move a rank. They can only be right.`, href: profile(army.member) });
   const climber = events.filter((e) => e.kind === 'up' || e.kind === 'new').sort((a, b) => b.by - a.by)[0];
   if (climber) stories.push({ kicker: 'On the move', headline: climber.kind === 'new' ? `NEW NAME: ${who(climber.member).toUpperCase()} ENTERS AT #${climber.rank}` : `${surname(climber.member).toUpperCase()} CLIMBS ${climber.by} TO #${climber.rank}`,
     body: climber.kind === 'new' ? `${who(climber.member)} of ${climber.member.locality} is on the board for the first time this season.` : `${who(climber.member)} of ${climber.member.locality} passed ${climber.by} ${climber.by === 1 ? 'name' : 'names'}. Those names have been informed by the board itself.`, href: profile(climber.member) });
@@ -111,6 +126,8 @@ export function buildEdition(i: GazetteInput): Edition {
 
   return {
     city, lead, stories, notices,
+    price: i.open && leader ? leader.member.seasonScore + 500 : 1000,
+    prices: cities.map((c) => ({ name: cityById(c.cityId)!.name, price: (c.leader?.seasonScore ?? 0) + (c.leader ? 500 : 1000), isCity: c.cityId === city.id })).sort((a, b) => b.price - a.price),
     issue: i.open ? `${season.label} · No. ${dayNo}` : 'Before the first season',
     dateline: ist(now, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
     standing: ranked.map((c) => ({ rank: c.rank, name: cityById(c.cityId)!.name, total: c.seasonTotal, isCity: c.cityId === city.id })),

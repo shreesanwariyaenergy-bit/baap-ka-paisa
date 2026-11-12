@@ -8,6 +8,7 @@ import { SealShare } from '@/components/SealShare';
 import { movementLabel } from '@/components/movement';
 import { profileQr } from '@/lib/qr';
 import { groupAchievements } from '@/lib/achievements';
+import { strongestClaim } from '@/lib/claim';
 import { Crown, PastChampionMark } from '@/components/Crown';
 
 export const metadata: Metadata = { title: 'The Seal' };
@@ -41,12 +42,34 @@ export default async function SealPage() {
   const mv = movementLabel(viewer.cityMovement);
   const [qr, achievements, reigns] = await Promise.all([profileQr(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 20 })]);
   const grouped = groupAchievements(achievements);
+  const claim = strongestClaim({ standings: viewer.standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
+  const backing = await ds.backing(m.username);
+  const contenders = backing && !backing.pick ? await ds.mostBacked(m.cityId, 3) : [];
+  const nm2 = (x: { masked: boolean; publicLabel: string; displayName: string | null; username: string }) => (x.masked ? x.publicLabel : x.displayName ?? x.username);
   const finishes = [cityStanding?.rank ?? null, ...viewer.record.map((r) => r.cityRank)].filter((n): n is number => !!n);
   const best = finishes.length ? Math.min(...finishes) : null;
   const istDate = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   return (
     <>
       {intro}
+      {(claim || backing) && (
+        <div style={{ margin: '22px 0 0' }}>
+          {claim && <div className="claim" data-testid="seal-claim">{claim.headline}<small>Your strongest claim · {claim.proof}</small></div>}
+          {backing && (
+            <div className="pick-card" data-testid="pick-card">
+              <small>Backing · {backing.seasonLabel} · {backing.backers} backing you</small>
+              {backing.pick ? (<>
+                <h3>Your pick: <Link href={`/u/${encodeURIComponent(backing.pick.member.username)}`}>{nm2(backing.pick.member)}</Link> is {backing.pick.cityRank === 1 ? 'holding #01' : backing.pick.cityRank ? `#${String(backing.pick.cityRank).padStart(2, '0')}` : 'off the board'}</h3>
+                <p>{backing.pick.cityRank === 1 ? 'If it stays that way at the closing, “Backed the Crown” goes on your Seal for good.' : backing.pick.cityRank ? `${inr(backing.pick.gapToFirst)} behind #01. Your backing is locked; all you can do now is watch, or send them this.` : 'Your backing is locked for the season.'}</p>
+              </>) : (<>
+                <h3>You have not backed anyone</h3>
+                <p>One backing per season, locked once given. Back the member you think takes {city.name}{contenders.length ? ': ' : '.'}{contenders.map((c, n) => <span key={c.member.username}>{n ? ', ' : ''}<Link href={`/u/${encodeURIComponent(c.member.username)}`}>{nm2(c.member)}</Link> ({c.backers})</span>)}{contenders.length ? '.' : ''}</p>
+              </>)}
+              {backing.history.length > 0 && <p><small>Past seasons: {backing.history.map((h) => `${h.seasonLabel.replace('Season ', 'S')} ${nm2(h.member)}${h.crowned ? ' — took the crown' : h.finalRank ? ` — finished #${h.finalRank}` : ''}`).join(' · ')}</small></p>}
+            </div>
+          )}
+        </div>
+      )}
       <div className="profile-wrap">
         <div>
           <Seal

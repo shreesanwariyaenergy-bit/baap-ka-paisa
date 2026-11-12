@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { ReignView } from '@/lib/data/types';
+import { throneTime } from '@/lib/claim';
 import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { Crown, PastChampionMark } from '@/components/Crown';
 import { BoardFilters } from '@/components/BoardFilters';
@@ -12,7 +13,7 @@ const fmt = (d: Date) => d.toLocaleString('en-IN', { day: '2-digit', month: 'sho
 const dur = (h: number) => (h >= 48 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h`);
 const nm = (r: ReignView) => (r.member.masked ? r.member.publicLabel : r.member.displayName ?? r.member.username);
 
-export default async function ThronePage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string }> }) {
+export default async function ThronePage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; view?: string }> }) {
   const sp = await searchParams;
   const ds = await getDataSource();
   const viewer = await ds.viewer();
@@ -21,6 +22,8 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
   const name = scopeName(scope);
   const reigns = await ds.throneHistory({ scope, limit: 100 });
   const href = (l: string) => `/throne?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`;
+  const byTime = throneTime(reigns);
+  const timeView = sp.view === 'time';
   const longest = [...reigns].sort((a, b) => b.hours - a.hours)[0];
   const counts = new Map<string, { r: ReignView; n: number }>();
   reigns.forEach((r) => { const k = r.member.username; counts.set(k, { r, n: (counts.get(k)?.n ?? 0) + 1 }); });
@@ -42,7 +45,20 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
       <div className="board-layout">
         <div className="board-panel">
           <div className="panel-head"><h3 data-testid="throne-title">{name} / {LEVEL_LABEL[scope.level]} throne</h3><span>{reigns.length} {reigns.length === 1 ? 'reign' : 'reigns'}</span></div>
-          {reigns.length === 0 ? (
+          <div className="filterbar" style={{ margin: '0 0 14px' }}>
+            <Link href={href(scope.level)} aria-current={!timeView ? 'true' : undefined}>Timeline</Link>
+            <Link href={`${href(scope.level)}&view=time`} aria-current={timeView ? 'true' : undefined} data-testid="throne-time-tab">Time on the throne</Link>
+          </div>
+          {timeView && byTime.length > 0 ? byTime.map((t, n) => (
+            <div className={`reign${t.holding ? ' current' : ''}`} key={t.username} data-testid="throne-time-row">
+              <span className="mark" style={{ font: '900 28px var(--font-display)' }}>{String(n + 1).padStart(2, '0')}</span>
+              <div style={{ minWidth: 0 }}>
+                <h4><Link href={`/u/${encodeURIComponent(t.username)}`}>{t.name}</Link></h4>
+                <p>{t.reigns} {t.reigns === 1 ? 'reign' : 'reigns'} · longest {dur(t.longest)}{t.holding ? ' · holding now' : ''}</p>
+              </div>
+              <div className="dur">{dur(t.hours)}<small>on the throne</small></div>
+            </div>
+          )) : reigns.length === 0 ? (
             <div className="state-box" data-testid="throne-empty"><h4>{rankingsOpen(ds) ? `No one has held ${name} yet.` : 'No throne history yet.'}</h4><p>The first member to reach #01 on this board starts its history.</p></div>
           ) : reigns.map((r) => (
             <div className={`reign${r.current ? ' current' : ''}`} key={`${r.member.username}-${r.from.getTime()}`} data-testid="reign">

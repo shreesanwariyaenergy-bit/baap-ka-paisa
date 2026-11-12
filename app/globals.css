@@ -819,3 +819,20 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .gz-strip b { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(20px, 2.6vw, 30px); line-height: 1; flex: 1; min-width: 200px; }
 .gz-strip span { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; text-decoration: underline; }
 @media (max-width: 860px) { .gz-body { grid-template-columns: 1fr; } .gz-side { border-left: 0; padding-left: 0; border-top: 2px solid var(--ink, #0C251F); padding-top: 22px; } .gz-stories { columns: 1; } .gz-ears { justify-content: center; } .gz-rule { justify-content: center; } .gazette { box-shadow: 5px 5px 0 var(--ink, #0C251F); } }
+
+/* ---------- Backing ---------- */
+.backing { border: 2px solid var(--ink, #0C251F); background: var(--white, #FCF9F0); padding: 18px; box-shadow: 6px 6px 0 var(--ink, #0C251F); display: grid; gap: 14px; }
+.backing-count { display: flex; gap: 14px; align-items: center; }
+.backing-count b { font-family: var(--font-display); font-weight: 900; font-size: clamp(48px, 7vw, 76px); line-height: .8; background: #CCFF00; padding: 8px 12px; border: 2px solid var(--ink, #0C251F); }
+.backing-count span { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(18px, 2.2vw, 24px); line-height: 1.05; }
+.backing-count small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: .1em; margin-top: 6px; color: var(--muted-strong, #44524B); }
+.backing-confirm { border: 2px dashed #C23A00; padding: 14px; background: #FFF3EC; }
+.backing-confirm p, .backing-locked { margin: 0 0 12px; font-size: 15px; line-height: 1.45; }
+.backing-locked { margin: 0; }
+.pick-card { border: 2px solid var(--ink, #0C251F); background: var(--ink, #0C251F); color: #FCF9F0; padding: 20px; display: grid; gap: 10px; margin-top: 22px; }
+.pick-card h3 { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(26px, 3.4vw, 40px); line-height: .95; margin: 0; color: #CCFF00; }
+.pick-card p { margin: 0; font-size: 15px; line-height: 1.45; }
+.pick-card small { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+.pick-card a { text-decoration: underline; }
+.claim { display: inline-block; font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(22px, 3vw, 34px); line-height: 1; background: #CCFF00; border: 2px solid var(--ink, #0C251F); padding: 8px 12px; box-shadow: 4px 4px 0 var(--ink, #0C251F); }
+.claim small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: .12em; margin-top: 4px; }

@@ -10,8 +10,10 @@ import { DAY, HOUR, ACHIEVEMENT_RULES, boardAt, boardKeys, rankScores, respectBo
 import { keyName, keyToScope, scopeToKey } from '../engine/keys';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
+import { backersOf, mostBacked, pickOf, runBacking, type BackEvent, type BackingResult } from '../engine/backing';
+import { readDemoPick } from '../demo-social';
 import { demoViewerOn } from '../supabase-server';
-import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
+import type { AchievementView, ArchiveSeason, BackingView, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 export const SIM_NOW = new Date('2026-11-10T18:00:00+05:30').getTime();
 export const DEMO_AS_OF_LABEL = '10 Nov 2026, 6:00 pm IST';
@@ -161,12 +163,40 @@ function buildLog() {
     set.delete(m.id); follows.set(m.id, set);
   }
   const rivals = new Map<string, string[]>([[VIEWER, ['vesu.vikram', 'vesu.queen', 'pal.prince']]]);
-  return { members, profile, events, follows, rivals };
+  return { members, profile, events, follows, rivals, rnd };
 }
 
 const LOG = buildLog();
 export const SIM: EngineResult = runEngine(LOG.members, SIM_SEASONS, LOG.events, SIM_NOW);
 const CURRENT = SIM.seasons.find((s) => s.startsAt <= SIM_NOW && !s.closed)!;
+
+// Simulated backings: most members back one contender from their own city each season, leaning to the top.
+// The demo member backed the eventual #01 once (Season 3) and has not backed anyone in the current season.
+function buildBackings(): BackEvent[] {
+  const out: BackEvent[] = []; const rnd = LOG.rnd; let n = 0;
+  for (const s of SIM.seasons) {
+    const last = Math.min(s.scheduledEnd, SIM_NOW) - 2 * HOUR;
+    for (const m of LOG.members) {
+      if (m.id === VIEWER || rnd() < 0.3) continue;
+      const at = s.startsAt + 3 * DAY + rnd() * Math.max(HOUR, last - s.startsAt - 3 * DAY);
+      const pool = boardAt(SIM, s.id, `city:${m.cityId}`, at).filter((r) => r.memberId !== m.id).slice(0, 6);
+      if (!pool.length) continue;
+      out.push({ id: `back-${++n}`, at, backer: m.id, target: pool[Math.min(pool.length - 1, Math.floor(Math.pow(rnd(), 2.2) * pool.length))].memberId });
+    }
+  }
+  const [s1, s2, s3] = SIM.seasons;
+  const top = (s: typeof s1, i: number) => boardAt(SIM, s.id, 'city:surat', s.startsAt + 12 * DAY).filter((r) => r.memberId !== VIEWER)[i]?.memberId;
+  const crown3 = SIM.frozen.get(s3.id)?.get('city:surat')?.[0]?.memberId;
+  for (const [s, target] of [[s1, top(s1, 1)], [s2, top(s2, 2)], [s3, crown3]] as const) if (target && target !== VIEWER) out.push({ id: `back-viewer-${s.id}`, at: s.startsAt + 12 * DAY, backer: VIEWER, target });
+  return out;
+}
+const BACK_EVENTS = buildBackings();
+/** Backings including, when present, the demo member's own pick from this browser. */
+async function backings(): Promise<BackingResult> {
+  const pick = (await demoViewerOn().catch(() => false)) ? await readDemoPick() : null;
+  return runBacking(SIM, pick && pick.seasonId === CURRENT.id ? [...BACK_EVENTS, { id: 'back-viewer-now', at: Math.min(pick.at, SIM_NOW), backer: VIEWER, target: pick.target }] : BACK_EVENTS);
+}
+export const DEMO_BACKING = { events: BACK_EVENTS, viewer: VIEWER, seasonId: CURRENT.id };
 
 function pub(id: string, seasonScore?: number): PublicMember {
   const { p, city, memberNo } = LOG.profile.get(id)!;
@@ -290,8 +320,31 @@ export const demoSource: DataSource = {
     return SIM.crownEvents.filter((e) => e.board === k && e.at >= since.getTime() && e.at <= SIM_NOW).sort((a, b) => b.at - a.at)
       .map((e): CrownMomentView => ({ seasonLabel: seasonLabel(e.seasonId), scope: keyToScope(e.board), boardName: keyName(e.board), from: e.from ? pub(e.from) : null, to: pub(e.to), at: new Date(e.at) }));
   },
+  async backing(username) {
+    if (!LOG.profile.has(username)) return null;
+    const r = await backings();
+    const cityBoard = (id: string) => boardAt(SIM, CURRENT.id, `city:${SIM.members.get(id)!.cityId}`, SIM_NOW);
+    const p = pickOf(r, CURRENT.id, username);
+    const pb = p ? cityBoard(p.target) : [];
+    const pr = p ? pb.find((x) => x.memberId === p.target) : undefined;
+    return {
+      open: true, seasonLabel: seasonLabel(CURRENT.id), backers: backersOf(r, CURRENT.id, username),
+      contender: cityBoard(username).some((x) => x.memberId === username),
+      pick: p ? { member: pub(p.target, pr?.score), cityRank: pr?.rank ?? null, cityOf: pb.length, gapToFirst: pr && pb[0] ? pb[0].score - pr.score : 0, since: new Date(p.at) } : null,
+      history: r.accepted.filter((b) => b.backer === username && b.seasonId !== CURRENT.id).sort((a, b) => b.seasonId - a.seasonId).map((b) => {
+        const city = SIM.members.get(b.target)!.cityId;
+        const rank = SIM.frozen.get(b.seasonId)?.get(`city:${city}`)?.find((x) => x.memberId === b.target)?.rank ?? null;
+        return { seasonLabel: seasonLabel(b.seasonId), member: pub(b.target), finalRank: rank, crowned: rank === 1 };
+      }),
+    } satisfies BackingView;
+  },
+  async mostBacked(cityId, limit) {
+    const r = await backings();
+    return mostBacked(SIM, r, CURRENT.id, cityId, SIM_NOW).slice(0, limit).map((x) => ({ member: pub(x.memberId), backers: x.backers, rank: x.rank }));
+  },
   async achievements(username) {
-    return SIM.achievements.filter((a) => a.memberId === username && a.at <= SIM_NOW).sort((a, b) => b.at - a.at)
+    const backed = (await backings()).awards.filter((a) => a.memberId === username);
+    return [...SIM.achievements, ...backed].filter((a) => a.memberId === username && a.at <= SIM_NOW).sort((a, b) => b.at - a.at)
       .map((a): AchievementView => ({ id: a.id, label: a.label, detail: humanizeDetail(a.detail || ACHIEVEMENT_RULES[a.id]), at: new Date(a.at), seasonLabel: a.seasonId ? seasonLabel(a.seasonId) : null, boardName: a.board ? keyName(a.board) : null }));
   },
   async social(username) {

@@ -142,6 +142,9 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       const rivals = (await Promise.all(r.rival_names.map((n) => src.member(n)))).filter((m): m is PublicMember => !!m).map((m): BoardRow => ({ rank: 0, member: m, movement: null }));
       return { followers: r.followers, following: r.following, respectThisSeason: r.respect_this_season, rivals } satisfies SocialSummary;
     },
+    // Backing is a demo prototype: not switched on for real members.
+    async backing() { return null; },
+    async mostBacked() { return []; },
     async archive() {
       const rows = await rpc<{ season_id: number; starts_at: string; ends_at: string; level: string; scope_key: string; public_name: string; display_name: string | null; masked: boolean }[]>(cfg, 'get_archive');
       const bySeason = new Map<number, ArchiveSeason>();

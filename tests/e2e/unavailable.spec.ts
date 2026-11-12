@@ -44,3 +44,8 @@ test('The Gazette is honest with no data: the throne has never been held', async
   await expect(page.getByTestId('gazette-lead')).toContainText('HAS NEVER BEEN HELD');
   await expect(page.getByTestId('gazette-notice')).toHaveCount(0);
 });
+
+test('Backing is not switched on outside the demo', async ({ page }) => {
+  await page.goto('/seal');
+  await expect(page.getByTestId('pick-card')).toHaveCount(0);
+});

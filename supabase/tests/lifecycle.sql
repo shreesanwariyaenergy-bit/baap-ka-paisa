@@ -142,6 +142,10 @@ do $$ begin
   begin insert into public.follows (follower, followee) select id, id from public.members; assert false; exception when insufficient_privilege then null; end;
   begin perform 1 from public.respects; assert false; exception when insufficient_privilege then null; end;
   begin perform public.registration_allowed(); assert false; exception when insufficient_privilege then null; end;
+  -- legitimate public reads still work for signed-out visitors
+  perform * from public.get_social('t.bhavna'); perform * from public.get_respect_board('city', 'surat', null, 10);
+  perform * from public.get_board('city', 'surat', null, 10, null); perform * from public.get_member('t.bhavna');
+  perform * from public.get_throne_history('city', 'surat', null, null, 10); perform * from public.get_season();
   raise notice 'ANON PERMISSIONS OK';
 end $$;
 reset role;
@@ -182,3 +186,24 @@ do $$ begin
   raise notice 'AUTHENTICATED PERMISSIONS OK';
 end $$;
 reset role;
+
+-- ---- unrelated objects untouched by the social migration: grants on every other table are as before ----
+do $$ declare bad text; begin
+  select string_agg(c.relname, ', ') into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist')
+     and not has_table_privilege('authenticated', c.oid, 'insert');
+  assert bad is null, 'grants changed on: ' || bad;
+  raise notice 'OTHER TABLE GRANTS UNCHANGED OK';
+end $$;
+
+-- ---- rollback of the social migration restores the previous permissions and removes the function; rows stay ----
+do $$ declare n_before int := (select count(*) from public.respects); begin
+  drop function public.social_action(text, text);
+  grant insert, update, delete, truncate, references, trigger on public.follows, public.respects, public.rivals to anon, authenticated;
+  grant select on public.follows, public.respects, public.rivals to anon;
+  assert has_table_privilege('authenticated', 'public.follows', 'insert') and has_table_privilege('anon', 'public.respects', 'select');
+  assert to_regprocedure('public.social_action(text,text)') is null;
+  assert (select count(*) from public.respects) = n_before and n_before > 0, 'rows are preserved';
+  assert (select count(*) from pg_policies where schemaname = 'public' and tablename in ('follows', 'respects', 'rivals')) = 8, 'the eight policies are untouched';
+  raise notice 'SOCIAL ROLLBACK OK';
+end $$;

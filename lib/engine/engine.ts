@@ -35,7 +35,7 @@ export interface Ranked { memberId: string; rank: number; score: number; reached
 export interface CrownEvent { seasonId: number; board: BoardKey; from: string | null; to: string; at: number; byEvent: string; }
 export interface Reign { seasonId: number; board: BoardKey; memberId: string; from: number; to: number | null; endReason: 'overtaken' | 'season-end' | null; }
 export interface Achievement { memberId: string; id: AchievementId; label: string; detail: string; at: number; seasonId?: number; board?: BoardKey; }
-export type AchievementId = 'founding-500' | 'pioneer' | 'season-crown' | 'untouchable' | 'longest-reign' | 'revenge-taken' | 'climber-of-week' | 'streak' | 'most-respected';
+export type AchievementId = 'founding-500' | 'pioneer' | 'season-crown' | 'untouchable' | 'longest-reign' | 'revenge-taken' | 'climber-of-week' | 'streak' | 'most-respected' | 'backed-the-crown';
 export interface Rejection { event: EngineEvent; reason: string; }
 
 export const ACHIEVEMENT_RULES: Record<AchievementId, string> = {
@@ -48,6 +48,7 @@ export const ACHIEVEMENT_RULES: Record<AchievementId, string> = {
   'climber-of-week': 'Biggest city rank climb in a completed week (Monday to Sunday, IST).',
   streak: 'Ranked in consecutive seasons. Shown as Streak ×N.',
   'most-respected': 'Finished a season #01 on the free Respect board.',
+  'backed-the-crown': 'Gave their one backing of the season to the member who finished #01 in their city.',
 };
 
 export const boardKeys = (m: EngineMember): BoardKey[] => [`locality:${m.cityId}:${m.locality}`, `city:${m.cityId}`, `state:${m.state}`, 'india'];

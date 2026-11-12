@@ -338,3 +338,35 @@ test('The Gazette: front page written from the board, notices numbered, city edi
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/The Mumbai Gazette/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
+
+test('Backing: one per season, confirm step, locked, visible on the Seal', async ({ page }) => {
+  await page.goto('/u/kinjal.adajan');
+  const panel = page.getByTestId('backing-panel');
+  const before = Number(await page.getByTestId('backing-count').innerText());
+  await page.getByTestId('back-start').click();
+  await expect(panel).toContainText('This is your only backing for Season 4');
+  await page.getByTestId('back-confirm').click();
+  await expect(page.getByTestId('backing-locked')).toContainText('Locked.');
+  await expect(page.getByTestId('backing-count')).toHaveText(String(before + 1));
+  await page.reload();
+  await expect(panel).toHaveAttribute('data-mode', 'backing-this');
+  await expect(page.getByTestId('backing-count')).toHaveText(String(before + 1));
+  await page.goto('/u/vesu.vikram');
+  await expect(page.getByTestId('backing-panel')).toHaveAttribute('data-mode', 'backing-other');
+  await expect(page.getByTestId('back-start')).toHaveCount(0);
+  await page.goto('/seal');
+  await expect(page.getByTestId('pick-card')).toContainText('Your pick: Kinjal Shah is holding #01');
+  await expect(page.getByTestId('pick-card')).toContainText('took the crown');
+  await expect(page.getByTestId('seal-claim')).toBeVisible();
+});
+
+test('Time on the throne board, strongest claim and the price of the throne', async ({ page }) => {
+  await page.goto('/throne?level=city&city=surat');
+  await page.getByTestId('throne-time-tab').click();
+  await expect(page.getByTestId('throne-time-row').first()).toContainText('on the throne');
+  await page.goto('/u/kinjal.adajan');
+  await expect(page.getByTestId('claim')).toContainText('Holds Gujarat');
+  await page.goto('/gazette?city=surat');
+  await expect(page.getByTestId('gazette')).toContainText(/SURAT COSTS ₹[\d,]+ TODAY/);
+  await expect(page.getByTestId('gazette-prices')).toContainText('Mumbai');
+});
