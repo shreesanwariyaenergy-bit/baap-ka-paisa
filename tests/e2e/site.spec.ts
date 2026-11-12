@@ -370,3 +370,36 @@ test('Time on the throne board, strongest claim and the price of the throne', as
   await expect(page.getByTestId('gazette')).toContainText(/SURAT COSTS ₹[\d,]+ TODAY/);
   await expect(page.getByTestId('gazette-prices')).toContainText('Mumbai');
 });
+
+test('Declarations: a made-good story, a standing declaration, and declaring as the demo member', async ({ page, request }) => {
+  await page.goto('/declare/d402');
+  await expect(page.getByTestId('declaration-status')).toHaveText('Made good');
+  await expect(page.getByTestId('declaration')).toContainText('Kinjal Shah');
+  await expect(page.getByTestId('declaration-story')).toContainText('Declared. Then did it.');
+  expect((await request.get('/api/declaration-card/d402')).headers()['content-type']).toContain('image/png');
+  await page.goto('/gazette?city=surat');
+  await expect(page.getByTestId('gazette')).toContainText('DESAI DECLARES FOR SURAT');
+  await expect(page.getByTestId('gazette-declaration').first()).toContainText(/No\. D\/S4\/ST\/\d{3}/);
+  // The demo member declares for Surat from the holder's profile.
+  await page.goto('/u/kinjal.adajan');
+  await page.getByTestId('declare-start').click();
+  await expect(page.getByTestId('declare-form')).toContainText('This goes on the public record under your name.');
+  await page.getByTestId('declare-confirm').click();
+  await expect(page).toHaveURL(/\/declare\/dv/);
+  await expect(page.getByTestId('declaration-status')).toHaveText('Standing');
+  await expect(page.getByTestId('declaration')).toContainText('Ishaan Mehta');
+  await expect(page.getByTestId('tp-mine')).toBeVisible();
+  await page.goto('/u/kinjal.adajan');
+  await expect(page.getByTestId('declare-start')).toHaveCount(0); // one standing declaration per throne
+});
+
+test('Price of the throne: every figure is labelled and nothing is an order', async ({ page }) => {
+  await page.goto('/');
+  const tp = page.getByTestId('throne-price');
+  await expect(tp).toContainText("Kinjal Shah's season score");
+  await expect(tp).toContainText('Next qualifying step');
+  await expect(tp).toContainText('No payment is being taken');
+  const leader = Number((await page.getByTestId('tp-leader').innerText()).replace(/[^\d]/g, ''));
+  const price = Number((await page.getByTestId('throne-price-amount').innerText()).replace(/[^\d]/g, ''));
+  expect(price).toBe(leader + 500);
+});

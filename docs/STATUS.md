@@ -9,6 +9,12 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 13 November 2026 (later): season clock applied, Declarations, labelled throne price
+
+- **Season clock migration applied to the live database** (`supabase/migrations/20261112000700_season_clock.sql`). Verified after applying: `auto_rollover` false, 0 seasons, pg_cron not installed, the three functions not executable by anon or authenticated.
+- **Declarations (demo prototype only):** rules in `lib/engine/callout.ts`: only against the current #01 while a season is open; one standing declaration per challenger per board; 72-hour cooldown; three per season; holder blocks; moderator removal; no free text (four fixed lines). Outcome is read from the board: made good, throne moved, or lapsed. Public page `/declare/[id]` with numbered declaration, snapshot figures, rivalry timeline and dethroning story; share card `/api/declaration-card/[id]`; Gazette coverage; declare control on a city holder's profile. The demo member's declarations are kept in a browser cookie; nobody is notified. Blocking and removal exist in the rules and tests but have no screens yet. Live source returns nothing.
+- **Price of the throne (implemented; live with real data):** `components/ThronePrice.tsx` on the homepage and declaration pages labels the holder's season score, the next qualifying step, the amount to take #01 from nothing and from the viewer's own score, and states that it is indicative and not an order.
+
 ## Update, 13 November 2026: Backing prototype, time on the throne, strongest claim
 
 - **Backing (demo prototype only; not switched on for real members):** rules in `lib/engine/backing.ts` (one per member per season, locked, contender must be on the board, never touches scores, "Backed the Crown" to backers of the final city #01, history kept across seasons). Demo interaction: confirm step and lock on a contender's profile, public backer count, "Your pick" card and past seasons on The Seal, Gazette story. The demo member's own pick is kept in a browser cookie. Live source returns nothing.

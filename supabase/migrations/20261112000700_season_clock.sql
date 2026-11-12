@@ -1,4 +1,4 @@
--- PENDING REVIEW. Not applied to any database.
+-- Applied 13 Nov 2026. Schedule lines below remain commented out: the clock is not running.
 -- Season clock: configurable season dates, optional monthly rollover, and a one-minute schedule.
 -- Additive only. Nothing here is callable from the browser (no grants to anon or authenticated).
 

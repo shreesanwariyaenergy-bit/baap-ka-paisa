@@ -1,6 +1,6 @@
 // The Gazette: each city's daily front page, written from the register's own records.
 // Every line is derived from real board data. Nothing is invented: when nothing happened, it says so.
-import type { BackedRow, Board, BoardEvent, CitySummary, CrownMomentView, PublicMember, ReignView } from './data/types';
+import type { BackedRow, DeclarationView, Board, BoardEvent, CitySummary, CrownMomentView, PublicMember, ReignView } from './data/types';
 import type { City } from './geo';
 import type { SeasonInfo } from './season';
 import { cityById } from './geo';
@@ -22,6 +22,7 @@ export interface Edition {
   /** One line that works as a message when the edition is shared. */
   shareLine: string;
   quiet: boolean;
+  declarations: { id: string; no: string; text: string; status: string }[];
 }
 export interface GazetteInput {
   city: City; season: SeasonInfo; now: Date; open: boolean;
@@ -29,6 +30,8 @@ export interface GazetteInput {
   cities: CitySummary[]; respect: Board;
   /** Contenders by backers, when Backing is switched on. */
   backed?: BackedRow[];
+  /** Public declarations for this city, newest first. */
+  declarations?: DeclarationView[];
 }
 
 const DAY = 86_400_000;
@@ -89,6 +92,12 @@ export function buildEdition(i: GazetteInput): Edition {
     stories.push({ kicker: 'The price of the throne', headline: `${C} COSTS ${inr(price)} TODAY`, tone: 'hot', href: '/rank-up',
       body: `That is what it takes to walk in and take #01 from ${who(leader.member)} right now. It goes up every time someone defends it.${dearest?.leader && dearest.cityId !== city.id ? ` The dearest throne in India is ${cityById(dearest.cityId)!.name} at ${inr(dearest.leader.seasonScore + 500)}.` : dearest?.cityId === city.id ? ' It is the dearest throne in India.' : ''}` });
   }
+  const decls = (i.declarations ?? []).filter((d) => d.scope.level === 'city');
+  const standing = decls.find((d) => d.status === 'standing');
+  if (standing) stories.unshift({ kicker: `Declaration No. ${standing.no}`, headline: `${surname(standing.challenger).toUpperCase()} DECLARES FOR ${C}`, tone: 'hot', href: `/declare/${standing.id}`,
+    body: `${who(standing.challenger)} has put it in writing: "${standing.line}" ${who(standing.holder)} holds the throne. ${who(standing.challenger)} needs ${inr(standing.current?.required ?? standing.required)} to make it true. The register is watching both of them.` });
+  const madeGood = lastChange && decls.find((d) => d.status === 'won' && d.resolvedAt && Math.abs(d.resolvedAt.getTime() - lastChange.at.getTime()) < 60_000);
+  if (madeGood && lead.kicker === 'Change of throne') { lead.body += ` It was announced in advance: Declaration No. ${madeGood.no}, "${madeGood.line}"`; lead.href = `/declare/${madeGood.id}`; }
   const army = i.backed?.[0];
   if (army && leader) stories.push({ kicker: 'Who the city is behind', headline: army.member.username === leader.member.username ? `${army.backers} STAND BEHIND ${surname(army.member).toUpperCase()}` : `THE CITY BACKS ${surname(army.member).toUpperCase()}, NOT THE THRONE`,
     body: army.member.username === leader.member.username ? `${who(army.member)} holds #01 and has the most backers in ${city.name}: ${army.backers}. Each of them gave up their only backing of the season.`
@@ -133,5 +142,6 @@ export function buildEdition(i: GazetteInput): Edition {
     standing: ranked.map((c) => ({ rank: c.rank, name: cityById(c.cityId)!.name, total: c.seasonTotal, isCity: c.cityId === city.id })),
     shareLine: `${lead.headline}. The ${city.name} Gazette, ${season.label}.`,
     quiet: !leader,
+    declarations: decls.slice(0, 5).map((d) => ({ id: d.id, no: d.no, status: d.status, text: `${who(d.challenger)} for ${d.boardName}, held by ${who(d.holder)}` })),
   };
 }

@@ -10,6 +10,8 @@ import { SocialActions } from '@/components/SocialActions';
 import { socialState } from '@/app/actions';
 import { BackingPanel } from '@/components/BackingPanel';
 import { strongestClaim } from '@/lib/claim';
+import { DeclareButton } from '@/components/DeclareButton';
+import { LINES, toOvertake } from '@/lib/engine/callout';
 import { readDemoSocial } from '@/lib/demo-social';
 import { istDay } from '@/lib/engine/engine';
 
@@ -33,6 +35,9 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
   const [backing, myBacking] = await Promise.all([ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null]);
   const claim = strongestClaim({ standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
+  const holdsCity = standings.find((x) => x.level === 'city')?.rank === 1;
+  const feud = (await ds.declarations({ username: m.username })).slice(0, 4);
+  const canDeclareHere = ds.availability === 'demo' && holdsCity && viewer && !isSelf && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
   const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
@@ -65,6 +70,13 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
           ))}
           <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Phone number, exact address, date of birth and live location are never shown.</p>
         </div>
+        {(feud.length > 0 || canDeclareHere) && (
+          <div className="history" style={{ marginTop: 0 }} data-testid="profile-declarations">
+            <h3>Declarations</h3>
+            {feud.map((d) => <Link className="history-row" key={d.id} href={`/declare/${d.id}`}><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{d.no.split('/').pop()}</b><span>{d.challenger.username === m.username ? `Declared for ${d.boardName}` : `${d.challenger.masked ? d.challenger.publicLabel : d.challenger.displayName} declared against them`}</span><small>{d.status === 'won' ? 'Made good' : d.status === 'standing' ? 'Standing' : d.status === 'lapsed' ? 'Lapsed' : 'Throne moved'}</small></Link>)}
+            {canDeclareHere && <div style={{ marginTop: 14 }}><DeclareButton cityId={m.cityId} city={city.name} holder={name} lines={LINES} required={inr(toOvertake(m.seasonScore, viewer!.member.cityId === m.cityId ? viewer!.member.seasonScore : 0))} /></div>}
+          </div>
+        )}
         {backing && (
           <BackingPanel username={m.username} name={name} city={city.name} season={backing.seasonLabel} backers={backing.backers}
             mode={!backing.open ? 'closed' : isSelf ? 'self' : !viewer ? 'signed-out' : myBacking?.pick ? (myBacking.pick.member.username === m.username ? 'backing-this' : 'backing-other') : backing.contender ? 'can-back' : 'not-contender'}

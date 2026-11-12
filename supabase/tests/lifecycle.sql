@@ -174,6 +174,8 @@ begin
   begin insert into public.members (id, username, city_id, locality_id) values (gen_random_uuid(), 't.fake', 'surat', 1); assert false; exception when others then null; end;
   begin perform 1 from public.registration_allowlist; assert false; exception when insufficient_privilege then null; end;
   begin update public.registration_gate set mode = 'open'; assert false; exception when insufficient_privilege then null; end;
+  begin insert into public.registration_allowlist (email) values ('me@test.invalid'); assert false, 'adding yourself to the allow-list'; exception when insufficient_privilege then null; end;
+  begin delete from public.registration_allowlist; assert false; exception when insufficient_privilege then null; end;
   perform public.social_action('unfollow', 't.bhavna');
   perform set_config('request.jwt.claim.sub', '', true);
   raise notice 'DIRECT ACCESS ATTEMPTS REFUSED OK';

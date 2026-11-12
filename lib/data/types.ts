@@ -105,6 +105,18 @@ export interface BackingView {
 }
 export interface BackedRow { member: PublicMember; backers: number; rank: number }
 
+/** A public declaration for a throne. Wording comes only from the register and a fixed list. */
+export interface DeclarationView {
+  id: string; no: string; seasonLabel: string; scope: Scope; boardName: string;
+  challenger: PublicMember; holder: PublicMember; at: Date; line: string;
+  /** Figures at the moment of declaring. */
+  holderScore: number; challengerScore: number; required: number;
+  status: 'standing' | 'won' | 'throne-moved' | 'lapsed'; resolvedAt: Date | null;
+  /** Figures right now, while it stands. */
+  current: { holderScore: number; challengerScore: number; required: number } | null;
+  timeline: { at: Date; kind: 'declared' | 'holder-added' | 'challenger-added' | 'won' | 'throne-moved' | 'lapsed'; amount?: number; gap: number; by?: PublicMember }[];
+}
+
 export type Availability = 'live' | 'demo' | 'unavailable';
 
 export interface DataSource {
@@ -134,4 +146,6 @@ export interface DataSource {
   backing(username: string): Promise<BackingView | null>;
   /** Contenders in a city by number of backers. A popularity list, never a ranking input. */
   mostBacked(cityId: string, limit: number): Promise<BackedRow[]>;
+  /** Public declarations, newest first. Empty where the feature is not switched on. */
+  declarations(filter: { cityId?: string; username?: string; id?: string }): Promise<DeclarationView[]>;
 }

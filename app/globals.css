@@ -836,3 +836,37 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .pick-card a { text-decoration: underline; }
 .claim { display: inline-block; font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(22px, 3vw, 34px); line-height: 1; background: #CCFF00; border: 2px solid var(--ink, #0C251F); padding: 8px 12px; box-shadow: 4px 4px 0 var(--ink, #0C251F); }
 .claim small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: .12em; margin-top: 4px; }
+
+/* ---------- Declarations: a public declaration for a throne ---------- */
+.btn.hot { background: #FF4500; color: #fff; }
+.decl { margin: 28px 0 0; background: #FF4500; color: #0C251F; border: 2px solid #0C251F; box-shadow: 10px 10px 0 #0C251F; padding: clamp(18px, 3.4vw, 48px); position: relative; overflow: hidden; }
+.decl-won { background: #CCFF00; }
+.decl-lapsed, .decl-throne-moved { background: #D9D6C9; }
+.decl header { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; border-bottom: 4px solid #0C251F; padding-bottom: 12px; }
+.decl-stamp { margin-left: auto; border: 3px solid #0C251F; padding: 4px 12px; font-family: var(--font-display); font-weight: 900; font-size: 22px; letter-spacing: .04em; transform: rotate(-4deg); background: #FCF9F0; }
+.decl-pre { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; margin: 18px 0 0; }
+.decl h1 { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(54px, 13vw, 190px); line-height: .84; letter-spacing: -.02em; margin: 14px 0 0; overflow-wrap: anywhere; }
+.decl h1 a { display: block; font-size: .56em; line-height: .95; }
+.decl h1 em { display: block; font-style: normal; font-family: var(--font-mono); font-weight: 500; font-size: clamp(13px, 1.5vw, 18px); letter-spacing: .18em; line-height: 1.4; margin: 14px 0 8px; }
+.decl-held { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(22px, 3vw, 38px); margin: 12px 0 0; }
+.decl-held a, .decl h1 a:hover { text-decoration: underline; text-decoration-thickness: 4px; }
+.decl blockquote { margin: 26px 0 0; padding: 14px 18px; background: #0C251F; color: #FCF9F0; font-family: var(--font-display); font-weight: 800; font-size: clamp(24px, 3.4vw, 44px); line-height: 1.05; display: inline-block; }
+.decl-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; margin: 28px 0 0; border: 2px solid #0C251F; background: #FCF9F0; }
+.decl-figs div { padding: 14px 16px; border-right: 2px solid #0C251F; }
+.decl-figs div:last-child { border-right: 0; background: #0C251F; color: #CCFF00; }
+.decl-figs dt, .tprice dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.decl-figs dd { margin: 6px 0 0; font-family: var(--font-display); font-weight: 900; font-size: clamp(28px, 3.6vw, 44px); line-height: 1; }
+.decl-story { margin: 22px 0 0; font-size: clamp(17px, 1.8vw, 21px); line-height: 1.4; max-width: 60ch; }
+.decl-below { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 26px; margin: 30px 0 80px; align-items: start; }
+.tprice { border: 2px solid #0C251F; background: #FCF9F0; box-shadow: 6px 6px 0 #0C251F; }
+.tprice-head { background: #0C251F; color: #FCF9F0; padding: 16px 18px; }
+.tprice-head small { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #CCFF00; }
+.tprice-head b { font-family: var(--font-display); font-weight: 900; font-size: clamp(44px, 6vw, 72px); line-height: 1; }
+.tprice dl { margin: 0; }
+.tprice dl div { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; padding: 10px 18px; border-bottom: 1px solid rgba(12, 37, 31, .3); }
+.tprice dl div.me { background: #CCFF00; }
+.tprice dd { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 22px; text-align: right; }
+.tprice dd i { font-family: var(--font-body); font-style: normal; font-weight: 400; font-size: 13px; }
+.tprice p { margin: 0; padding: 12px 18px 16px; font-size: 13px; line-height: 1.45; color: var(--muted-strong, #44524B); }
+@media (max-width: 860px) { .decl-below { grid-template-columns: 1fr; } .decl-figs div { border-right: 0; border-bottom: 2px solid #0C251F; } .decl { box-shadow: 5px 5px 0 #0C251F; } }
+.decl-below .history-row b { white-space: nowrap; }

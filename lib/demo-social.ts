@@ -32,3 +32,16 @@ export async function readDemoPick(): Promise<DemoPick | null> {
 export async function writeDemoPick(v: DemoPick) {
   (await cookies()).set(PICK, JSON.stringify(v), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
 }
+
+// The demo member's own declarations (this browser only).
+export interface DemoDeclare { id: string; at: number; board: string; line: number }
+const DECL = 'bkp_demo_declare';
+export async function readDemoDeclares(): Promise<DemoDeclare[]> {
+  try {
+    const v = JSON.parse((await cookies()).get(DECL)?.value ?? '[]') as DemoDeclare[];
+    return Array.isArray(v) ? v.filter((d) => typeof d.id === 'string' && Number.isFinite(d.at) && typeof d.board === 'string').slice(0, 10) : [];
+  } catch { return []; }
+}
+export async function writeDemoDeclares(v: DemoDeclare[]) {
+  (await cookies()).set(DECL, JSON.stringify(v.slice(0, 10)), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+}

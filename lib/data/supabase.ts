@@ -145,6 +145,8 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
     // Backing is a demo prototype: not switched on for real members.
     async backing() { return null; },
     async mostBacked() { return []; },
+    // Declarations are a demo prototype: not switched on for real members.
+    async declarations() { return []; },
     async archive() {
       const rows = await rpc<{ season_id: number; starts_at: string; ends_at: string; level: string; scope_key: string; public_name: string; display_name: string | null; masked: boolean }[]>(cfg, 'get_archive');
       const bySeason = new Map<number, ArchiveSeason>();

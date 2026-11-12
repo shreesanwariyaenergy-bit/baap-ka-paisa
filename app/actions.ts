@@ -4,7 +4,7 @@
 import { getDataSource } from '@/lib/data';
 import { validateProfile, type Errors, type ProfileInput } from '@/lib/profile-rules';
 import { addRival, istDay } from '@/lib/engine/engine';
-import { readDemoPick, readDemoSocial, writeDemoPick, writeDemoSocial } from '@/lib/demo-social';
+import { readDemoDeclares, readDemoPick, readDemoSocial, writeDemoDeclares, writeDemoPick, writeDemoSocial } from '@/lib/demo-social';
 import { cityById } from '@/lib/geo';
 import { supabaseAuth } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
@@ -121,4 +121,25 @@ export async function backAction(target: string): Promise<BackResult> {
   const m = await ds.member(target);
   revalidatePath('/', 'layout');
   return { ok: true, message: 'Locked for the season (demo: kept on this browser only).', locked: { name: m ? (m.masked ? m.publicLabel : m.displayName ?? m.username) : target } };
+}
+
+export interface DeclareResult { ok: boolean; message: string; id?: string }
+/** Declare for a city throne. Demo prototype: stored on this browser only; nobody is notified. */
+export async function declareAction(cityId: string, line: number): Promise<DeclareResult> {
+  const ds = await getDataSource();
+  const viewer = await ds.viewer();
+  if (!viewer) return { ok: false, message: 'Sign in to declare.' };
+  if (ds.availability !== 'demo') return { ok: false, message: 'Declarations are not open yet.' };
+  if (!cityById(cityId)) return { ok: false, message: 'Unknown city.' };
+  const { DEMO_DECLARE, SIM } = await import('@/lib/data/demo');
+  const { canDeclare, runCallouts, DECLARE_REFUSAL, LINES } = await import('@/lib/engine/callout');
+  const me = viewer.member.username, now = ds.now().getTime(), board = `city:${cityId}`;
+  const mine = await readDemoDeclares();
+  const existing = runCallouts(SIM, [...DEMO_DECLARE.events, ...mine.map((d) => ({ id: d.id, at: Math.min(d.at, now), challenger: me, board: d.board, line: d.line }))]).declarations;
+  const check = canDeclare(SIM, existing, [], me, board, now);
+  if (!check.ok) return { ok: false, message: DECLARE_REFUSAL[check.reason] };
+  const id = `dv${now.toString(36)}${mine.length}`;
+  await writeDemoDeclares([...mine, { id, at: now, board, line: Number.isInteger(line) && line >= 0 && line < LINES.length ? line : 0 }]);
+  revalidatePath('/', 'layout');
+  return { ok: true, id, message: 'Declared.' };
 }

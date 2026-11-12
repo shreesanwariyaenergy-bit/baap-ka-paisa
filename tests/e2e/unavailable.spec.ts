@@ -49,3 +49,7 @@ test('Backing is not switched on outside the demo', async ({ page }) => {
   await page.goto('/seal');
   await expect(page.getByTestId('pick-card')).toHaveCount(0);
 });
+
+test('Declarations are not switched on outside the demo', async ({ page }) => {
+  expect((await page.goto('/declare/d402'))?.status()).toBe(404);
+});

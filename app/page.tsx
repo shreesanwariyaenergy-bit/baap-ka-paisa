@@ -7,6 +7,7 @@ import { inr, pad2 } from '@/lib/format';
 import { HomeBoard } from '@/components/HomeBoard';
 import { CrownMoment } from '@/components/CrownMoment';
 import { buildEdition } from '@/lib/gazette';
+import { ThronePrice } from '@/components/ThronePrice';
 import { CrownMark } from '@/components/Crown';
 import { readDemoSocial } from '@/lib/demo-social';
 import type { PublicMember } from '@/lib/data/types';
@@ -47,6 +48,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
 
   const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns: await ds.throneHistory({ scope: scopes.city, limit: 40 }), moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect: await ds.respectBoard(scopes.city, { limit: 1 }) });
+  const declared = await ds.declarations({ cityId: city.id });
   const myCity = viewer?.standings.find((s) => s.level === 'city');
   // Rival strip: each rival's current city rank next to yours.
   const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
@@ -116,6 +118,19 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           <div className="who"><small>{city.name} · unclaimed</small><h3>No one rules {city.name} yet.</h3>
             <p style={{ margin: 0, maxWidth: '52ch' }}>{open ? 'The first ranked member takes the crown.' : 'Rankings are not open yet. Create your profile now and be on the register before Season 1 opens.'}</p>
             <div className="acts"><Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link></div></div>
+        </div>
+      )}
+
+      {open && (
+        <div className="decl-below" style={{ margin: '26px 0 0' }}>
+          <ThronePrice place={city.name} holder={leader ? nm(leader.member) : null} holderScore={leader?.member.seasonScore ?? 0} myScore={viewer && viewer.member.cityId === city.id ? viewer.member.seasonScore : undefined} signedIn={!!viewer} />
+          <div className="history" style={{ marginTop: 0 }} data-testid="home-declarations">
+            <h3>Declared for {city.name}</h3>
+            {declared.length === 0 && <p style={{ margin: 0 }}>Nobody has put it in writing yet. A declaration is a numbered public notice that you are coming for the throne.</p>}
+            {declared.slice(0, 3).map((d) => (
+              <Link className="history-row" key={d.id} href={`/declare/${d.id}`}><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{d.no.split('/').pop()}</b><span>{nm(d.challenger)} vs {nm(d.holder)}</span><small>{d.status === 'won' ? 'Made good' : d.status === 'standing' ? 'Standing' : d.status === 'lapsed' ? 'Lapsed' : 'Throne moved'}</small></Link>
+            ))}
+          </div>
         </div>
       )}
 

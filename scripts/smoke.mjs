@@ -52,6 +52,7 @@ for (const s of ['terms', 'privacy', 'refunds', 'community', 'grievance']) await
 await check('/u/no.such.member', 404, 'Unknown member: 404 page');
 await check('/vs/no.one/no.two', 404, 'Unknown head-to-head: 404 page');
 await check('/api/seal-card/no.such.member', 404, 'Share image for unknown member: 404');
+await check('/declare/d402', 404, 'Declarations are not switched on for real members: 404');
 await check('/robots.txt', 200, 'robots.txt blocks every crawler', async (r) => /User-Agent: \*\s+Disallow: \/\s*$/i.test(await r.text()));
 { const r = await ctx.request.get(base + '/fonts/barlow-condensed-latin-900-normal.woff2');
   results.push({ ok: r.status() === 200 && /font|woff/.test(r.headers()['content-type'] ?? ''), status: r.status(), url: r.url(), what: 'Bundled font is served', note: '' }); }

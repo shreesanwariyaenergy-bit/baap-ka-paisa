@@ -99,3 +99,10 @@ test('signed-out visitors see backing counts but cannot back', async ({ page }) 
   await expect(page.getByTestId('backing-panel')).toHaveAttribute('data-mode', 'signed-out');
   await expect(page.getByTestId('back-start')).toHaveCount(0);
 });
+
+test('signed-out visitors can read a declaration but cannot declare', async ({ page }) => {
+  await page.goto('/declare/d403');
+  await expect(page.getByTestId('declaration-status')).toHaveText('Standing');
+  await page.goto('/u/kinjal.adajan');
+  await expect(page.getByTestId('declare-start')).toHaveCount(0);
+});

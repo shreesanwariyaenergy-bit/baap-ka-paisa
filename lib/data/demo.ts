@@ -11,9 +11,10 @@ import { keyName, keyToScope, scopeToKey } from '../engine/keys';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
 import { backersOf, mostBacked, pickOf, runBacking, type BackEvent, type BackingResult } from '../engine/backing';
-import { readDemoPick } from '../demo-social';
+import { readDemoDeclares, readDemoPick } from '../demo-social';
+import { publicDeclarations, runCallouts, toOvertake, type CalloutResult, type Declaration, type DeclareEvent } from '../engine/callout';
 import { demoViewerOn } from '../supabase-server';
-import type { AchievementView, ArchiveSeason, BackingView, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
+import type { AchievementView, ArchiveSeason, BackingView, DeclarationView, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 export const SIM_NOW = new Date('2026-11-10T18:00:00+05:30').getTime();
 export const DEMO_AS_OF_LABEL = '10 Nov 2026, 6:00 pm IST';
@@ -196,6 +197,34 @@ async function backings(): Promise<BackingResult> {
   const pick = (await demoViewerOn().catch(() => false)) ? await readDemoPick() : null;
   return runBacking(SIM, pick && pick.seasonId === CURRENT.id ? [...BACK_EVENTS, { id: 'back-viewer-now', at: Math.min(pick.at, SIM_NOW), backer: VIEWER, target: pick.target }] : BACK_EVENTS);
 }
+// Simulated declarations. Two were made good on the board; one stands right now.
+const DECLARE_EVENTS: DeclareEvent[] = (() => {
+  const s4 = SIM.seasons[3];
+  const mum = boardAt(SIM, CURRENT.id, 'city:mumbai', SIM_NOW - 2 * DAY)[2]?.memberId;
+  return [
+    { id: 'd401', at: s4.startsAt + 3 * DAY, challenger: 'diamondwala', board: 'city:surat', line: 2 },
+    { id: 'd402', at: s4.startsAt + 6 * DAY + 2 * HOUR, challenger: 'kinjal.adajan', board: 'city:surat', line: 3 },
+    { id: 'd403', at: SIM_NOW - HOUR, challenger: 'vesu.vikram', board: 'city:surat', line: 1 },
+    ...(mum ? [{ id: 'd404', at: SIM_NOW - 2 * DAY, challenger: mum, board: 'city:mumbai', line: 0 }] : []),
+  ];
+})();
+async function callouts(): Promise<CalloutResult> {
+  const mine = (await demoViewerOn().catch(() => false)) ? await readDemoDeclares() : [];
+  return runCallouts(SIM, [...DECLARE_EVENTS, ...mine.map((d) => ({ id: d.id, at: Math.min(d.at, SIM_NOW), challenger: VIEWER, board: d.board, line: d.line }))]);
+}
+export const DEMO_DECLARE = { events: DECLARE_EVENTS, viewer: VIEWER };
+const boardCode = (k: string) => { const sc = keyToScope(k); const c = cityById(sc.cityId)!; return sc.level === 'india' ? 'IN' : sc.level === 'state' ? c.state : sc.level === 'city' ? c.mark : `${c.mark}-${sc.locality.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()}`; };
+function toDeclaration(d: Declaration): DeclarationView {
+  const top = boardAt(SIM, d.seasonId, d.board, SIM_NOW)[0];
+  const mine = boardAt(SIM, d.seasonId, 'india', SIM_NOW).find((r) => r.memberId === d.challenger)?.score ?? 0;
+  return {
+    id: d.id, no: `D/S${d.seasonId}/${boardCode(d.board)}/${String(d.seq).padStart(3, '0')}`, seasonLabel: seasonLabel(d.seasonId), scope: keyToScope(d.board), boardName: keyName(d.board),
+    challenger: pub(d.challenger), holder: pub(d.holder), at: new Date(d.at), line: d.line, holderScore: d.holderScore, challengerScore: d.challengerScore, required: d.required,
+    status: d.status as DeclarationView['status'], resolvedAt: d.resolvedAt ? new Date(d.resolvedAt) : null,
+    current: d.status === 'standing' && top ? { holderScore: top.score, challengerScore: mine, required: toOvertake(top.score, mine) } : null,
+    timeline: d.timeline.map((t) => ({ at: new Date(t.at), kind: t.kind, amount: t.amount, gap: t.gap, by: t.by ? pub(t.by) : undefined })),
+  };
+}
 export const DEMO_BACKING = { events: BACK_EVENTS, viewer: VIEWER, seasonId: CURRENT.id };
 
 function pub(id: string, seasonScore?: number): PublicMember {
@@ -337,6 +366,11 @@ export const demoSource: DataSource = {
         return { seasonLabel: seasonLabel(b.seasonId), member: pub(b.target), finalRank: rank, crowned: rank === 1 };
       }),
     } satisfies BackingView;
+  },
+  async declarations({ cityId, username, id }) {
+    return publicDeclarations(await callouts())
+      .filter((d) => (!id || d.id === id) && (!cityId || keyToScope(d.board).cityId === cityId && d.board !== 'india') && (!username || d.challenger === username || d.holder === username))
+      .sort((a, b) => b.at - a.at).map(toDeclaration);
   },
   async mostBacked(cityId, limit) {
     const r = await backings();
