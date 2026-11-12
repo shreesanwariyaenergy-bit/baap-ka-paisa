@@ -7,6 +7,7 @@ import { inr, memberNo, pad2 } from '@/lib/format';
 import { Crown } from '@/components/Crown';
 import { groupAchievements } from '@/lib/achievements';
 import { SocialActions } from '@/components/SocialActions';
+import { socialState } from '@/app/actions';
 import { readDemoSocial } from '@/lib/demo-social';
 import { istDay } from '@/lib/engine/engine';
 
@@ -25,7 +26,9 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const grouped = groupAchievements(achievements);
   const viewer = await ds.viewer();
   const isSelf = viewer?.member.username === m.username;
-  const demoState = viewer ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
+  const demo = ds.availability === 'demo';
+  const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
+  const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
   const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
@@ -58,9 +61,9 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
           <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Phone number, exact address, date of birth and live location are never shown.</p>
         </div>
         {!isSelf && (
-          <SocialActions username={m.username} label={name} enabled={!!viewer && ds.availability === 'demo'}
-            note={viewer && ds.availability === 'demo' ? 'Demo: actions are checked on the server and kept only in this browser.' : viewer ? 'Follow, Respect and rivals open with the first season.' : 'Sign in to follow, give Respect or add rivals.'}
-            initial={{ following: !!demoState?.follows.includes(m.username), rival: !!demoState?.rivals.includes(m.username), respectedToday: demoState?.respected[m.username] === today }} />
+          <SocialActions username={m.username} label={name} enabled={!!viewer && (demo || !!liveState)}
+            note={!viewer ? 'Sign in to follow, give Respect or add rivals.' : demo ? 'Demo: actions are checked on the server and kept only in this browser.' : liveState ? '' : 'Follow, Respect and rivals are being switched on. Please check back soon.'}
+            initial={liveState ?? { following: !!demoState?.follows.includes(m.username), rival: !!demoState?.rivals.includes(m.username), respectedToday: demoState?.respected[m.username] === today }} />
         )}
         {isSelf && <div className="history"><h3>This is you</h3><p><Link href="/me" style={{ textDecoration: 'underline' }}>Edit your profile</Link> or open <Link href="/seal" style={{ textDecoration: 'underline' }}>The Seal</Link>.</p></div>}
         <div className="history" data-testid="profile-achievements">

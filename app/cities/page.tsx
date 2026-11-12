@@ -10,7 +10,7 @@ export default async function CitiesPage() {
   const [summaries, viewer] = await Promise.all([ds.cities(), ds.viewer()]);
   const cards: CityCardData[] = CITIES.map((c) => {
     const s = summaries.find((x) => x.cityId === c.id);
-    return { id: c.id, name: c.name, stateCode: c.state, region: c.region, mark: c.mark, nickname: c.nickname,
+    return { id: c.id, name: c.name, stateCode: c.state, region: c.region, mark: c.mark, nickname: c.nickname ?? STATES[c.state],
       members: s ? s.members : null, total: s ? s.seasonTotal : null, isViewerCity: viewer?.member.cityId === c.id };
   });
   const regions = [...new Set(CITIES.map((c) => c.region))];

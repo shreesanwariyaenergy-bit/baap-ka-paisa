@@ -9,6 +9,17 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 12 November 2026: launch switches, season clock, social actions
+
+- **Launch switches (implemented and tested):** `BKP_REGISTRATION` (open / testers / closed; live default closed), `BKP_TESTER_CODE`, `BKP_ALLOW_INDEXING` (default off, plus `/robots.txt`), `BKP_SEASON_MODE=test`, payments switches (off; no payment code exists). See `lib/flags.ts`.
+- **One address setting:** `BKP_SITE_URL` drives the Seal QR, confirmation and reset links and robots.txt (`lib/site.ts`).
+- **Password reset (implemented; email round trip untested):** `/forgot`, `/reset`, through `/auth/callback?next=/reset`.
+- **Follows, Respect, rivals (pending approval):** `supabase/pending/20261112000600_social_actions.sql` adds one function, `social_action`. The app already calls it and shows "being switched on" until it exists. Tested on a local database only.
+- **Season clock (pending approval):** `supabase/pending/20261112000700_season_clock.sql` adds configurable season dates (`schedule_season`), optional monthly rollover and a one-minute schedule. Tested on a local database only.
+- **Database test (`npm run test:db`):** loads every migration into a throwaway local Postgres and runs a full test season: schedule, open, entries, ₹500 overtake, anti-snipe, social actions, close, frozen results, Season Crown, rollover to Season 2, lifetime totals, and role permissions. Passing.
+- **City nicknames:** removed from display (state name shown instead); the `nickname` field in `lib/geo.ts` is editable.
+- **Product email:** `lib/email.ts` is ready for a provider through environment variables; nothing sends email yet. Sign-in emails are sent by Supabase Auth.
+
 ## Update, 11 November 2026: redesign and public registration
 
 - **Design:** rebuilt on the Stitch "gazette" direction (newsprint paper, forest ink, lime action colour, hard shadows). New homepage order: hero, throne, board, territories, movement, The Seal, season.

@@ -17,10 +17,12 @@ export default defineConfig({
     { name: 'visitor', testMatch: /visitor\.spec/, use: { ...devices['Desktop Chrome'] } },
     { name: 'unavailable', testMatch: /unavailable\.spec/, use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3201' } },
     ...(live ? [{ name: 'live', testMatch: /unavailable\.spec/, use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3202' } }] : []),
+    ...(live ? [{ name: 'live-gates', testMatch: /gates\.spec/, use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3202' } }] : []),
   ],
   webServer: [
     { command: 'npx next start -p 3200', port: 3200, env: { BKP_DATA_SOURCE: 'demo' }, reuseExistingServer: false, timeout: 60_000 },
     { command: 'npx next start -p 3201', port: 3201, env: { BKP_DATA_SOURCE: 'unavailable' }, reuseExistingServer: false, timeout: 60_000 },
-    ...(live ? [{ command: 'npx next start -p 3202', port: 3202, env: { BKP_DATA_SOURCE: 'supabase', NODE_USE_ENV_PROXY: '1' }, reuseExistingServer: false, timeout: 60_000 }] : []),
+    ...(live ? [{ command: 'npx next start -p 3202', port: 3202, env: { BKP_DATA_SOURCE: 'supabase', NODE_USE_ENV_PROXY: '1', BKP_REGISTRATION: 'closed' }, reuseExistingServer: false, timeout: 60_000 }] : []),
+    ...(live ? [{ command: 'npx next start -p 3203', port: 3203, env: { BKP_DATA_SOURCE: 'supabase', NODE_USE_ENV_PROXY: '1', BKP_REGISTRATION: 'testers', BKP_TESTER_CODE: 'local-test-code' }, reuseExistingServer: false, timeout: 60_000 }] : []),
   ],
 });

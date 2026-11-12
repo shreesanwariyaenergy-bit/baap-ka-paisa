@@ -2,13 +2,15 @@
 // Account creation, sign-in and sign-out.
 // Live mode (BKP_DATA_SOURCE=supabase): real Supabase Auth accounts and member profiles.
 // Demo mode: a labelled test run; no account is created and nothing is stored.
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
 import { dataSourceName } from '@/lib/config';
 import { validateProfile, type Errors, type ProfileInput } from '@/lib/profile-rules';
 import { DEMO_VIEWER_COOKIE, supabaseAuth } from '@/lib/supabase-server';
 import { cityById } from '@/lib/geo';
+import { TESTER_COOKIE, canRegister, codeMatches, registrationMode } from '@/lib/flags';
+import { linkOrigin } from '@/lib/site';
 
 export type RegErrors = Errors & { email?: string; password?: string; confirm?: string; adult?: string; terms?: string };
 export interface RegInput extends ProfileInput { email?: string; password?: string; confirm?: string; adult?: boolean; terms?: boolean; hasAccount?: boolean; referredBy?: string }
@@ -66,7 +68,19 @@ async function createMemberFrom(p: ProfileInput): Promise<{ memberNo: number; pu
   return { memberNo: Number(row.member_no), publicName: row.public_name };
 }
 
+const CLOSED = 'Registration is not open yet. It opens with the public launch.';
+
+/** Internal testers: exchange the access code for a cookie that unlocks registration on this device. */
+export async function enterTesterCode(_prev: { message: string } | null, fd: FormData): Promise<{ message: string }> {
+  if (registrationMode() !== 'testers') return { message: 'Tester access is not in use right now.' };
+  const code = String(fd.get('code') ?? '').trim();
+  if (!codeMatches(code)) return { message: 'That code is not valid.' };
+  (await cookies()).set(TESTER_COOKIE, code, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+  redirect('/join');
+}
+
 export async function register(i: RegInput): Promise<RegResult> {
+  if (!(await canRegister())) return { ok: false, errors: {}, message: CLOSED };
   const errors = clean({ ...checkAccount(i), ...(await checkProfile(i)), ...(await checkEligibility(i)) });
   if (Object.keys(errors).length) return { ok: false, errors, message: 'Some details need fixing.' };
   const profile: ProfileInput = { username: i.username, displayName: i.displayName?.trim(), dateOfBirth: i.dateOfBirth, cityId: i.cityId, locality: i.locality, title: i.title, flexLine: i.flexLine?.trim(), mystery: !!i.mystery };
@@ -77,8 +91,7 @@ export async function register(i: RegInput): Promise<RegResult> {
   }
   const sb = (await supabaseAuth())!;
   if (!i.hasAccount) {
-    const h = await headers();
-    const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('x-forwarded-host') ?? h.get('host')}`;
+    const origin = await linkOrigin();
     const { data, error } = await sb.auth.signUp({ email: i.email!, password: i.password!, options: { emailRedirectTo: `${origin}/auth/callback`, data: { pending_profile: profile, ...(i.referredBy && /^[a-z0-9._]{3,24}$/.test(i.referredBy) ? { referred_by: i.referredBy } : {}) } } });
     if (error) {
       const msg = /registered|exists/i.test(error.message) ? 'An account with this email already exists. Sign in instead.'
@@ -106,7 +119,7 @@ export async function ensureMember(): Promise<'ready' | 'needs-profile' | 'signe
   const { data } = await sb.rpc('get_me');
   if (Array.isArray(data) && data.length) return 'ready';
   const pending = user.user_metadata?.pending_profile as ProfileInput | undefined;
-  if (pending?.username) { const made = await createMemberFrom(pending); if (!('error' in made)) return 'ready'; }
+  if (pending?.username && registrationMode() !== 'closed') { const made = await createMemberFrom(pending); if (!('error' in made)) return 'ready'; }
   return 'needs-profile';
 }
 
@@ -121,6 +134,33 @@ export async function signIn(_prev: SignInResult | null, fd: FormData): Promise<
   const sb = (await supabaseAuth())!;
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, message: /confirm/i.test(error.message) ? 'Confirm your email first: open the link we sent you, then sign in.' : 'That email and password do not match an account.' };
+  const state = await ensureMember();
+  redirect(state === 'needs-profile' ? '/join?complete=1' : '/seal');
+}
+
+export interface PasswordResult { ok: boolean; message: string }
+/** Sends a reset link. The reply is the same whether or not the email has an account. */
+export async function requestPasswordReset(_prev: PasswordResult | null, fd: FormData): Promise<PasswordResult> {
+  const email = String(fd.get('email') ?? '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { ok: false, message: 'Enter a valid email address.' };
+  const sb = await supabaseAuth();
+  if (!sb) return { ok: true, message: 'Demo site: no email is sent here.' };
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${await linkOrigin()}/auth/callback?next=/reset` });
+  if (error && /rate|too many|seconds/i.test(error.message)) return { ok: false, message: 'Too many requests right now. Please try again in a few minutes.' };
+  return { ok: true, message: `If ${email} has an account, a reset link is on its way. Open it on this device.` };
+}
+
+/** Sets a new password for the account signed in through a reset link. */
+export async function setNewPassword(_prev: PasswordResult | null, fd: FormData): Promise<PasswordResult> {
+  const password = String(fd.get('password') ?? ''); const confirm = String(fd.get('confirm') ?? '');
+  const e = checkAccount({ email: 'x@x.xx', password, confirm });
+  if (e.password || e.confirm) return { ok: false, message: e.password ?? e.confirm! };
+  const sb = await supabaseAuth();
+  if (!sb) return { ok: false, message: 'Demo site: there is no password to change.' };
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, message: 'This reset link has expired. Request a new one.' };
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) return { ok: false, message: /different|same/i.test(error.message) ? 'Choose a password you have not used before.' : 'That did not go through. Request a new reset link.' };
   const state = await ensureMember();
   redirect(state === 'needs-profile' ? '/join?complete=1' : '/seal');
 }

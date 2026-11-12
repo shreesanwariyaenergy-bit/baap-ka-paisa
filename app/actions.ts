@@ -45,13 +45,40 @@ export async function saveProfile(_prev: FormResult | null, fd: FormData): Promi
   return { ok: true, errors: {}, preview: p, message: 'Saved. Socials are not stored yet; they arrive with handle verification.' };
 }
 
+const SOCIAL_NOT_READY = 'Follow, Respect and rivals are being switched on. Please check back soon.';
+
+/** Live: the signed-in member's relationship to another member, or null when signed out or not switched on yet. */
+export async function socialState(target: string): Promise<{ following: boolean; rival: boolean; respectedToday: boolean } | null> {
+  const sb = await supabaseAuth();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc('social_action', { p_action: 'state', p_target: target });
+  if (error) return null;
+  const r = (Array.isArray(data) ? data[0] : data) as { following: boolean; rival: boolean; respected_today: boolean } | undefined;
+  return r ? { following: r.following, rival: r.rival, respectedToday: r.respected_today } : null;
+}
+
 export interface SocialResult { ok: boolean; message: string; state?: { following: boolean; rival: boolean; respectedToday: boolean } }
 
 export async function socialAction(kind: 'follow' | 'unfollow' | 'respect' | 'rival' | 'unrival', target: string): Promise<SocialResult> {
   const ds = await getDataSource();
   const viewer = await ds.viewer();
   if (!viewer) return { ok: false, message: 'Sign in to follow, give Respect or add rivals.' };
-  if (ds.availability !== 'demo') return { ok: false, message: 'Follow, Respect and rivals open with the first season.' };
+  if (ds.availability !== 'demo') {
+    const sb = await supabaseAuth();
+    const { data, error } = await sb!.rpc('social_action', { p_action: kind, p_target: target });
+    if (error) {
+      const m = error.message;
+      const message = /find the function|does not exist in the schema|PGRST202/i.test(`${error.code} ${m}`) || error.code === '42883' ? SOCIAL_NOT_READY
+        : /up to 5 rivals/.test(m) ? 'You already have 5 rivals. Remove one first.'
+        : /already gave Respect/.test(m) ? 'You already gave Respect to this member today. One per profile per day.'
+        : /That is you|does not exist|Create your profile|Sign in/.test(m) ? `${m}.` : 'That did not go through. Please try again.';
+      return { ok: false, message };
+    }
+    const r = (Array.isArray(data) ? data[0] : data) as { following: boolean; rival: boolean; respected_today: boolean };
+    revalidatePath(`/u/${target}`);
+    const done = { follow: 'Following. You are in their Army.', unfollow: 'Unfollowed.', respect: 'Respect given. You can give it again tomorrow.', rival: 'Added to your rivals.', unrival: 'Removed from your rivals.' }[kind];
+    return { ok: true, message: done, state: { following: r.following, rival: r.rival, respectedToday: r.respected_today } };
+  }
   const me = viewer.member.username;
   const member = await ds.member(target);
   if (!member) return { ok: false, message: 'That member does not exist.' };

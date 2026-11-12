@@ -1,4 +1,4 @@
-// Lands here from the confirmation email. Confirms the account, creates the pending member profile, opens The Seal.
+// Lands here from the confirmation or password-reset email. Confirms the account, creates the pending member profile, opens The Seal.
 import { NextResponse, type NextRequest } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { supabaseAuth } from '@/lib/supabase-server';
@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     : tokenHash && type ? await sb.auth.verifyOtp({ token_hash: tokenHash, type })
     : { error: new Error('missing') };
   if (error) return to('/signin?confirmed=check');
+  if (url.searchParams.get('next') === '/reset' || type === 'recovery') return to('/reset');
   const state = await ensureMember();
   return to(state === 'needs-profile' ? '/join?complete=1' : '/seal?welcome=1');
 }

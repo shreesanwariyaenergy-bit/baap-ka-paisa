@@ -14,22 +14,23 @@ export interface City {
   mark: string;
   /** Vehicle registration series, used as the city-index reference (e.g. GJ-05 for Surat). */
   indexRef: string;
-  nickname: string;
+  /** Optional editorial nickname, shown under the city name. Null shows the state name. Edit here once approved. */
+  nickname: string | null;
   localities: readonly string[];
 }
 
 export const STATES: Record<StateCode, string> = { GJ: 'Gujarat', MH: 'Maharashtra', DL: 'Delhi' };
 
 export const CITIES: readonly City[] = [
-  { id: 'surat', name: 'Surat', state: 'GJ', region: 'West', mark: 'ST', indexRef: 'GJ-05', nickname: 'The Diamond City',
+  { id: 'surat', name: 'Surat', state: 'GJ', region: 'West', mark: 'ST', indexRef: 'GJ-05', nickname: null,
     localities: ['Vesu', 'Adajan', 'Pal', 'Piplod', 'Athwa', 'Ghod Dod Road', 'City Light', 'Althan', 'Bhatar', 'Dumas', 'Rander', 'Varachha', 'Katargam', 'Udhna', 'Other'] },
-  { id: 'ahmedabad', name: 'Ahmedabad', state: 'GJ', region: 'West', mark: 'AMD', indexRef: 'GJ-01', nickname: 'The Heritage City',
+  { id: 'ahmedabad', name: 'Ahmedabad', state: 'GJ', region: 'West', mark: 'AMD', indexRef: 'GJ-01', nickname: null,
     localities: ['SG Highway', 'Bodakdev', 'Prahlad Nagar', 'Satellite', 'Thaltej', 'Vastrapur', 'Bopal', 'Navrangpura', 'Science City', 'Maninagar', 'Gota', 'Chandkheda', 'Other'] },
-  { id: 'mumbai', name: 'Mumbai', state: 'MH', region: 'West', mark: 'MB', indexRef: 'MH-01', nickname: 'The Maximum City',
+  { id: 'mumbai', name: 'Mumbai', state: 'MH', region: 'West', mark: 'MB', indexRef: 'MH-01', nickname: null,
     localities: ['Bandra', 'Khar', 'Juhu', 'Andheri', 'Santacruz', 'Worli', 'Lower Parel', 'BKC', 'Colaba', 'Malabar Hill', 'Powai', 'Goregaon', 'Borivali', 'Chembur', 'Other'] },
-  { id: 'pune', name: 'Pune', state: 'MH', region: 'West', mark: 'PUN', indexRef: 'MH-12', nickname: 'The Oxford of the East',
+  { id: 'pune', name: 'Pune', state: 'MH', region: 'West', mark: 'PUN', indexRef: 'MH-12', nickname: null,
     localities: ['Koregaon Park', 'Kalyani Nagar', 'Viman Nagar', 'Baner', 'Aundh', 'Wakad', 'Hinjewadi', 'Kothrud', 'Magarpatta', 'Camp', 'Deccan', 'Shivaji Nagar', 'Other'] },
-  { id: 'delhi', name: 'Delhi', state: 'DL', region: 'North', mark: 'DEL', indexRef: 'DL', nickname: 'The Capital',
+  { id: 'delhi', name: 'Delhi', state: 'DL', region: 'North', mark: 'DEL', indexRef: 'DL', nickname: null,
     localities: ['South Delhi', 'Vasant Vihar', 'Defence Colony', 'Chanakyapuri', 'Connaught Place', 'Rajouri Garden', 'Punjabi Bagh', 'Dwarka', 'Pitampura', 'Lajpat Nagar', 'Other'] },
 ];
 

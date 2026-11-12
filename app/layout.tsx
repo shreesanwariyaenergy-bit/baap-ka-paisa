@@ -7,14 +7,18 @@ import { timeLeft } from '@/lib/season';
 import { initials, memberNo } from '@/lib/format';
 import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
+import { indexingAllowed, testSeason } from '@/lib/flags';
 import { MainNav } from '@/components/MainNav';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
 
 
-export const metadata: Metadata = {
+// Search engines stay blocked until BKP_ALLOW_INDEXING=true (public launch approval).
+export function generateMetadata(): Metadata {
+  return { ...baseMetadata, robots: indexingAllowed() ? { index: true, follow: true } : { index: false, follow: false } };
+}
+const baseMetadata: Metadata = {
   title: { default: 'BAAP KA PAISA — The Public Status Register', template: '%s · BAAP KA PAISA' },
   description: 'City-first status rankings across locality, city, state and India. Monthly seasons; the record stays.',
-  robots: { index: false, follow: false }, // not launched: keep out of search engines until approved
 };
 // Rankings change constantly: render every request on the server, never from a build-time snapshot.
 export const dynamic = 'force-dynamic';
@@ -43,6 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </>}
             {ds.availability === 'demo' && <span className="demo-flag" data-testid="demo-flag">Demo data</span>}
             {!open && <span className="demo-flag">Rankings not open yet</span>}
+            {open && ds.availability === 'live' && testSeason() && <span className="demo-flag" data-testid="test-season-flag">Test season</span>}
           </div>
         </div>
         <ProfileDialogProvider>
