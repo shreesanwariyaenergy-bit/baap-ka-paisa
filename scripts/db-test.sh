@@ -11,4 +11,4 @@ P="psql -q -h /tmp -p $PORT -U postgres -v ON_ERROR_STOP=1"
 $P -c "create database bkp"
 $P -d bkp -f supabase/tests/platform_stub.sql
 for f in supabase/migrations/*.sql supabase/pending/*.sql; do [ -e "$f" ] && $P -d bkp -f "$f" >/dev/null; done
-$P -d bkp -f supabase/tests/lifecycle.sql 2>&1 | grep -E "NOTICE|ERROR|ASSERT|CONTEXT" || true
+$P -d bkp -f supabase/tests/lifecycle.sql 2>&1 | grep -E "NOTICE|ERROR|ASSERT|CONTEXT|EXECUTE" || true

@@ -6,7 +6,7 @@ const PAGES = [
   { path: '/cities', heading: /find your/i, nav: 'Cities' },
   { path: '/india', heading: /big country/i, nav: 'India' },
   { path: '/seal', heading: /the seal/i, nav: 'The Seal' },
-  { path: '/archive', heading: /the ones/i, nav: 'Archive' },
+  { path: '/gazette', heading: /gazette/i, nav: 'Gazette' },
 ];
 
 async function dismissCrownMoment(page: Page) {
@@ -324,4 +324,17 @@ test.describe('onboarding, profile and social actions (demo, nothing stored)', (
     await page.getByRole('button', { name: 'Add rival' }).click();
     await expect(page.getByTestId('social-actions').getByRole('status')).toContainText('up to 5');
   });
+});
+
+test('The Gazette: front page written from the board, notices numbered, city editions', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('gazette-strip')).toContainText('KINJAL SHAH TAKES SURAT');
+  await page.getByTestId('gazette-strip').click();
+  await expect(page).toHaveURL(/\/gazette\?city=surat/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/The Surat Gazette/i);
+  await expect(page.getByTestId('gazette-lead')).toContainText("Vikram Desai's reign ended");
+  await expect(page.getByTestId('gazette-notice').first()).toContainText(/Notice No\. S4\/ST\/\d{3}/i);
+  await page.getByRole('navigation', { name: 'City editions' }).getByRole('link', { name: 'Mumbai' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/The Mumbai Gazette/i);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });

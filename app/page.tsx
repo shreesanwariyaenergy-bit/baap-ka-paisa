@@ -6,6 +6,7 @@ import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { HomeBoard } from '@/components/HomeBoard';
 import { CrownMoment } from '@/components/CrownMoment';
+import { buildEdition } from '@/lib/gazette';
 import { CrownMark } from '@/components/Crown';
 import { readDemoSocial } from '@/lib/demo-social';
 import type { PublicMember } from '@/lib/data/types';
@@ -45,6 +46,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const second = cityBoard.rows[1];
   const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
 
+  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns: await ds.throneHistory({ scope: scopes.city, limit: 40 }), moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect: await ds.respectBoard(scopes.city, { limit: 1 }) });
   const myCity = viewer?.standings.find((s) => s.level === 'city');
   // Rival strip: each rival's current city rank next to yours.
   const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
@@ -78,6 +80,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           </ol>
         </aside>
       </section>
+      <Link className="gz-strip" href={`/gazette?city=${city.id}`} data-testid="gazette-strip">
+        <small>The {city.name} Gazette</small><b>{edition.lead.headline}</b><span>Read today&apos;s edition ↗</span>
+      </Link>
 
       {latestMoment && (
         <CrownMoment moment={{ id: `${latestMoment.boardName}-${latestMoment.at.getTime()}`, boardName: latestMoment.boardName, toName: nm(latestMoment.to),

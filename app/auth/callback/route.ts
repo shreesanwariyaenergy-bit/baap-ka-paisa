@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     : tokenHash && type ? await sb.auth.verifyOtp({ token_hash: tokenHash, type })
     : { error: new Error('missing') };
   if (error) return to('/signin?confirmed=check');
-  if (url.searchParams.get('next') === '/reset' || type === 'recovery') return to('/reset');
+  if (url.searchParams.get('next') === '/reset' || type === 'recovery' || type === 'invite') return to('/reset');
   const state = await ensureMember();
   return to(state === 'needs-profile' ? '/join?complete=1' : '/seal?welcome=1');
 }

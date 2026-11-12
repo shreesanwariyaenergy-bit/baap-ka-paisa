@@ -780,3 +780,42 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .rank-no.is-crowned .crown { width: 1.2em; margin-bottom: -1px; }
 .throne .big01 .crown { width: 156px; margin-bottom: 0; }
 .throne .big01 .crown { margin-bottom: -6px; }
+
+/* ---------- The Gazette: a newspaper front page per city ---------- */
+.gazette { margin: 28px 0 80px; background: var(--white, #FCF9F0); border: 2px solid var(--ink, #0C251F); box-shadow: 10px 10px 0 var(--ink, #0C251F); padding: clamp(16px, 3vw, 40px); }
+.gz-mast { text-align: center; border-bottom: 6px double var(--ink, #0C251F); padding-bottom: 14px; }
+.gz-ears, .gz-rule { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.gz-mast h1 { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(44px, 10.5vw, 150px); line-height: .86; letter-spacing: -.02em; margin: 14px 0 12px; overflow-wrap: anywhere; }
+.gz-rule { border-top: 2px solid var(--ink, #0C251F); padding-top: 8px; }
+.gz-demo { background: #FF4500; color: #fff; padding: 1px 8px; }
+.gz-cities { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.gz-cities a[aria-current] { background: var(--ink, #0C251F); color: #CCFF00; padding: 2px 8px; }
+.gz-kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #C23A00; margin-bottom: 8px; }
+.gz-lead { padding: clamp(20px, 4vw, 44px) 0; border-bottom: 2px solid var(--ink, #0C251F); }
+.gz-lead h2 { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(40px, 9vw, 128px); line-height: .98; letter-spacing: -.015em; margin: 0 0 18px; overflow-wrap: anywhere; }
+.gz-lead.hot h2 { background: linear-gradient(transparent 62%, #CCFF00 62%); display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.gz-lead p { font-size: clamp(18px, 2vw, 24px); line-height: 1.45; max-width: 46ch; margin: 18px 0 0; }
+.gz-share { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; align-items: center; }
+.gz-body { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 44px); padding-top: 26px; }
+.gz-stories { columns: 2; column-gap: 34px; column-rule: 1px solid rgba(12, 37, 31, .35); }
+.gz-story { break-inside: avoid; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid rgba(12, 37, 31, .35); }
+.gz-story h3 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: clamp(24px, 2.6vw, 34px); line-height: .98; margin: 0 0 8px; }
+.gz-story.hot h3 { color: #C23A00; }
+.gz-story p, .gz-notice p, .gz-quiet { font-size: 16px; line-height: 1.5; margin: 0; }
+.gz-story a:hover, .gz-lead a:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+.gz-side { border-left: 2px solid var(--ink, #0C251F); padding-left: clamp(16px, 2.4vw, 32px); display: grid; gap: 28px; align-content: start; }
+.gz-sidehead { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; background: var(--ink, #0C251F); color: #CCFF00; padding: 6px 10px; margin: 0 0 14px; }
+.gz-notice { border: 2px solid var(--ink, #0C251F); padding: 12px 14px; margin-bottom: 12px; background: var(--paper, #F1EFE6); }
+.gz-notice b { font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+.gz-more { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; text-decoration: underline; }
+.gz-table { list-style: none; margin: 0; padding: 0; }
+.gz-table li { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; padding: 8px 6px; border-bottom: 1px solid rgba(12, 37, 31, .35); align-items: baseline; }
+.gz-table li.me { background: #CCFF00; }
+.gz-table span, .gz-table i { font-family: var(--font-mono); font-style: normal; font-size: 13px; }
+.gz-table b { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 20px; }
+.gz-foot { margin-top: 30px; border-top: 6px double var(--ink, #0C251F); padding-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: center; }
+.gz-strip { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border: 2px solid var(--ink, #0C251F); background: var(--white, #FCF9F0); padding: 14px 18px; margin: 26px 0 0; box-shadow: 6px 6px 0 var(--ink, #0C251F); }
+.gz-strip small { font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; background: var(--ink, #0C251F); color: #CCFF00; padding: 4px 8px; white-space: nowrap; }
+.gz-strip b { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(20px, 2.6vw, 30px); line-height: 1; flex: 1; min-width: 200px; }
+.gz-strip span { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; text-decoration: underline; }
+@media (max-width: 860px) { .gz-body { grid-template-columns: 1fr; } .gz-side { border-left: 0; padding-left: 0; border-top: 2px solid var(--ink, #0C251F); padding-top: 22px; } .gz-stories { columns: 1; } .gz-ears { justify-content: center; } .gz-rule { justify-content: center; } .gazette { box-shadow: 5px 5px 0 var(--ink, #0C251F); } }

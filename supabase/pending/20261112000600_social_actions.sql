@@ -1,6 +1,7 @@
 -- PENDING REVIEW. Not applied to any database.
 -- Follows, Respect and rivals for signed-in members. Additive only: one new function, no table,
--- column, policy or grant on existing objects is changed or removed.
+-- column or policy is changed or removed. Table grants on the three social tables are narrowed
+-- (see the end of this file).
 --
 -- Members are addressed by their public name (username, or ANON label for a Mystery-mode member),
 -- so a masked member's internal id and username are never needed by, or returned to, the browser.
@@ -27,6 +28,8 @@ begin
    where (m.masked and m.anon_label = p_target) or (not m.masked and m.username = p_target::extensions.citext);
   if v_target is null then raise exception 'That member does not exist' using errcode = 'no_data_found'; end if;
   if v_target = v_uid then raise exception 'That is you' using errcode = 'check_violation'; end if;
+  -- One action at a time per member, so two simultaneous requests cannot slip past the 5-rival limit.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text, 42));
 
   if p_action = 'follow' then
     insert into public.follows (follower, followee) values (v_uid, v_target) on conflict do nothing;
@@ -53,5 +56,15 @@ end $$;
 revoke execute on function public.social_action(text, text) from public, anon, authenticated;
 grant execute on function public.social_action(text, text) to authenticated;
 
--- Rollback (removes the function; rows already written to follows / respects / rivals are kept):
+-- Close the direct table path. Supabase grants every table privilege on new public tables to anon and
+-- authenticated by default, so today a signed-in member could write these tables straight through the
+-- REST API. The row policies stop them acting as someone else, but not from choosing their own
+-- created_at on a Respect (the "day" is derived from it), which defeats one-per-day. After this,
+-- social_action() is the only way to write. Reads of your own rows stay as they are. No policy is changed.
+revoke insert, update, delete, truncate, references, trigger on public.follows, public.respects, public.rivals from public, anon, authenticated;
+revoke select on public.follows, public.respects, public.rivals from anon;
+
+-- Rollback (rows already written to follows / respects / rivals are kept):
 --   drop function public.social_action(text, text);
+--   grant insert, update, delete, truncate, references, trigger on public.follows, public.respects, public.rivals to anon, authenticated;
+--   grant select on public.follows, public.respects, public.rivals to anon;

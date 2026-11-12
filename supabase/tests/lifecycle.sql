@@ -7,9 +7,23 @@ declare
   t0 timestamptz := date_trunc('minute', now());
   s1_start timestamptz := t0 - interval '10 days';
   s1_end timestamptz := t0 + interval '10 minutes';
-  a uuid; b uuid; c uuid; v int; r record; ok boolean;
+  a uuid; b uuid; c uuid; v_tmp uuid; v int; r record; ok boolean;
   procedure_note text;
 begin
+  -- ---- registration gate (pending migration): closed, then allow-list, then open ----
+  insert into auth.users (email, email_confirmed_at) values ('gate@test.invalid', now()) returning id into a;
+  perform set_config('request.jwt.claim.sub', a::text, true);
+  begin perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu'); assert false, 'closed gate must refuse'; exception when insufficient_privilege then null; end;
+  update public.registration_gate set mode = 'allowlist';
+  begin perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu'); assert false, 'not on the list must be refused'; exception when insufficient_privilege then null; end;
+  begin insert into public.registration_allowlist (email) values ('GATE@test.invalid'); assert false; exception when check_violation then null; end;
+  update auth.users set email = 'Gate@Test.invalid' where id = a;
+  insert into public.registration_allowlist (email) values ('gate@test.invalid');
+  perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu');
+  update auth.users set email_confirmed_at = null where id = a;
+  assert not public.registration_allowed(), 'an unconfirmed email is never allowed';
+  delete from public.member_private where member_id = a; delete from public.members where id = a;
+  update public.registration_gate set mode = 'open';
   -- ---- test members (three in Surat) ----
   for r in select * from (values ('aarav','Vesu',false),('bhavna','Adajan',false),('chirag','Vesu',true)) x(n, loc, masked) loop
     insert into auth.users (email) values (r.n || '@test.invalid') returning id into a;
@@ -60,6 +74,23 @@ begin
   select * into r from public.social_action('rival', (select anon_label from public.members where id = c)); assert r.rival, 'masked member reachable by ANON label';
   select * into r from public.social_action('unrival', (select anon_label from public.members where id = c)); assert not r.rival;
   select * into r from public.social_action('unfollow', 't.bhavna'); assert not r.following and r.respected_today;
+  -- unknown and Mystery-mode-by-username give the identical error: no way to probe who is masked
+  declare m1 text; m2 text; begin
+    begin perform public.social_action('follow', 't.chirag'); exception when others then m1 := sqlstate || sqlerrm; end;
+    begin perform public.social_action('follow', 't.nobody'); exception when others then m2 := sqlstate || sqlerrm; end;
+    assert m1 = m2, 'masked and unknown are indistinguishable';
+  end;
+  begin perform public.social_action('delete-everything', 't.bhavna'); assert false; exception when invalid_parameter_value then null; end;
+  -- rival limit: five allowed, the sixth refused
+  for i in 1..6 loop
+    insert into auth.users (email) values ('r' || i || '@test.invalid') returning id into v_tmp;
+    perform set_config('request.jwt.claim.sub', v_tmp::text, true);
+    perform public.create_member('t.r' || i, 'Rival ' || i, date '1990-01-01', 'pune', 'Baner');
+  end loop;
+  perform set_config('request.jwt.claim.sub', a::text, true);
+  for i in 1..5 loop perform public.social_action('rival', 't.r' || i); end loop;
+  begin perform public.social_action('rival', 't.r6'); assert false, 'sixth rival must fail'; exception when check_violation then null; end;
+  for i in 1..5 loop perform public.social_action('unrival', 't.r' || i); end loop;
   perform set_config('request.jwt.claim.sub', '', true);
   begin perform public.social_action('follow', 't.bhavna'); assert false, 'signed-out callers are refused'; exception when invalid_authorization_specification then null; end;
   assert (select respect_this_season from public.get_social('t.bhavna')) = 1, 'Respect counts on the public profile';
@@ -71,7 +102,7 @@ begin
   perform public.season_clock(s1_end + interval '16 minutes');
   assert (select status from public.seasons where id = 1) = 'closed', 'closes after the extension';
   assert (select member_id from public.season_results where season_id = 1 and level = 'city' and final_rank = 1) = c, 'final #01 frozen';
-  assert (select count(*) from public.season_results where season_id = 1 and level = 'india') = 3;
+  assert (select count(*) from public.season_results where season_id = 1 and level = 'india') = 3, 'only ranked members are frozen';
   assert exists (select 1 from public.member_achievements where member_id = c and achievement = 'season-crown' and season_id = 1 and level = 'city'), 'Season Crown awarded';
   assert not exists (select 1 from public.throne_reigns where season_id = 1 and ended_at is null), 'reigns closed';
   begin insert into public.rank_ledger (member_id, season_id, kind, rank_credit_paise, payment_ref, actor, created_at) values (a, 1, 'credit', 50000, 'T-late', 'test', s1_end + interval '20 minutes');
@@ -94,7 +125,7 @@ begin
   assert (select sum(rank_credit_paise) from public.rank_ledger where member_id = a) = 200000, 'lifetime adds both seasons';
   assert (select count(*) from public.get_hall_of_fame('india', null, null, 10)) = 3, 'Hall of Fame keeps every member';
   assert (select count(*) from public.season_results where season_id = 1) > 0, 'season 1 results stay frozen';
-  assert (select count(distinct member_no) from public.members) = 3 and (select min(member_no) from public.members) >= 101, 'member numbers unchanged';
+  assert (select count(distinct member_no) from public.members) = (select count(*) from public.members) and (select min(member_no) from public.members) >= 101, 'member numbers unchanged';
   perform public.season_clock(r.scheduled_end + interval '1 minute');
   assert (select status from public.seasons where id = 2) = 'closed';
   assert exists (select 1 from public.member_achievements where member_id = a and achievement = 'season-crown' and season_id = 2);
@@ -108,9 +139,41 @@ do $$ begin
   begin perform public.season_clock(); assert false; exception when insufficient_privilege then null; end;
   begin perform public.schedule_season(9, now(), now() + interval '1 day'); assert false; exception when insufficient_privilege then null; end;
   begin perform 1 from public.engine_settings; assert false; exception when insufficient_privilege then null; end;
+  begin insert into public.follows (follower, followee) select id, id from public.members; assert false; exception when insufficient_privilege then null; end;
+  begin perform 1 from public.respects; assert false; exception when insufficient_privilege then null; end;
+  begin perform public.registration_allowed(); assert false; exception when insufficient_privilege then null; end;
   raise notice 'ANON PERMISSIONS OK';
 end $$;
-reset role; set role authenticated;
+reset role;
+select 'EXECUTE social_action  PUBLIC=' || has_function_privilege('public', 'public.social_action(text,text)', 'execute')
+  || '  anon=' || has_function_privilege('anon', 'public.social_action(text,text)', 'execute')
+  || '  authenticated=' || has_function_privilege('authenticated', 'public.social_action(text,text)', 'execute') as privileges \gset
+\echo :privileges
+grant select on t to authenticated;
+set role authenticated;
+do $$
+declare me uuid := (select u from t where k = 'aarav'); other uuid := (select u from t where k = 'bhavna'); r record;
+begin
+  perform set_config('request.jwt.claim.sub', me::text, true);
+  -- the function works under the browser role, even though that role can no longer write the tables
+  select * into r from public.social_action('follow', 't.bhavna'); assert r.following;
+  -- direct table writes, as yourself and as someone else
+  begin insert into public.follows (follower, followee) values (me, other); assert false; exception when insufficient_privilege then null; end;
+  begin insert into public.follows (follower, followee) values (other, me); assert false, 'acting as someone else'; exception when insufficient_privilege then null; end;
+  begin insert into public.respects (giver, receiver, day, created_at) values (me, other, current_date - 3, now() - interval '3 days'); assert false, 'back-dated Respect'; exception when insufficient_privilege then null; end;
+  begin insert into public.rivals (member_id, rival_id) values (me, other); assert false; exception when insufficient_privilege then null; end;
+  begin delete from public.follows where follower = other; assert false; exception when insufficient_privilege then null; end;
+  begin update public.respects set giver = me; assert false; exception when insufficient_privilege then null; end;
+  -- other members' rows stay invisible; your own are readable
+  assert (select count(*) from public.follows) = 1 and (select count(*) from public.follows where follower <> me) = 0, 'only your own follows are visible';
+  assert (select count(*) from public.members) = 1, 'only your own member row is visible';
+  begin insert into public.members (id, username, city_id, locality_id) values (gen_random_uuid(), 't.fake', 'surat', 1); assert false; exception when others then null; end;
+  begin perform 1 from public.registration_allowlist; assert false; exception when insufficient_privilege then null; end;
+  begin update public.registration_gate set mode = 'open'; assert false; exception when insufficient_privilege then null; end;
+  perform public.social_action('unfollow', 't.bhavna');
+  perform set_config('request.jwt.claim.sub', '', true);
+  raise notice 'DIRECT ACCESS ATTEMPTS REFUSED OK';
+end $$;
 do $$ begin
   begin perform public.season_clock(); assert false; exception when insufficient_privilege then null; end;
   begin perform public.schedule_next_month(); assert false; exception when insufficient_privilege then null; end;

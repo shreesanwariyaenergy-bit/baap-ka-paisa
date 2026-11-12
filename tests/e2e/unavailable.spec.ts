@@ -38,3 +38,9 @@ test('profile editing and social actions wait for sign-in; simulator still works
   await page.goto('/simulator?step=1');
   await expect(page.locator('.rank-row.first')).toHaveAttribute('data-member', 'sim.riya');
 });
+
+test('The Gazette is honest with no data: the throne has never been held', async ({ page }) => {
+  await page.goto('/gazette');
+  await expect(page.getByTestId('gazette-lead')).toContainText('HAS NEVER BEEN HELD');
+  await expect(page.getByTestId('gazette-notice')).toHaveCount(0);
+});

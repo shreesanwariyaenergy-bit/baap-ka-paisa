@@ -11,6 +11,10 @@ Status key:
 
 ## Update, 12 November 2026: launch switches, season clock, social actions
 
+- **The Gazette (implemented and tested; live with real data, demo with simulated data):** `/gazette?city=…`, a daily front page per city written by `lib/gazette.ts` from board records only: change of throne, time held, numbered notices of dethronement, the gap to #01, city against city, Most Respected, Mystery-mode members by label only. With no data it reports a vacant throne. Homepage strip links to it; Archive moved to the footer.
+- **Pending, not applied:** `supabase/pending/…0800_registration_gate.sql` (database-side registration gate with an allow-list). Migration A now also removes direct write access to the three social tables.
+- **Production smoke test:** `node scripts/smoke.mjs <address>` loads every public route read-only.
+
 - **Launch switches (implemented and tested):** `BKP_REGISTRATION` (open / testers / closed; live default closed), `BKP_TESTER_CODE`, `BKP_ALLOW_INDEXING` (default off, plus `/robots.txt`), `BKP_SEASON_MODE=test`, payments switches (off; no payment code exists). See `lib/flags.ts`.
 - **One address setting:** `BKP_SITE_URL` drives the Seal QR, confirmation and reset links and robots.txt (`lib/site.ts`).
 - **Password reset (implemented; email round trip untested):** `/forgot`, `/reset`, through `/auth/callback?next=/reset`.
