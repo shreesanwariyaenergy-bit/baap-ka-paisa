@@ -9,6 +9,15 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 17 November 2026: feature set complete on the feature branch
+
+- **Nothing applied to production; nothing deployed to production.** Seven migrations pending: `docs/MIGRATIONS_PENDING.md`.
+- **Feature gaps closed:** holder's block control on declaration pages and a block list with unblock on `/me`; saved social handles with a visibility setting (everyone, followers, nobody), shown on profiles; backer counts on city and locality board rows; Gazette front page as a share image (`/api/gazette-card/[city]`); "taken from" and "ended by" names on every level of The Bill.
+- **Running totals:** `season_scores` verified identical to the ledger after concurrent credits, duplicate webhooks, late payments, a refund, extensions and two season closures.
+- **Staging:** Supabase project `baap-ka-paisa-staging` exists, empty. Isolation checked: separate keys (each project rejects the other's), no staging reference in the repository or in Vercel's settings, no storage buckets, no payment configuration anywhere. Migrations not yet loaded into it.
+- **Tests:** 109 unit, 89 browser (including one integrated journey through every agreed feature on demo data), database suite, audit script.
+- **Not yet proven:** nothing has run against the real Supabase stack with these migrations; sign-up, reset and invite emails are untested with a real inbox.
+
 ## Update, 15 November 2026: integration milestone
 
 - **Feature branch only. No migration applied, nothing deployed to production.** See `docs/MIGRATIONS_PENDING.md` for the five pending migrations and their exact impact.
