@@ -929,3 +929,46 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .closing-verdict .cl-decl { border-color: #0C251F; color: #0C251F; background: #FCF9F0; } .closing-verdict .cl-decl b { background: #0C251F; color: #CCFF00; }
 @media (max-width: 860px) { .cl-main, .cl-lower { grid-template-columns: 1fr; } .closing { box-shadow: 5px 5px 0 #CCFF00; } }
 @media (prefers-reduced-motion: reduce) { .closing.danger .cl-clock b, .cl-flash { animation: none; } .cl-flash { display: none; } }
+
+/* ---------- Palette correction: The Closing and Declarations on the house paper, colour only as accent ---------- */
+.btn.hot { background: #0C251F; color: #CCFF00; }
+.closing, .closing.danger, .closing-verdict { background: #FCF9F0; color: #0C251F; border: 2px solid #0C251F; box-shadow: 10px 10px 0 #0C251F; }
+.cl-kicker, .cl-top { color: #44524B; }
+.closing .cl-note, .closing-verdict .cl-note { color: #44524B; }
+.closing h1, .closing-verdict h1 { color: #0C251F; }
+.closing-idle h1 { background: linear-gradient(transparent 64%, #CCFF00 64%); display: inline-block; }
+.cl-top { border-bottom: 2px solid #0C251F; }
+.cl-clock small { color: #44524B; }
+.cl-clock b { color: #0C251F; }
+.closing.danger .cl-clock b { color: #B43A0A; animation: none; }
+.cl-flash { inset: auto; top: 18px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); display: block; background: #0C251F; color: #FCF9F0; border-left: 12px solid #CCFF00; font-size: clamp(26px, 4.6vw, 60px); line-height: 1; padding: 14px 22px; box-shadow: 6px 6px 0 rgba(12, 37, 31, .25); animation: cl-banner 2.6s ease-out forwards; }
+@keyframes cl-banner { 0% { opacity: 0; transform: translate(-50%, -14px); } 10%, 78% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 0); } }
+.cl-main { border-top: 4px solid #0C251F; }
+.cl-throne small, .cl-price small { color: #44524B; }
+.cl-score { color: #0C251F; }
+.cl-price { background: #F1EFE6; color: #0C251F; border: 2px solid #0C251F; }
+.cl-price b { display: inline-block; background: linear-gradient(transparent 62%, #CCFF00 62%); padding: 0 4px; }
+.cl-price i { display: block; color: #44524B; }
+.cl-board li { border: 1px solid rgba(12, 37, 31, .45); background: #F1EFE6; }
+.cl-board span { color: #44524B; }
+.cl-board em { color: #B43A0A; }
+.cl-board u { background: #0C251F; height: 3px; }
+.cl-decl, .cl-decl.won, .cl-decl.throne-moved, .cl-decl.lapsed, .closing-verdict .cl-decl { border: 2px solid #0C251F; color: #0C251F; background: #F1EFE6; }
+.cl-decl b, .closing-verdict .cl-decl b { background: #0C251F; color: #FCF9F0; }
+.cl-decl.won b, .closing-verdict .cl-decl.won b { background: #CCFF00; color: #0C251F; outline: 1px solid #0C251F; }
+.cl-decl.throne-moved, .cl-decl.lapsed { color: #6B776F; border-color: rgba(12, 37, 31, .35); }
+.cl-decl.throne-moved b, .cl-decl.lapsed b { background: #6B776F; color: #FCF9F0; }
+.cl-decl i { color: #44524B; }
+.cl-ticker li { border-bottom: 1px solid rgba(12, 37, 31, .25); }
+.cl-ticker time { color: #44524B; }
+.cl-ticker .overtake { color: #0C251F; font-weight: 700; }
+.cl-ticker .refused, .cl-ticker strong { color: #B43A0A; }
+.closing-verdict h1 { background: linear-gradient(transparent 66%, #CCFF00 66%); display: inline-block; padding-right: 10px; }
+.cl-facts { background: #F1EFE6; }
+.decl, .decl-won, .decl-lapsed, .decl-throne-moved { background: #FCF9F0; color: #0C251F; border-top: 12px solid #0C251F; }
+.decl-pre, .decl h1 em { color: #B43A0A; }
+.decl-stamp { background: #F1EFE6; }
+.decl-won .decl-stamp { background: #CCFF00; }
+.decl-lapsed .decl-stamp, .decl-throne-moved .decl-stamp { color: #6B776F; border-color: #6B776F; }
+.decl-figs { background: #F1EFE6; }
+@media (max-width: 860px) { .closing, .closing.danger, .closing-verdict { box-shadow: 5px 5px 0 #0C251F; } }

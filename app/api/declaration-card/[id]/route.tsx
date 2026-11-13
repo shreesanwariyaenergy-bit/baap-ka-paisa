@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const label = { display: 'flex' as const, fontFamily: 'DM Mono', fontSize: 26, letterSpacing: 4, textTransform: 'uppercase' as const };
   return new ImageResponse(
     (
-      <div style={{ width: 1080, height: 1350, display: 'flex', flexDirection: 'column', background: won ? lime : hot, padding: 36 }}>
+      <div style={{ width: 1080, height: 1350, display: 'flex', flexDirection: 'column', background: ink, padding: 28 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: paper, color: ink, border: `6px solid ${ink}`, padding: 56 }}>
           <div style={{ ...label, justifyContent: 'space-between' }}><span>{`Declaration No. ${d.no}`}</span><span>BAAP KA PAISA</span></div>
           <div style={{ display: 'flex', height: 6, background: ink, marginTop: 20 }} />
@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
               <div style={{ ...label, fontSize: 22 }}>Needed to take it when declared</div>
               <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 96, lineHeight: 1 }}>{rs(d.required)}</div>
             </div>
-            <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 54, padding: '8px 22px', border: `6px solid ${won ? ink : hot}`, color: won ? ink : hot, transform: 'rotate(-6deg)', textTransform: 'uppercase' }}>{STAMP[d.status]}</div>
+            <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 54, padding: '8px 22px', border: `6px solid ${ink}`, color: ink, background: won ? lime : paper, transform: 'rotate(-6deg)', textTransform: 'uppercase' }}>{STAMP[d.status]}</div>
           </div>
           <div style={{ ...label, fontSize: 20, marginTop: 24, justifyContent: 'space-between', color: '#44524B' }}><span>{d.seasonLabel}</span><span>No prizes. No cash-outs. The record stays.</span></div>
         </div>
