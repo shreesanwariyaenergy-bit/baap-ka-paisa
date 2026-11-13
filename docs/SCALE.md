@@ -108,3 +108,58 @@ before budgeting.** Monthly active users means members who sign in, not visitors
 P0 (blocks any public launch): items 1, 2, 3. P1 (blocks a viral launch): 4, 5, 6, 7.
 P2 (before scaling spend): 8, 9, then repeat the load tests against staging and publish before/after.
 Items 4–6 are the same work as the performance milestone in `docs/PERFORMANCE.md`.
+
+## Update, 16 November 2026: investigations
+
+### Auth limits: my earlier claim is not confirmed
+I stated that all members share about 1,800 sign-ins or session refreshes an hour because the site's
+server makes the calls. Tested against the new staging project (never production), from one workspace:
+
+| Test | Calls | Result |
+|---|---|---|
+| Invalid session refresh, rapid | 45, then 240 in 12 s | All answered normally; no "too many requests" |
+| Same, with a made-up `Sb-Forwarded-For` or `X-Forwarded-For` header and the public key | 45 each | No change (the header has no visible effect with a public key) |
+| Invalid verification | 120 in 5 s | All refused as invalid; none rate-limited |
+| **Valid** sign-in, real test account | 80 in 9 s | All 80 succeeded |
+| **Valid** session refresh, real token chain | 70 in 48 s | All 70 succeeded |
+
+So the documented per-address limits did not trigger in 555 calls. I cannot tell from here whether that
+is because this workspace's requests leave through several addresses, or because the limits are applied
+differently from the documentation. **The honest status is "unknown", not "1,800 an hour".** It must be
+measured from a Vercel function calling staging, which is part of the load-test milestone.
+
+What is established about addresses behind Vercel (official Vercel documentation): Vercel overwrites
+`x-forwarded-for` with the visitor's real public address and does not pass through a value the visitor
+supplies, so the site's server reliably knows each visitor's address. What is established about Supabase
+(official documentation): it only honours a forwarded visitor address when the request carries a
+**secret** key and the project setting is switched on; with our public key it is ignored. Forwarding is
+therefore possible but is not free: it means holding a secret key on the server, which this app has
+deliberately never done. Decision deferred until the measurement shows whether there is a problem at all.
+
+### Rank credits: 9.3 a second to 241 a second
+Cause (measured): every credit re-added the whole season's ledger four times (once per board level) while
+holding the season lock, about 90 ms each at 60,000 rows.
+Change (`supabase/pending/20261116001200_season_scores.sql`, not applied): a running total per member per
+season, updated in the same transaction as the ledger row, so "who is #01" is an index lookup.
+
+| | Before | After |
+|---|---|---|
+| One credit | 90 ms | 24 ms |
+| 1,000 credits, 50 at a time | 9.3/s, last waits 107 s | **241/s**, average wait 0.2 s |
+
+Integrity unchanged: the full audit (simultaneous overtakes, first-started-last-finished, bell, settling,
+late and reversed webhooks, 60-credit stress) still passes with it, and `score_invariants()` confirms the
+running totals equal the ledger after 1,000 concurrent credits. Reads barely moved (homepage reads 4.6 to
+5.2 a second): the board read functions do other work, which belongs to the performance milestone.
+
+### Pricing: official figures where I could reach them
+The providers' pricing pages cannot be fetched from this workspace. From Supabase's official documentation
+(compute and disk): Nano (free) 60 connections / 200 pooled clients; Micro ~$10, Small ~$15, Medium ~$60,
+Large ~$110, XL ~$210, 2XL ~$410 a month; connections rise from 60 to 380 across those sizes. Plan prices,
+Vercel's included usage and Resend's tiers remain from third-party summaries and are **still unverified**.
+
+### Staging
+Supabase project `baap-ka-paisa-staging` (Mumbai, free tier, $0) exists and is empty. It shares nothing
+with production: separate database, keys and accounts. Migrations will be loaded into it at the start of
+the load-test milestone.
+

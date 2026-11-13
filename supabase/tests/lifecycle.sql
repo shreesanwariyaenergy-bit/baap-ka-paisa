@@ -213,7 +213,7 @@ reset role;
 -- ---- unrelated objects untouched by the social migration: grants on every other table are as before ----
 do $$ declare bad text; begin
   select string_agg(c.relname, ', ') into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist', 'rank_ledger', 'late_payments', 'declarations', 'declaration_blocks', 'backings')
+   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist', 'rank_ledger', 'late_payments', 'declarations', 'declaration_blocks', 'backings', 'season_scores')
      and not has_table_privilege('authenticated', c.oid, 'insert');
   assert bad is null, 'grants changed on: ' || bad;
   raise notice 'OTHER TABLE GRANTS UNCHANGED OK';
