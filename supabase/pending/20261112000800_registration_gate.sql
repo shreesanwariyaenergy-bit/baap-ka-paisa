@@ -34,9 +34,23 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Runs before every new member row, whichever function or role inserts it.
+--   * A browser request (role anon or authenticated) may only create the profile of the account it is
+--     signed in as, and only when the gate allows that account.
+--   * The service role and a direct owner connection (SQL editor, migrations) are administrative: they
+--     are not held to the gate. They are never reachable with the publishable key.
 create function public.enforce_registration_gate() returns trigger
 language plpgsql security definer set search_path = '' as $$
+declare v_uid uuid := auth.uid(); v_role text := coalesce(auth.role(), '');
 begin
+  if v_role not in ('anon', 'authenticated') and v_uid is null then
+    return new;                                                    -- administrative insert
+  end if;
+  if v_uid is null then
+    raise exception 'Sign in first' using errcode = '28000';
+  end if;
+  if new.id is distinct from v_uid then
+    raise exception 'A profile can only be created for the signed-in account' using errcode = 'insufficient_privilege';
+  end if;
   if not public.registration_allowed() then
     raise exception 'Registration is not open' using errcode = 'insufficient_privilege';
   end if;

@@ -9,6 +9,13 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 13 November 2026 (evening): pre-migration checks, The Closing
+
+- **Not deployed to production.** This work is on `feature/website-v1` only. No migration was applied and nothing on the live database, settings or environment changed.
+- **Social migration (pending):** the app makes no direct table writes anywhere; all five actions and the state read call `social_action()` only (`tests/unit/social-live.test.ts`). Concurrent requests on separate connections hold the limits (`scripts/db-audit.sh`, SOC).
+- **Registration gate migration (pending, corrected):** the trigger now refuses a profile whose id is not the signed-in account, refuses anonymous API inserts, and documents that the service role and an owner connection are administrative and not held to the gate. Tested locally.
+- **The Closing (practice season only):** `/closing`. The server holds the clock in an httpOnly cookie and computes every state with the season engine (`lib/closing.ts`, `app/api/closing/route.ts`): countdown, price of the throne, challengers, declarations at stake, anti-snipe extensions, final verdict. Invented members; no payment and no real season.
+
 ## Update, 13 November 2026 (later): season clock applied, Declarations, labelled throne price
 
 - **Season clock migration applied to the live database** (`supabase/migrations/20261112000700_season_clock.sql`). Verified after applying: `auto_rollover` false, 0 seasons, pg_cron not installed, the three functions not executable by anon or authenticated.

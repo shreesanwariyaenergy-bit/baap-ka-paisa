@@ -106,3 +106,28 @@ test('signed-out visitors can read a declaration but cannot declare', async ({ p
   await page.goto('/u/kinjal.adajan');
   await expect(page.getByTestId('declare-start')).toHaveCount(0);
 });
+
+test('The Closing: server-run final stretch, anti-snipe extension, and a final verdict', async ({ page, context, baseURL }) => {
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'idle');
+  await page.getByTestId('closing-start').click();
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'live');
+  await expect(page.getByTestId('closing-holder')).toHaveText('Riya Kapadia');
+  await expect(page.getByTestId('closing-price')).toHaveText('₹42,500');
+  const first = await page.getByTestId('closing-countdown').innerText();
+  // Aman takes the throne 12 practice minutes before the close: the server extends the season.
+  await expect(page.getByTestId('closing-extensions')).toContainText('Extended 1×', { timeout: 25_000 });
+  await expect(page.getByTestId('closing-holder')).toHaveText('Aman Shroff');
+  await expect(page.getByTestId('closing-price')).toHaveText('₹43,000');
+  expect(await page.getByTestId('closing-countdown').innerText()).not.toBe(first);
+  // The client cannot move the clock: a forged start time in the future is ignored by the server.
+  const state = await (await page.request.get('/api/closing')).json();
+  expect(state.phase).toBe('extended');
+  // A replay that started long ago is over: the server returns the verdict.
+  await context.addCookies([{ name: 'bkp_closing_start', value: String(Date.now() - 10 * 60_000), url: baseURL! }]);
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'closed');
+  await expect(page.getByTestId('closing-winner')).toHaveText('Riya Kapadia');
+  await context.addCookies([{ name: 'bkp_closing_start', value: String(Date.now() + 60_000), url: baseURL! }]);
+  expect((await (await page.request.get('/api/closing')).json()).phase).toBe('idle');
+});

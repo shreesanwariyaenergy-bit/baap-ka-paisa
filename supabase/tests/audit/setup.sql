@@ -4,7 +4,7 @@ select public.schedule_season(1, now() - interval '10 days', now() + interval '1
 select public.season_clock();
 create table audit_ids (n int primary key, id uuid);
 do $$ declare i int; u uuid; begin
-  for i in 1..6 loop
+  for i in 1..9 loop
     insert into auth.users (email, email_confirmed_at) values ('a' || i || '@test.invalid', now()) returning id into u;
     perform set_config('request.jwt.claim.sub', u::text, true);
     perform public.create_member('aud.' || i, 'Audit ' || i, date '1990-01-01', 'surat', 'Vesu');

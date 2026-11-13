@@ -14,6 +14,17 @@ $P -d bkp -f supabase/tests/audit/setup.sql >/dev/null
 credit() { echo "insert into public.rank_ledger (member_id, season_id, kind, rank_credit_paise, payment_ref, actor) select id, 1, 'credit', $2, '$3', 'audit' from audit_ids where n=$1"; }
 state() { $P -d bkp -At -c "select 'board #1 = member ' || (select a.n from public.ranked_board_at(1,'city','surat',null,now()) b join audit_ids a on a.id=b.member_id where b.rank=1) || ' | open reign = member ' || coalesce((select string_agg(a.n::text, ',') from public.throne_reigns t join audit_ids a on a.id=t.member_id where t.level='city' and t.ended_at is null), 'none') || ' | reigns ending before they start = ' || (select count(*) from public.throne_reigns where ended_at < started_at)"; }
 
+echo "SOC Concurrent social actions as one signed-in member (separate connections)"
+as1() { echo "set request.jwt.claim.sub = '$($P -d bkp -At -c "select id from audit_ids where n=1")'; set request.jwt.claim.role = 'authenticated'; set role authenticated; select * from public.social_action('$1', 'aud.$2');"; }
+for t in 2 3 4 5; do $P -d bkp -c "$(as1 rival $t)" >/dev/null; done
+for t in 6 7 8 9; do ( $P -d bkp -c "$(as1 rival $t)" >/dev/null 2>&1 & ); done
+for i in 1 2 3 4 5 6; do ( $P -d bkp -c "$(as1 respect 2)" >/dev/null 2>&1 & ); done
+for i in 1 2 3 4; do ( $P -d bkp -c "$(as1 follow 3)" >/dev/null 2>&1 & ); done
+sleep 2
+$P -d bkp -At -c "select 'rivals after 4 + 4 simultaneous requests = ' || (select count(*) from public.rivals r join audit_ids a on a.id = r.member_id where a.n = 1) || ' (limit 5) | Respect rows after 6 simultaneous requests = ' || (select count(*) from public.respects) || ' (limit 1) | follow rows after 4 simultaneous requests = ' || (select count(*) from public.follows) || ' (expected 1)'"
+$P -d bkp -c "$(as1 respect 2)" 2>&1 | head -1
+$P -d bkp -c "$(as1 unrival 2)" | tail -2 | head -1; $P -d bkp -c "$(as1 unfollow 3)" | tail -2 | head -1
+
 echo "S1  Two members overtake the same holder at the same moment"
 $P -d bkp -c "$(credit 1 500000 H)"
 ( $P -d bkp -c "begin; $(credit 2 600000 A); select pg_sleep(1.5); commit;" >/dev/null & ); sleep 0.4
