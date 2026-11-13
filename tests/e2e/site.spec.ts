@@ -403,3 +403,41 @@ test('Price of the throne: every figure is labelled and nothing is an order', as
   const price = Number((await page.getByTestId('throne-price-amount').innerText()).replace(/[^\d]/g, ''));
   expect(price).toBe(leader + 500);
 });
+
+test('integrated journey: scene, gazette, board, profile, backing, declaration, bill, seal, closing', async ({ page, request }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto('/');
+  await dismissCrownMoment(page);
+  await expect(page.getByTestId('leader-feature')).toContainText('Kinjal Shah');
+  await expect(page.getByTestId('throne-price')).toBeVisible();
+  await page.getByTestId('gazette-strip').click();
+  await expect(page.getByTestId('gazette-lead')).toContainText('KINJAL SHAH TAKES SURAT');
+  expect((await request.get('/api/gazette-card/surat')).headers()['content-type']).toContain('image/png');
+  expect((await request.get('/api/gazette-card/nowhere')).status()).toBe(404);
+  await page.goto('/board?level=city&city=surat');
+  await expect(page.locator('.rank-row[data-rank="1"]')).toHaveAttribute('data-username', 'kinjal.adajan');
+  await expect(page.getByTestId('row-backers').first()).toContainText('backing');
+  await page.goto('/u/vesu.vikram');
+  await expect(page.getByTestId('dethroned-band')).toBeVisible();
+  await expect(page.getByTestId('claim')).toBeVisible();
+  await expect(page.getByTestId('backing-panel')).toBeVisible();
+  await expect(page.getByTestId('profile-declarations')).toContainText('Declared for Surat');
+  await page.getByTestId('profile-declarations').getByRole('link').first().click();
+  await expect(page.getByTestId('declaration')).toBeVisible();
+  await page.goto('/bill/vesu.vikram');
+  await expect(page.getByTestId('bill')).toContainText('1 × GUJARAT');
+  await expect(page.getByTestId('bill')).toContainText('REIGN ENDED · BY KINJAL SHAH');
+  await page.goto('/seal');
+  await expect(page.getByTestId('seal')).toBeVisible();
+  await page.getByTestId('seal-bill-link').click();
+  await expect(page.getByTestId('bill-name')).toHaveText('ISHAAN MEHTA');
+  await page.goto('/throne?level=city&city=surat&view=time');
+  await expect(page.getByTestId('throne-time-row').first()).toBeVisible();
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', /idle|live|extended|closed/);
+  for (const p of ['/archive', '/cities', '/india', '/me', '/invite', '/simulator', '/rank-up', '/legal/terms']) { expect((await page.goto(p))?.status(), p).toBe(200); }
+  await page.goto('/legal/terms');
+  await expect(page.locator('main')).toContainText('the one the register recorded first ranks higher');
+  expect(errors).toEqual([]);
+});

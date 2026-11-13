@@ -6,6 +6,7 @@ import { inr } from '@/lib/format';
 import { heldFor, who } from '@/lib/gazette';
 import { CopyLink } from '@/components/CopyLink';
 import { ThronePrice } from '@/components/ThronePrice';
+import { BlockButton } from '@/components/BlockButton';
 
 const STAMP = { standing: 'Standing', won: 'Made good', 'throne-moved': 'Throne moved', lapsed: 'Lapsed' } as const;
 const when = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d);
@@ -51,6 +52,7 @@ export default async function DeclarationPage({ params }: { params: Promise<{ id
         <section className="history" style={{ marginTop: 0 }} aria-labelledby="decl-tl">
           <h3 id="decl-tl">The rivalry so far</h3>
           {d.timeline.map((t) => <div className="history-row" key={`${t.kind}-${t.at.getTime()}`} data-testid="declaration-event"><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{when(t.at)}</b><span>{line(t)}</span></div>)}
+          {viewer?.member.username === d.holder.username && <div style={{ margin: '14px 0' }}><BlockButton name={d.challenger.username} label={ch} /></div>}
           <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>A declaration moves no rank and costs nothing. Its wording comes from a fixed list; the names and figures come from the board. {ho} can block {ch} from declaring again, and any declaration can be removed by moderators.</p>
         </section>
         <div>

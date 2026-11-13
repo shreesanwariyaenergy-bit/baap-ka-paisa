@@ -41,8 +41,10 @@ export async function saveProfile(_prev: FormResult | null, fd: FormData): Promi
   const sb = await supabaseAuth();
   const { error } = await sb!.rpc('update_my_profile', { p_display_name: p.displayName, p_title: p.title ?? '', p_flex_line: p.flexLine ?? '', p_mystery: !!p.mystery });
   if (error) return { ok: false, errors: {}, message: error.message };
+  const soc = await sb!.rpc('set_my_socials', { p_instagram: p.instagram ?? '', p_snapchat: p.snapchat ?? '', p_visibility: p.socialVisibility || 'nobody' });
   revalidatePath('/', 'layout');
-  return { ok: true, errors: {}, preview: p, message: 'Saved. Socials are not stored yet; they arrive with handle verification.' };
+  if (soc.error && !/PGRST202|find the function/i.test(`${soc.error.code} ${soc.error.message}`)) return { ok: false, errors: {}, message: `Profile saved, but your socials were not: ${soc.error.message}.` };
+  return { ok: true, errors: {}, preview: p, message: soc.error ? 'Saved. Social handles are being switched on and were not stored yet.' : 'Saved.' };
 }
 
 const SOCIAL_NOT_READY = 'Follow, Respect and rivals are being switched on. Please check back soon.';
@@ -164,4 +166,24 @@ export async function declareAction(cityId: string, line: number): Promise<Decla
   await writeDemoDeclares([...mine, { id, at: now, board, line: Number.isInteger(line) && line >= 0 && line < LINES.length ? line : 0 }]);
   revalidatePath('/', 'layout');
   return { ok: true, id, message: 'Declared.' };
+}
+
+/** A throne-holder stops (or allows again) one challenger from declaring against them. */
+export async function blockChallenger(name: string, block: boolean): Promise<{ ok: boolean; message: string }> {
+  const ds = await getDataSource();
+  if (!(await ds.viewer())) return { ok: false, message: 'Sign in first.' };
+  if (ds.availability === 'demo') return { ok: false, message: 'Demo: blocking is not stored on the demo site.' };
+  const sb = await supabaseAuth();
+  const { error } = await sb!.rpc('block_challenger', { p_name: name, p_block: block });
+  if (error) return { ok: false, message: /PGRST202|find the function/i.test(`${error.code} ${error.message}`) ? 'Declarations are being switched on. Please check back soon.' : 'That did not go through. Please try again.' };
+  revalidatePath('/', 'layout');
+  return { ok: true, message: block ? 'Blocked. Their standing declarations against you are no longer shown.' : 'Unblocked.' };
+}
+/** The signed-in member's block list (live only). */
+export async function myBlocks(): Promise<{ name: string; label: string }[]> {
+  const sb = await supabaseAuth();
+  if (!sb) return [];
+  const { data, error } = await sb.rpc('get_my_blocks');
+  if (error || !Array.isArray(data)) return [];
+  return (data as { public_name: string; display_name: string | null }[]).map((r) => ({ name: r.public_name, label: r.display_name ?? r.public_name }));
 }

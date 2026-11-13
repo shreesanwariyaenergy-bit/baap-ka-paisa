@@ -38,6 +38,7 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   // The band a member wears for 24 hours after losing a #01.
   const allReigns = await ds.throneHistory({ username: m.username, limit: 100 });
   const band = dethronedBand(allReigns, await ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)), ds.now());
+  const handles = m.masked ? null : await ds.socials(m.username);
   const holdsCity = standings.find((x) => x.level === 'city')?.rank === 1;
   const feud = (await ds.declarations({ username: m.username })).slice(0, 4);
   const canDeclareHere = holdsCity && viewer && !isSelf && viewer.member.cityId === m.cityId && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
@@ -85,6 +86,13 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
             <h3>Declarations</h3>
             {feud.map((d) => <Link className="history-row" key={d.id} href={`/declare/${d.id}`}><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{d.no.split('/').pop()}</b><span>{d.challenger.username === m.username ? `Declared for ${d.boardName}` : `${d.challenger.masked ? d.challenger.publicLabel : d.challenger.displayName} declared against them`}</span><small>{d.status === 'won' ? 'Made good' : d.status === 'standing' ? 'Standing' : d.status === 'lapsed' ? 'Lapsed' : 'Throne moved'}</small></Link>)}
             {canDeclareHere && <div style={{ marginTop: 14 }}><DeclareButton cityId={m.cityId} city={city.name} holder={name} lines={LINES} required={inr(toOvertake(m.seasonScore, viewer!.member.cityId === m.cityId ? viewer!.member.seasonScore : 0))} /></div>}
+          </div>
+        )}
+        {handles && (handles.instagram || handles.snapchat) && (
+          <div className="history" style={{ marginTop: 0 }} data-testid="profile-socials"><h3>Socials</h3>
+            {handles.instagram && <div className="history-row"><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>IG</b><span>@{handles.instagram}</span><small>unverified</small></div>}
+            {handles.snapchat && <div className="history-row"><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>SC</b><span>@{handles.snapchat}</span><small>unverified</small></div>}
+            {handles.isSelf && <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Shown to: {handles.visibility === 'everyone' ? 'everyone' : handles.visibility === 'followers' ? 'members who follow you' : 'nobody but you'}.</p>}
           </div>
         )}
         {backing && (

@@ -372,6 +372,7 @@ export const demoSource: DataSource = {
       .filter((d) => (!id || d.id === id) && (!cityId || keyToScope(d.board).cityId === cityId && d.board !== 'india') && (!username || d.challenger === username || d.holder === username))
       .sort((a, b) => b.at - a.at).map(toDeclaration);
   },
+  async socials() { return null; },   // demo profiles are not saved
   async mostBacked(cityId, limit) {
     const r = await backings();
     return mostBacked(SIM, r, CURRENT.id, cityId, SIM_NOW).slice(0, limit).map((x) => ({ member: pub(x.memberId), backers: x.backers, rank: x.rank }));

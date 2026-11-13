@@ -14,7 +14,9 @@ function metaFor(row: BoardRow, mode: RowMetaMode, cityNames: Record<string, str
   return place;
 }
 
-export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, emptyTitle, emptyText, crownLive = true, valueLabel = 'season' }: {
+export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, emptyTitle, emptyText, crownLive = true, valueLabel = 'season', backers }: {
+  /** Backers this season by username, shown on the row. Display only. */
+  backers?: Record<string, number>;
   board: Board; scopeLabel: string; metaMode: RowMetaMode; cityNames: Record<string, string>; limit?: number; emptyTitle: string; emptyText: string;
   /** False for lists that are not the live Season ranking (Hall of Fame): no gold crown. */
   crownLive?: boolean; valueLabel?: 'season' | 'lifetime';
@@ -34,7 +36,7 @@ export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, empty
   return (
     <div data-testid="board-rows">
       {rows.map((r) => (
-        <RankRow key={r.member.username} row={r} scopeLabel={scopeLabel} meta={metaFor(r, metaMode, cityNames, crownLive)} isViewer={v?.member.username === r.member.username} crownLive={crownLive} unit={board.unit ?? 'inr'} />
+        <RankRow key={r.member.username} row={r} scopeLabel={scopeLabel} meta={metaFor(r, metaMode, cityNames, crownLive)} isViewer={v?.member.username === r.member.username} crownLive={crownLive} unit={board.unit ?? 'inr'} backers={backers?.[r.member.username]} />
       ))}
       {v && board.unit !== 'count' && <YouRow row={v} scopeLabel={scopeLabel} meta={showViewer || !v ? viewerMeta : `You are #${pad2(v.rank)} · ${viewerMeta}`} />}
     </div>

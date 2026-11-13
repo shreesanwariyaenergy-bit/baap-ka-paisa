@@ -117,6 +117,9 @@ export interface DeclarationView {
   timeline: { at: Date; kind: 'declared' | 'holder-added' | 'challenger-added' | 'won' | 'throne-moved' | 'lapsed'; amount?: number; gap: number; by?: PublicMember }[];
 }
 
+/** Social handles the current viewer is allowed to see for a member. Unverified, shown as written. */
+export interface SocialHandles { instagram: string | null; snapchat: string | null; visibility: 'everyone' | 'followers' | 'nobody' | null; isSelf: boolean }
+
 export type Availability = 'live' | 'demo' | 'unavailable';
 
 export interface DataSource {
@@ -142,6 +145,8 @@ export interface DataSource {
   achievements(username: string): Promise<AchievementView[]>;
   social(username: string): Promise<SocialSummary | null>;
   archive(): Promise<ArchiveSeason[]>;
+  /** Null when the member has none, hides them from this viewer, or the feature is not switched on. */
+  socials(username: string): Promise<SocialHandles | null>;
   /** Null where Backing is not switched on (the live site, until approved). */
   backing(username: string): Promise<BackingView | null>;
   /** Contenders in a city by number of backers. A popularity list, never a ranking input. */

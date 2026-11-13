@@ -21,14 +21,14 @@ export default async function BillPage({ params }: { params: Promise<{ username:
   const cityScope: Scope = { level: 'city', cityId: m.cityId, locality: m.locality };
   const [standings, reigns, achievements, moments, backing, viewer] = await Promise.all([
     ds.standings(m.username), ds.throneHistory({ username: m.username, limit: 100 }), ds.achievements(m.username),
-    ds.crownMoments(cityScope, new Date(0)), ds.backing(m.username), ds.viewer(),
+    Promise.all((['city', 'state', 'india'] as const).map((level) => ds.crownMoments({ ...cityScope, level }, new Date(0)))).then((x) => x.flat()), ds.backing(m.username), ds.viewer(),
   ]);
   const name = who(m), now = ds.now();
   const thrones = reigns.filter((r) => r.scope.level !== 'locality').sort((a, b) => a.from.getTime() - b.from.getTime());
   const near = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) < 60_000;
   const lines = thrones.map((r) => {
-    const took = r.scope.level === 'city' ? moments.find((e) => e.to.username === m.username && near(e.at, r.from)) : undefined;
-    const lostTo = r.scope.level === 'city' && r.to ? moments.find((e) => e.from?.username === m.username && near(e.at, r.to!)) : undefined;
+    const took = moments.find((e) => e.boardName === r.boardName && e.to.username === m.username && near(e.at, r.from));
+    const lostTo = r.to ? moments.find((e) => e.boardName === r.boardName && e.from?.username === m.username && near(e.at, r.to!)) : undefined;
     return { r, from: took?.from ? who(took.from) : null, endedBy: lostTo ? who(lostTo.to) : null };
   });
   const marks = groupAchievements(achievements);

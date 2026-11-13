@@ -20,6 +20,8 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
   const seasonBoard = await ds.board(scope, { limit: 100, query });
   const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? await ds.respectBoard(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
+  // Backer counts on the season view of city and locality boards (display only; never an input to rank).
+  const backers = view === 'season' && (scope.level === 'city' || scope.level === 'locality') ? Object.fromEntries((await ds.mostBacked(scope.cityId, 100)).map((b) => [b.member.username, b.backers])) : undefined;
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const season = ds.season();
@@ -52,7 +54,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
             <h3 data-testid="board-title">{name} / {LEVEL_LABEL[scope.level]} board</h3>
             <span>{VIEW_LABEL[view]}{board.total > 0 ? ` · ${board.total} on this board` : ''}{ds.availability === 'demo' ? ' · Demo data' : ''}</span>
           </div>
-          <BoardList board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
+          <BoardList backers={backers} board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
             crownLive={view === 'season' || view === 'movers'} valueLabel={view === 'hall' ? 'lifetime' : 'season'}
             emptyTitle={unavailable ? 'Rankings are not open yet.' : view === 'respect' ? `No Respect given in ${name} yet.` : view === 'hall' ? `No lifetime record in ${name} yet.` : `No one rules ${name} yet.`}
             emptyText={unavailable ? 'This board will fill as soon as the first season opens. Nothing here is hidden; there is simply no one ranked yet.'

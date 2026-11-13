@@ -39,3 +39,26 @@ describe('live social actions', () => {
     }
   });
 });
+
+describe('live blocks, backing and declarations go through their database functions only', () => {
+  it('blocking and unblocking a challenger', async () => {
+    const { blockChallenger } = await import('@/app/actions');
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect((await blockChallenger('them', true)).ok).toBe(true);
+    expect(rpc).toHaveBeenLastCalledWith('block_challenger', { p_name: 'them', p_block: true });
+    expect((await blockChallenger('them', false)).message).toBe('Unblocked.');
+  });
+  it('backing: one call, and a locked backing is reported plainly', async () => {
+    const { backAction } = await import('@/app/actions');
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect(await backAction('them')).toMatchObject({ ok: true });
+    expect(rpc).toHaveBeenLastCalledWith('back_member', { p_target: 'them' });
+    rpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'Your backing for this season is already given and locked' } });
+    expect((await backAction('them')).message).toMatch(/already given and locked/);
+  });
+  it('before the migrations exist, every button says "being switched on" and nothing is reported as done', async () => {
+    const { backAction, blockChallenger } = await import('@/app/actions');
+    rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } });
+    for (const r of [await backAction('them'), await blockChallenger('them', true), await socialAction('follow', 'them')]) { expect(r.ok).toBe(false); expect(r.message).toMatch(/being switched on/); }
+  });
+});

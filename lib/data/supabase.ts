@@ -7,7 +7,7 @@ import { monthName, monthShort } from '../format';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
 import { LINES, toOvertake } from '../engine/callout';
-import type { BackingView, DeclarationView, AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
+import type { SocialHandles, BackingView, DeclarationView, AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 interface Cfg { url: string; key: string; }
 
@@ -155,6 +155,11 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
         pick: r.pick_name ? { member: lite(r.pick_name, r.pick_display, !!r.pick_masked, r.pick_city!, r.pick_locality!), cityRank: r.pick_rank, cityOf: r.pick_of ?? 0, gapToFirst: Math.round(Number(r.pick_gap_paise ?? 0) / 100), since: new Date(r.pick_since!) } : null,
         history: r.history.map((h) => ({ seasonLabel: `Season ${h.season_id}`, member: lite(h.name, h.display, h.masked, h.city, ''), finalRank: h.final_rank, crowned: h.final_rank === 1 })),
       } satisfies BackingView;
+    },
+    async socials(name) {
+      const rows = await rpc<{ instagram: string | null; snapchat: string | null; visibility: SocialHandles['visibility']; is_self: boolean }[]>(cfg, 'get_socials', { p_name: name }).catch(() => []);
+      const r = rows[0];
+      return r && (r.instagram || r.snapchat || r.is_self) ? { instagram: r.instagram, snapchat: r.snapchat, visibility: r.visibility, isSelf: r.is_self } : null;
     },
     async mostBacked(cityId, limit) {
       const rows = await rpc<{ public_name: string; display_name: string | null; masked: boolean; locality: string; backers: number; rank: number }[]>(cfg, 'get_most_backed', { p_city: cityId, p_limit: limit }).catch(() => []);
