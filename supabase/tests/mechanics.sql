@@ -53,6 +53,24 @@ begin
   perform pg_temp.as_member('fan');
   begin perform public.declare_for('city', 0); exception when others then assert false, 'fan may declare: ' || sqlerrm; end;
   assert (select max(seq) from public.declarations where level = 'city') = 3, 'numbers 1 and 2 are never reused';
+  -- the holder's block list and unblocking
+  perform pg_temp.as_member('king');
+  assert (select count(*) from public.get_my_blocks()) = 1 and (select public_name from public.get_my_blocks()) = anon, 'block list by public name';
+  perform public.block_challenger(anon, false); assert (select count(*) from public.get_my_blocks()) = 0, 'unblocked';
+  perform public.block_challenger(anon);
+  -- ---------- Social handles ----------
+  perform pg_temp.as_member('ch');
+  begin perform public.set_my_socials('bad handle!', null, 'everyone'); assert false; exception when check_violation then null; end;
+  begin perform public.set_my_socials('ok', null, 'the-world'); assert false; exception when invalid_parameter_value then null; end;
+  perform public.set_my_socials('@ch.insta', 'ch_snap', 'followers');
+  select * into r from public.get_socials('mech.ch'); assert r.instagram = 'ch.insta' and r.is_self and r.visibility = 'followers', 'owner sees own handles and setting';
+  perform pg_temp.as_member('fan'); assert (select count(*) from public.get_socials('mech.ch')) = 0, 'followers-only: hidden from a non-follower';
+  perform public.social_action('follow', 'mech.ch');
+  select * into r from public.get_socials('mech.ch'); assert r.instagram = 'ch.insta' and r.snapchat = 'ch_snap' and r.visibility is null and not r.is_self, 'visible to a follower; setting not disclosed';
+  perform pg_temp.as_member('ch'); perform public.set_my_socials('ch.insta', null, 'nobody');
+  perform pg_temp.as_member('fan'); assert (select count(*) from public.get_socials('mech.ch')) = 0, 'nobody: hidden even from followers';
+  perform pg_temp.as_member('third'); perform public.set_my_socials('secret.third', null, 'everyone');
+  perform pg_temp.as_member('fan'); assert (select count(*) from public.get_socials(anon)) = 0 and (select count(*) from public.get_socials('mech.third')) = 0, 'Mystery mode never shows handles';
   -- ---------- Backing ----------
   begin perform public.back_member('mech.fan'); assert false, 'yourself'; exception when check_violation then null; end;
   begin perform public.back_member('mech.away'); assert false, 'not on the board'; exception when check_violation then null; end;
@@ -83,6 +101,10 @@ do $$ begin
   begin perform public.back_member('mech.ch'); assert false; exception when insufficient_privilege then null; end;
   begin perform 1 from public.declarations; assert false; exception when insufficient_privilege then null; end;
   begin perform 1 from public.backings; assert false; exception when insufficient_privilege then null; end;
+  begin perform 1 from public.member_socials; assert false; exception when insufficient_privilege then null; end;
+  begin perform public.set_my_socials('x', null, 'everyone'); assert false; exception when insufficient_privilege then null; end;
+  begin perform public.get_my_blocks(); assert false; exception when insufficient_privilege then null; end;
+  assert (select count(*) from public.get_socials('mech.ch')) = 0;
   raise notice 'MECHANICS ANON PERMISSIONS OK';
 end $$;
 reset role; set role authenticated;

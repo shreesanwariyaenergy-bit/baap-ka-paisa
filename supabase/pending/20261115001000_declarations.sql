@@ -1,7 +1,7 @@
 -- PENDING REVIEW. Not applied to any database.
 -- Declarations: a member formally and publicly declares for the throne of a board they are on.
 -- A declaration changes no score and no rank. Its outcome is read from the throne record.
--- New objects only: two tables and five functions. No existing object is changed.
+-- New objects only: two tables and six functions. No existing object is changed.
 -- There is no free text: the "line" is an index into a fixed list held by the application.
 
 create table public.declarations (
@@ -127,6 +127,13 @@ begin
   else delete from public.declaration_blocks b where b.holder = v_uid and b.challenger = v_other; end if;
 end $$;
 
+-- The caller's own block list, by public name.
+create function public.get_my_blocks() returns table (public_name text, display_name text, masked boolean, blocked_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select public.public_name(m), case when m.masked then null else m.display_name end, m.masked, b.created_at
+  from public.declaration_blocks b join public.members m on m.id = b.challenger where b.holder = auth.uid() order by b.created_at desc
+$$;
+
 -- Moderation: hide a declaration. Its number is kept so it is never reused. Not callable from the browser.
 create function public.remove_declaration(p_id bigint, p_reason text) returns void
 language sql security definer set search_path = '' as $$
@@ -134,9 +141,9 @@ language sql security definer set search_path = '' as $$
 $$;
 
 revoke execute on function public.declaration_outcome(public.declarations), public.declare_for(text, int), public.get_declarations(text, text, bigint),
-  public.block_challenger(text, boolean), public.remove_declaration(bigint, text) from public, anon, authenticated;
+  public.block_challenger(text, boolean), public.get_my_blocks(), public.remove_declaration(bigint, text) from public, anon, authenticated;
 grant execute on function public.get_declarations(text, text, bigint) to anon, authenticated;
-grant execute on function public.declare_for(text, int), public.block_challenger(text, boolean) to authenticated;
+grant execute on function public.declare_for(text, int), public.block_challenger(text, boolean), public.get_my_blocks() to authenticated;
 grant execute on function public.remove_declaration(bigint, text) to service_role;
 
--- Rollback: drop the five functions, then  drop table public.declaration_blocks, public.declarations;
+-- Rollback: drop the six functions, then  drop table public.declaration_blocks, public.declarations;
