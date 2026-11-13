@@ -52,6 +52,7 @@ export default async function SealPage() {
   return (
     <>
       {intro}
+      <p style={{ margin: '18px 0 0' }}><Link className="textlink" href={`/bill/${encodeURIComponent(m.username)}`} data-testid="seal-bill-link">Your Bill ↗</Link></p>
       {(claim || backing) && (
         <div style={{ margin: '22px 0 0' }}>
           {claim && <div className="claim" data-testid="seal-claim">{claim.headline}<small>Your strongest claim · {claim.proof}</small></div>}

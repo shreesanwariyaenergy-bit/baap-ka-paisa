@@ -3,12 +3,16 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { CLOSING_OPENS, closingInstant, closingStateAt } from '@/lib/closing';
+import { liveClosingState } from '@/lib/closing-live';
+import { getDataSource } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
 const COOKIE = 'bkp_closing_start';
 const json = (body: unknown) => NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const live = await liveClosingState(await getDataSource(), new URL(request.url).searchParams.get('city') ?? undefined);
+  if (live) return json(live);
   const started = Number((await cookies()).get(COOKIE)?.value);
   const now = Date.now();
   if (!Number.isFinite(started) || started <= 0 || started > now) return json({ ...closingStateAt(CLOSING_OPENS), phase: 'idle' });

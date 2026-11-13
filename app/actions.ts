@@ -109,7 +109,18 @@ export async function backAction(target: string): Promise<BackResult> {
   const ds = await getDataSource();
   const viewer = await ds.viewer();
   if (!viewer) return { ok: false, message: 'Sign in to back a contender.' };
-  if (ds.availability !== 'demo') return { ok: false, message: 'Backing is not open yet.' };
+  if (ds.availability !== 'demo') {
+    const sb = await supabaseAuth();
+    const { error } = await sb!.rpc('back_member', { p_target: target });
+    if (error) {
+      const m = `${error.code} ${error.message}`;
+      return { ok: false, message: /PGRST202|find the function/i.test(m) ? 'Backing is being switched on. Please check back soon.'
+        : /already given/.test(m) ? 'Your backing for this season is already given and locked.' : /not on the board/.test(m) ? 'They are not on the board this season, so there is nothing to back yet.'
+        : /only open while/.test(m) ? 'Backing is only open while a season is running.' : /yourself|does not exist|Create your profile|Sign in/.test(error.message) ? `${error.message}.` : 'That did not go through. Please try again.' };
+    }
+    revalidatePath('/', 'layout');
+    return { ok: true, message: 'Locked for the season.' };
+  }
   const { DEMO_BACKING, SIM } = await import('@/lib/data/demo');
   const { canBack, runBacking, REFUSAL_TEXT } = await import('@/lib/engine/backing');
   const me = viewer.member.username, now = ds.now().getTime();
@@ -129,7 +140,18 @@ export async function declareAction(cityId: string, line: number): Promise<Decla
   const ds = await getDataSource();
   const viewer = await ds.viewer();
   if (!viewer) return { ok: false, message: 'Sign in to declare.' };
-  if (ds.availability !== 'demo') return { ok: false, message: 'Declarations are not open yet.' };
+  if (viewer.member.cityId !== cityId) return { ok: false, message: 'You can only declare for a board you are on.' };
+  if (ds.availability !== 'demo') {
+    const sb = await supabaseAuth();
+    const { data, error } = await sb!.rpc('declare_for', { p_level: 'city', p_line: Number.isInteger(line) ? line : 0 });
+    if (error) {
+      const m = `${error.code} ${error.message}`;
+      return { ok: false, message: /PGRST202|find the function/i.test(m) ? 'Declarations are being switched on. Please check back soon.'
+        : /already standing|72 hours|3 declarations|Nobody holds|already hold|cannot declare|only open while/.test(error.message) ? `${error.message}.` : 'That did not go through. Please try again.' };
+    }
+    revalidatePath('/', 'layout');
+    return { ok: true, id: String(data), message: 'Declared.' };
+  }
   if (!cityById(cityId)) return { ok: false, message: 'Unknown city.' };
   const { DEMO_DECLARE, SIM } = await import('@/lib/data/demo');
   const { canDeclare, runCallouts, DECLARE_REFUSAL, LINES } = await import('@/lib/engine/callout');

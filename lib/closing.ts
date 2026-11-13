@@ -44,6 +44,8 @@ export interface ClosingState {
   ticker: ClosingTick[];
   declarations: { no: string; challenger: string; line: string; status: 'standing' | 'won' | 'throne-moved' | 'lapsed' }[];
   thronesChanged: number;
+  /** Set for a real season: the city shown, and whether the bell has rung and late payments are being confirmed. */
+  live?: { city: string; cityId: string; season: string; settling: boolean };
   verdict: { winner: string; score: number; margin: number; runnerUp: string | null; closedAt: string; extensions: number; changes: number; refused: number } | null;
 }
 const clock = (t: number) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(t);

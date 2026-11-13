@@ -9,6 +9,15 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 15 November 2026: integration milestone
+
+- **Feature branch only. No migration applied, nothing deployed to production.** See `docs/MIGRATIONS_PENDING.md` for the five pending migrations and their exact impact.
+- **The Bill and the Dethroned Band** now run on every data source (they read existing public records) and are linked from profiles and The Seal.
+- **The Closing** runs on a real season in its final 24 hours and for a day after the close (`lib/closing-live.ts`); otherwise the practice replay is shown. The homepage links to it during that window.
+- **Declarations and Backing** have database migrations (pending) and live code paths: the site reads `get_declarations`, `get_backing`, `get_most_backed` and writes through `declare_for`, `back_member`. Until the migrations are applied these return nothing and the buttons say "being switched on". A member can only declare for a board they are on.
+- **Official rules** (`/legal/terms`) state that the register's own recording time decides order, the provider's capture time decides only eligibility, the 10-minute confirmation window, and that uncountable payments are refunded.
+- **Tests:** 106 unit, 88 browser, database suite (season lifecycle, role-by-role gate and ledger permissions, Declarations and Backing on a fresh database), and the audit script (concurrency, bell, settling, late and reversed webhooks, stress, checker self-test).
+
 ## Update, 14 November 2026: ledger integrity fix (pending), gate tightened, The Bill, Dethroned Band
 
 - **Not deployed to production; no migration applied.** Feature branch only.

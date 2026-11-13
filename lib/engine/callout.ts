@@ -12,7 +12,7 @@
 //   4. A moderator can remove any declaration. Removed declarations keep their number (no reuse).
 //   5. Outcome is read from the board: the challenger takes that throne -> "won"; someone else takes it
 //      or the holder is otherwise replaced -> "throne-moved"; the season closes first -> "lapsed".
-import { HOUR, boardAt, scoresAt, type BoardKey, type EngineResult, type SeasonState } from './engine';
+import { HOUR, boardAt, boardKeys, scoresAt, type BoardKey, type EngineResult, type SeasonState } from './engine';
 
 export const COOLDOWN = 72 * HOUR;
 export const SEASON_LIMIT = 3;
@@ -21,9 +21,10 @@ export const LINES = ['I am coming for this throne.', 'Enjoy it while it lasts.'
 
 export interface DeclareEvent { id: string; at: number; challenger: string; board: BoardKey; line?: number }
 export interface Block { holder: string; challenger: string; at: number }
-export type DeclareRefusal = 'not-a-member' | 'season-not-open' | 'vacant' | 'self' | 'blocked' | 'already-standing' | 'cooldown' | 'season-limit';
+export type DeclareRefusal = 'not-a-member' | 'not-your-board' | 'season-not-open' | 'vacant' | 'self' | 'blocked' | 'already-standing' | 'cooldown' | 'season-limit';
 export const DECLARE_REFUSAL: Record<DeclareRefusal, string> = {
   'not-a-member': 'Create your profile to declare.',
+  'not-your-board': 'You can only declare for a board you are on.',
   'season-not-open': 'Declarations are only open while a season is running.',
   vacant: 'Nobody holds this throne. There is no one to declare against: just take it.',
   self: 'You already hold this throne.',
@@ -58,6 +59,7 @@ function resolve(res: EngineResult, d: Pick<Declaration, 'seasonId' | 'board' | 
 export function canDeclare(res: EngineResult, existing: Declaration[], blocks: Block[], challenger: string, board: BoardKey, at: number):
   { ok: true; seasonId: number; holder: string; holderScore: number; challengerScore: number; required: number } | { ok: false; reason: DeclareRefusal } {
   if (!res.members.has(challenger)) return { ok: false, reason: 'not-a-member' };
+  if (!boardKeys(res.members.get(challenger)!).includes(board)) return { ok: false, reason: 'not-your-board' };
   const s = openSeason(res, at);
   if (!s) return { ok: false, reason: 'season-not-open' };
   const top = boardAt(res, s.id, board, at)[0];

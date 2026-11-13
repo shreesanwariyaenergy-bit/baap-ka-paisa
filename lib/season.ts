@@ -12,6 +12,9 @@ export interface SeasonInfo {
   startsAt: Date;
   /** Scheduled close, before any anti-snipe extension. */
   endsAt: Date;
+  /** Live seasons only: the close before any anti-snipe extension, and the season's state. */
+  scheduledEnd?: Date;
+  status?: 'open' | 'closed';
   label: string; // "Season 4" or "November 2026"
   monthLabel: string; // "November 2026"
   short: string; // "S04 / NOV '26" or "NOV '26"

@@ -1,5 +1,4 @@
-// The Bill (demo prototype): a member's standing as an itemised bill that only gets longer.
-// A design alternative to The Seal, shown side by side for comparison. Demo data only.
+// The Bill: a member's standing as an itemised bill that only gets longer. Public fields only.
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -16,7 +15,6 @@ const time = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kol
 export default async function BillPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
   const ds = await getDataSource();
-  if (ds.availability !== 'demo') notFound();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) notFound();
   const city = cityById(m.cityId)!;
@@ -39,11 +37,11 @@ export default async function BillPage({ params }: { params: Promise<{ username:
   return (
     <div className="bill-stage">
       <div className="bill-side">
-        <div className="eyebrow">Demo prototype · compare with The Seal</div>
+        <div className="eyebrow">The Bill{ds.availability === 'demo' ? ' · demo data' : ''}</div>
         <h1>The Bill.</h1>
         <p>Every member carries one. It is never settled and it only gets longer: every throne taken is a line, and every throne lost is stamped where everyone can read it.</p>
-        <p style={{ fontSize: 14, color: 'var(--muted-strong)' }}>Invented members. A record of standing, not a payment document.</p>
-        <div className="hero-cta"><Link className="btn light" href={`/u/${encodeURIComponent(m.username)}`}>Profile</Link>{mine && <Link className="btn light" href="/seal">Compare: The Seal</Link>}</div>
+        <p style={{ fontSize: 14, color: 'var(--muted-strong)' }}>A record of standing, not a payment document.</p>
+        <div className="hero-cta"><Link className="btn light" href={`/u/${encodeURIComponent(m.username)}`}>Profile</Link>{mine && <Link className="btn light" href="/seal">The Seal</Link>}</div>
       </div>
       <article className="bill" data-testid="bill">
         <header>

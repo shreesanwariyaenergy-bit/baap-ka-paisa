@@ -82,6 +82,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           </ol>
         </aside>
       </section>
+      {open && season.endsAt.getTime() - ds.now().getTime() < 86_400_000 && (
+        <Link className="gz-strip" href={`/closing?city=${city.id}`} data-testid="closing-strip"><small>The Closing</small><b>The board closes within a day. Watch the final stretch.</b><span>Open ↗</span></Link>
+      )}
       <Link className="gz-strip" href={`/gazette?city=${city.id}`} data-testid="gazette-strip">
         <small>The {city.name} Gazette</small><b>{edition.lead.headline}</b><span>Read today&apos;s edition ↗</span>
       </Link>

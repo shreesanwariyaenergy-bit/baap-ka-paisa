@@ -16,3 +16,7 @@ echo "--- registration gate, role by role"
 $P -d bkp -f supabase/tests/gate_roles.sql 2>&1 | grep -vE "^$|^SET|^INSERT|^UPDATE|^CREATE"
 echo "--- ledger permissions, role by role"
 $P -d bkp -f supabase/tests/ledger_roles.sql 2>&1 | grep -vE "^$|^SET|^INSERT|^UPDATE|^CREATE"
+echo "--- declarations and backing (fresh database)"
+$P -c "create database bkp2"; $P -d bkp2 -f supabase/tests/platform_stub.sql 2>/dev/null | grep -v "already exists" || true
+for f in supabase/migrations/*.sql supabase/pending/*.sql; do [ -e "$f" ] && $P -d bkp2 -f "$f" >/dev/null; done
+$P -d bkp2 -f supabase/tests/mechanics.sql 2>&1 | grep -E "NOTICE|ERROR|CONTEXT"

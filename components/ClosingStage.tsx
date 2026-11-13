@@ -27,10 +27,10 @@ export function ClosingStage({ initial, speed }: { initial: ClosingState; speed:
 
   useEffect(() => {
     if (s.phase === 'idle' || s.phase === 'closed') return;
-    const poll = setInterval(async () => { try { const r = await fetch('/api/closing', { cache: 'no-store' }); if (r.ok) apply(await r.json()); } catch { /* keep the last server answer */ } }, 1000);
+    const poll = setInterval(async () => { try { const r = await fetch(`/api/closing${s.live ? `?city=${s.live.cityId}` : ''}`, { cache: 'no-store' }); if (r.ok) apply(await r.json()); } catch { /* keep the last server answer */ } }, s.live ? 5000 : 1000);
     const tick = setInterval(() => setRemaining((r) => Math.max(0, r - 100 * speed)), 100);
     return () => { clearInterval(poll); clearInterval(tick); };
-  }, [s.phase, speed, apply]);
+  }, [s.phase, s.live, speed, apply]);
   useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 2600); return () => clearTimeout(t); }, [flash]);
 
   const start = async () => {
@@ -54,7 +54,7 @@ export function ClosingStage({ initial, speed }: { initial: ClosingState; speed:
   if (s.phase === 'closed' && v) {
     return (
       <section className="closing closing-verdict" data-testid="closing" data-phase="closed">
-        <p className="cl-kicker">The board is closed · {v.closedAt} IST · practice season</p>
+        <p className="cl-kicker">The board is closed · {v.closedAt} IST · {s.live ? `${s.live.city} · ${s.live.season}` : 'practice season'}</p>
         <div className="cl-crown"><CrownMark size="large" /></div>
         <h1 data-testid="closing-winner">{v.winner}</h1>
         <p className="cl-verdict-line">holds the throne. Season Crown.</p>
@@ -63,11 +63,11 @@ export function ClosingStage({ initial, speed }: { initial: ClosingState; speed:
           <div><dt>{v.margin === 0 ? `Level with ${v.runnerUp}; first to reach it wins` : `Ahead of ${v.runnerUp}`}</dt><dd>{v.margin === 0 ? 'By the clock' : inr(v.margin)}</dd></div>
           <div><dt>Times the throne changed hands</dt><dd>{v.changes}</dd></div>
           <div><dt>Extensions</dt><dd>{v.extensions} <i>(+{s.extendedBy} min)</i></dd></div>
-          <div><dt>Payments refused after the close</dt><dd>{v.refused}</dd></div>
+          {!s.live && <div><dt>Payments refused after the close</dt><dd>{v.refused}</dd></div>}
         </dl>
         <div className="cl-decls">{s.declarations.map((d) => <span key={d.no} className={`cl-decl ${d.status}`}><b>{STATUS[d.status]}</b>{d.challenger}</span>)}</div>
-        <div className="hero-cta" style={{ marginTop: 26 }}><button className="btn" type="button" onClick={start}>Run it again</button><Link className="btn light" href="/simulator">Step through the rules</Link></div>
-        <p className="cl-note">Practice replay with invented members. The verdict was produced by the season engine on the server.</p>
+        <div className="hero-cta" style={{ marginTop: 26 }}>{s.live ? <Link className="btn" href={`/gazette?city=${s.live.cityId}`}>Read the Gazette</Link> : <button className="btn" type="button" onClick={start}>Run it again</button>}<Link className="btn light" href={s.live ? '/archive' : '/simulator'}>{s.live ? 'The archive' : 'Step through the rules'}</Link></div>
+        {!s.live && <p className="cl-note">Practice replay with invented members. The verdict was produced by the season engine on the server.</p>}
       </section>
     );
   }
@@ -76,10 +76,10 @@ export function ClosingStage({ initial, speed }: { initial: ClosingState; speed:
     <section className={`closing closing-live${danger ? ' danger' : ''}`} data-testid="closing" data-phase={s.phase}>
       {flash && <div className="cl-flash" role="status" data-testid="closing-flash">{flash}</div>}
       <header className="cl-top">
-        <span>Practice season · {speed}× · {s.clock} IST</span>
+        <span>{s.live ? `${s.live.city} · ${s.live.season}` : `Practice season · ${speed}×`} · {s.clock} IST</span>
         <span data-testid="closing-extensions">{s.extensions ? `Extended ${s.extensions}× · now closes ${s.closesAt}` : `Closes ${s.scheduledClose}`}</span>
       </header>
-      <div className="cl-clock" aria-live="off"><small>{s.extensions ? 'Extended. The board closes in' : 'The board closes in'}</small><b data-testid="closing-countdown">{mmss(remaining)}</b></div>
+      <div className="cl-clock" aria-live="off"><small>{s.live?.settling ? 'The bell has rung. Payments made before it are being confirmed' : s.extensions ? 'Extended. The board closes in' : 'The board closes in'}</small><b data-testid="closing-countdown">{mmss(remaining)}</b></div>
       <div className="cl-main">
         <div className="cl-throne">
           <small>On the throne</small>
