@@ -8,6 +8,8 @@ findings below are fixed and independently verified.
 
 Read `docs/ARCHITECTURE.md` first for how the system fits together.
 
+> **Update 14 Nov 2026:** a fix for C1 and C2 is written and passes locally (`supabase/pending/20261114000900_ledger_integrity.sql`; `db-audit.sh` S1b, S3, INV and STRESS). It is **not applied** and not independently reviewed, so both findings remain open.
+
 ## How to reproduce
 
 | What | Command | Touches production? |

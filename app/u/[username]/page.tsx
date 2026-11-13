@@ -9,7 +9,7 @@ import { groupAchievements } from '@/lib/achievements';
 import { SocialActions } from '@/components/SocialActions';
 import { socialState } from '@/app/actions';
 import { BackingPanel } from '@/components/BackingPanel';
-import { strongestClaim } from '@/lib/claim';
+import { dethronedBand, strongestClaim } from '@/lib/claim';
 import { DeclareButton } from '@/components/DeclareButton';
 import { LINES, toOvertake } from '@/lib/engine/callout';
 import { readDemoSocial } from '@/lib/demo-social';
@@ -35,6 +35,9 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
   const [backing, myBacking] = await Promise.all([ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null]);
   const claim = strongestClaim({ standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
+  // Demo prototype: the band a member wears for 24 hours after losing a #01.
+  const allReigns = demo ? await ds.throneHistory({ username: m.username, limit: 100 }) : [];
+  const band = demo ? dethronedBand(allReigns, await ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)), ds.now()) : null;
   const holdsCity = standings.find((x) => x.level === 'city')?.rank === 1;
   const feud = (await ds.declarations({ username: m.username })).slice(0, 4);
   const canDeclareHere = ds.availability === 'demo' && holdsCity && viewer && !isSelf && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
@@ -44,8 +47,15 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const top = standings.find((s) => s.rank === 1);
   return (
     <>
+      {band && (
+        <div className="dethroned" role="status" data-testid="dethroned-band">
+          <b>Dethroned</b><span>{band.boardName} was taken by <Link href={`/u/${encodeURIComponent(band.byUsername)}`}>{band.by}</Link> {band.hoursAgo < 1 ? 'less than an hour' : `${band.hoursAgo} ${band.hoursAgo === 1 ? 'hour' : 'hours'}`} ago.</span>
+          <small>This band stays for {band.hoursLeft} more {band.hoursLeft === 1 ? 'hour' : 'hours'}, or until {name} takes {band.boardName} back.</small>
+        </div>
+      )}
       <section className="page-intro">
         <div><div className="eyebrow">Public profile</div><h1 style={{ overflowWrap: 'anywhere' }}>{name}</h1>
+          {demo && <p style={{ margin: '14px 0 0' }}><Link className="textlink" href={`/bill/${encodeURIComponent(m.username)}`} data-testid="bill-link">See The Bill (prototype) ↗</Link></p>}
           {claim && <div className="claim" data-testid="claim" style={{ marginTop: 16 }}>{claim.headline}<small>{claim.proof}</small></div>}</div>
         <p>{m.masked ? 'This member uses Mystery mode. Their name, photo and socials stay hidden until they choose to reveal them.' : `@${m.username}${m.title ? ` · ${m.title}` : ''} · ${m.locality}, ${city.name}, ${STATES[city.state]}.`}</p>
       </section>

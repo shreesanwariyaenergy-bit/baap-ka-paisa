@@ -53,3 +53,7 @@ test('Backing is not switched on outside the demo', async ({ page }) => {
 test('Declarations are not switched on outside the demo', async ({ page }) => {
   expect((await page.goto('/declare/d402'))?.status()).toBe(404);
 });
+
+test('The Bill prototype is not reachable outside the demo', async ({ page }) => {
+  expect((await page.goto('/bill/anyone'))?.status()).toBe(404);
+});

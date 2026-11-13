@@ -1,6 +1,8 @@
 -- Full season lifecycle and social actions, with test members only. Run by scripts/db-test.sh
 -- against a throwaway local Postgres. Never run against the live project.
 \set ON_ERROR_STOP 1
+-- This suite replays a season on a simulated clock, so it uses the owner-only import override.
+set bkp.ledger_clock = 'caller';
 create temp table t (k text primary key, u uuid);
 do $$
 declare
@@ -30,7 +32,7 @@ begin
   -- an anonymous API request can never insert
   perform set_config('request.jwt.claim.sub', '', true); perform set_config('request.jwt.claim.role', 'anon', true);
   begin insert into public.members (id, username, display_name, city_id, locality_id) select v_tmp, 't.anon', 'Anon', 'surat', l.id from public.localities l where l.city_id = 'surat' limit 1;
-    assert false, 'anonymous insert must be refused'; exception when invalid_authorization_specification then null; end;
+    assert false, 'anonymous insert must be refused'; exception when insufficient_privilege then null; end;
   -- administrative insert (service role / owner connection, no member session) is allowed and bypasses the gate by design
   perform set_config('request.jwt.claim.role', 'service_role', true);
   update public.registration_gate set mode = 'closed';

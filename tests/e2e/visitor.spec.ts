@@ -131,3 +131,18 @@ test('The Closing: server-run final stretch, anti-snipe extension, and a final v
   await context.addCookies([{ name: 'bkp_closing_start', value: String(Date.now() + 60_000), url: baseURL! }]);
   expect((await (await page.request.get('/api/closing')).json()).phase).toBe('idle');
 });
+
+test('The Bill and the Dethroned Band (demo prototypes)', async ({ page }) => {
+  await page.goto('/u/vesu.vikram');
+  await expect(page.getByTestId('dethroned-band')).toContainText('Surat was taken by Kinjal Shah');
+  await page.goto('/u/kinjal.adajan');
+  await expect(page.getByTestId('dethroned-band')).toHaveCount(0);
+  await page.getByTestId('bill-link').click();
+  await expect(page.getByTestId('bill-name')).toHaveText('KINJAL SHAH');
+  await expect(page.getByTestId('bill')).toContainText('HOLDING');
+  await expect(page.getByTestId('bill')).toContainText('NOT A TAX INVOICE');
+  await page.goto('/bill/vesu.vikram');
+  await expect(page.getByTestId('bill')).toContainText('REIGN ENDED · BY KINJAL SHAH');
+  await expect(page.getByTestId('bill')).not.toContainText('VOID');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});

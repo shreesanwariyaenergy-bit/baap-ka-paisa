@@ -7,3 +7,6 @@ create function auth.role() returns text language sql stable as $$ select nullif
 grant usage on schema public, auth, extensions to anon, authenticated;
 alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant execute on functions to anon, authenticated;
+create role authenticator login noinherit; grant anon, authenticated, service_role to authenticator; alter role service_role bypassrls;
+create role some_other_role nologin; grant some_other_role to authenticator; grant usage on schema public to some_other_role, service_role;
+alter default privileges in schema public grant all on tables to service_role, some_other_role;

@@ -11,7 +11,7 @@ P="psql -q -h /tmp -p $PORT -U postgres -v ON_ERROR_STOP=1"
 $P -c "create database bkp"; $P -d bkp -f supabase/tests/platform_stub.sql
 for f in supabase/migrations/*.sql supabase/pending/*.sql; do [ -e "$f" ] && $P -d bkp -f "$f" >/dev/null; done
 $P -d bkp -f supabase/tests/audit/setup.sql >/dev/null
-credit() { echo "insert into public.rank_ledger (member_id, season_id, kind, rank_credit_paise, payment_ref, actor) select id, 1, 'credit', $2, '$3', 'audit' from audit_ids where n=$1"; }
+credit() { echo "select already_recorded from public.record_credit((select id from audit_ids where n=$1), $2, '$3', 'audit')"; }
 state() { $P -d bkp -At -c "select 'board #1 = member ' || (select a.n from public.ranked_board_at(1,'city','surat',null,now()) b join audit_ids a on a.id=b.member_id where b.rank=1) || ' | open reign = member ' || coalesce((select string_agg(a.n::text, ',') from public.throne_reigns t join audit_ids a on a.id=t.member_id where t.level='city' and t.ended_at is null), 'none') || ' | reigns ending before they start = ' || (select count(*) from public.throne_reigns where ended_at < started_at)"; }
 
 echo "SOC Concurrent social actions as one signed-in member (separate connections)"
@@ -35,7 +35,7 @@ echo "S1b A request that started first finishes last"
 $P -d bkp -c "$(credit 5 900000 D)"; sleep 1.5; state
 
 echo "S2  The same payment reference twice"
-$P -d bkp -c "$(credit 2 50000 A)" 2>&1 | head -1
+$P -d bkp -At -c "$(credit 2 600000 A)" | sed "s/^/already_recorded = /"; $P -d bkp -c "$(credit 2 50000 A)" 2>&1 | head -1
 
 echo "S3  The season closes while a credit is in flight"
 $P -d bkp -c "alter table public.seasons drop constraint if exists seasons_check1; update public.seasons set scheduled_end = now() + interval '2 seconds', ends_at = now() + interval '2 seconds' where id = 1"
@@ -43,5 +43,18 @@ $P -d bkp -c "alter table public.seasons drop constraint if exists seasons_check
 $P -d bkp -c "begin; select public.season_clock(); select pg_sleep(1.5); commit;" >/dev/null; sleep 1.5
 $P -d bkp -At -c "select 'season ' || (select status from public.seasons where id=1) || ' | late credit saved = ' || (select count(*) from public.rank_ledger where payment_ref='IN-FLIGHT') || ' | frozen #1 = member ' || (select a.n from public.season_results r join audit_ids a on a.id=r.member_id where r.season_id=1 and r.level='city' and r.final_rank=1) || ' | live board #1 = member ' || (select a.n from public.ranked_board_at(1,'city','surat',null,now()) b join audit_ids a on a.id=b.member_id where b.rank=1) || ' | reigns still open after close = ' || (select count(*) from public.throne_reigns where season_id=1 and ended_at is null)"
 
+echo "INV Consistency check after all of the above (no rows = consistent)"
+$P -d bkp -At -c "select coalesce(string_agg(problem || ': ' || detail, ' | '), 'no violations') from public.ledger_invariants()"
+
 echo "PERF 20,000 members, 60,000 ledger rows"
 $P -d bkp -f supabase/tests/audit/perf.sql 2>&1 | grep -E "^==|Time:"
+
+echo "STRESS 60 credits from 12 connections in random start and finish order, plus retries of the same references"
+for w in 1 2 3 4 5 6 7 8 9 10 11 12; do (
+  for k in 1 2 3 4 5; do
+    n=$(( (RANDOM % 9) + 1 )); ref="st-$w-$k"; amt=$(( ((RANDOM % 6) + 2) * 50000 ))
+    $P -d bkp -c "begin; select pg_sleep(random() * 0.3); select 1 from public.record_credit((select id from audit_ids where n=$n), $amt, '$ref', 'stress'); select pg_sleep(random() * 0.3); commit;" >/dev/null 2>&1
+    $P -d bkp -c "select 1 from public.record_credit((select id from audit_ids where n=$n), $amt, '$ref', 'stress')" >/dev/null 2>&1
+  done ) & done; wait
+$P -d bkp -At -c "select 'stress credits saved = ' || (select count(*) from public.rank_ledger where actor = 'stress') || ' (expected 60) | out-of-order timestamps = ' || (select count(*) from (select created_at, lag(created_at) over (order by id) as prev from public.rank_ledger where season_id = 2 and actor = 'stress') q where created_at < prev) || ' | ' || (select coalesce(string_agg(problem || ': ' || detail, ' ; '), 'no violations') from public.ledger_invariants())"
+

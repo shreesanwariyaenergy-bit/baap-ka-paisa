@@ -972,3 +972,31 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .decl-lapsed .decl-stamp, .decl-throne-moved .decl-stamp { color: #6B776F; border-color: #6B776F; }
 .decl-figs { background: #F1EFE6; }
 @media (max-width: 860px) { .closing, .closing.danger, .closing-verdict { box-shadow: 5px 5px 0 #0C251F; } }
+
+/* ---------- The Bill (demo prototype): thermal paper ---------- */
+.bill-stage { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(20px, 5vw, 80px); align-items: start; margin: 34px 0 90px; }
+.bill-side h1 { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(60px, 11vw, 150px); line-height: .85; margin: 14px 0 18px; }
+.bill-side p { font-size: clamp(17px, 1.7vw, 21px); line-height: 1.45; max-width: 34ch; }
+.bill { width: min(390px, 100%); background: #FFFFFF; color: #111; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; letter-spacing: .02em; padding: 26px 22px 30px; transform: rotate(-1.2deg); box-shadow: 0 1px 0 rgba(0,0,0,.08), 14px 18px 0 rgba(12, 37, 31, .14);
+  --tooth: 9px; -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x, conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--tooth) 51% repeat-x;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--tooth) 51% repeat-x, conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--tooth) 51% repeat-x; }
+.bill header { text-align: center; display: grid; }
+.bill header b { font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1; letter-spacing: 0; }
+.bill hr { border: 0; border-top: 1px dashed #111; margin: 10px 0; width: 100%; }
+.bill h2 { font-family: var(--font-mono); font-size: 13px; font-weight: 800; margin: 16px 0 6px; border-bottom: 1px solid #111; padding-bottom: 3px; }
+.bill-row { display: flex; justify-content: space-between; gap: 12px; text-align: left; }
+.bill-row span:last-child { text-align: right; white-space: nowrap; }
+.bill-item { padding: 7px 0 9px; border-bottom: 1px dotted #999; position: relative; }
+.bill-item small { display: block; font-size: 11px; color: #444; }
+.bill-stamp { display: inline-block; font-style: normal; font-weight: 800; font-size: 11px; letter-spacing: .1em; border: 2px solid #B43A0A; color: #B43A0A; padding: 1px 7px; margin-top: 5px; transform: rotate(-2deg); }
+.bill-stamp.live { border-color: #111; color: #111; background: #CCFF00; }
+.bill-none { margin: 4px 0; color: #444; }
+.bill-row.total { font-weight: 800; font-size: 20px; margin: 6px 0 2px; }
+.bill footer p { text-align: center; font-size: 10.5px; margin: 10px 0 0; }
+.bill-bars { height: 44px; margin: 6px auto 0; width: 78%; background: repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 5px, #111 5px 6px, #fff 6px 10px, #111 10px 14px, #fff 14px 16px); }
+/* ---------- The Dethroned Band (demo prototype) ---------- */
+.dethroned { background: #0C251F; color: #FCF9F0; padding: 14px 18px; margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; border-left: 12px solid #B43A0A; }
+.dethroned b { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(24px, 3.4vw, 44px); line-height: 1; letter-spacing: .01em; }
+.dethroned span { font-size: 16px; } .dethroned a { text-decoration: underline; font-weight: 700; }
+.dethroned small { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B1CCC3; flex-basis: 100%; }
+@media (max-width: 860px) { .bill-stage { grid-template-columns: 1fr; } .bill { margin: 0 auto; } }
