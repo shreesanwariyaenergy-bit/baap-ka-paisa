@@ -12,6 +12,7 @@ Status key:
 ## Update, 14 November 2026: ledger integrity fix (pending), gate tightened, The Bill, Dethroned Band
 
 - **Not deployed to production; no migration applied.** Feature branch only.
+- **Ledger integrity, revised 14 Nov (still pending, still local only):** adds the verified capture time (`captured_at`, evidence only), a settling window after the bell for payments captured before it, a `late_payments` quarantine, `record_credit()` executable by the service role only, and `ledger_invariants()` across locality, city, state and India. `scripts/db-audit.sh` covers S1–S4, a stress run and a self-test of the checker; `supabase/tests/ledger_roles.sql` prints the permission matrix.
 - **Ledger integrity (pending, `supabase/pending/20261114000900_ledger_integrity.sql`):** fixes audit findings C1 and C2 at the table: every ledger insert locks its season, is time-stamped by the database after the lock, and is validated under it. Adds `record_credit()` (idempotent on the payment reference) and `ledger_invariants()` (consistency check). `scripts/db-audit.sh`: S1b and S3 no longer reproduce; a 60-credit, 12-connection stress run ends with zero violations. Locally tested only.
 - **Social migration (pending):** now rejects a NULL action or target. Verified read-only against the live schema.
 - **Registration gate (pending):** deny by default. Only the service role or an owner connection with no API request bypasses; unknown roles are refused. Role-by-role results in `supabase/tests/gate_roles.sql` (run by `npm run test:db`).

@@ -14,3 +14,5 @@ for f in supabase/migrations/*.sql supabase/pending/*.sql; do [ -e "$f" ] && $P 
 $P -d bkp -f supabase/tests/lifecycle.sql 2>&1 | grep -E "NOTICE|ERROR|ASSERT|CONTEXT|EXECUTE" || true
 echo "--- registration gate, role by role"
 $P -d bkp -f supabase/tests/gate_roles.sql 2>&1 | grep -vE "^$|^SET|^INSERT|^UPDATE|^CREATE"
+echo "--- ledger permissions, role by role"
+$P -d bkp -f supabase/tests/ledger_roles.sql 2>&1 | grep -vE "^$|^SET|^INSERT|^UPDATE|^CREATE"

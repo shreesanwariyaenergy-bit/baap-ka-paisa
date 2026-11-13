@@ -3,6 +3,7 @@
 \set ON_ERROR_STOP 1
 -- This suite replays a season on a simulated clock, so it uses the owner-only import override.
 set bkp.ledger_clock = 'caller';
+update public.engine_settings set settle_seconds = 0;   -- the simulated clock closes seasons at their end; the settling window is tested in scripts/db-audit.sh
 create temp table t (k text primary key, u uuid);
 do $$
 declare
@@ -212,7 +213,7 @@ reset role;
 -- ---- unrelated objects untouched by the social migration: grants on every other table are as before ----
 do $$ declare bad text; begin
   select string_agg(c.relname, ', ') into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist')
+   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist', 'rank_ledger', 'late_payments')
      and not has_table_privilege('authenticated', c.oid, 'insert');
   assert bad is null, 'grants changed on: ' || bad;
   raise notice 'OTHER TABLE GRANTS UNCHANGED OK';
