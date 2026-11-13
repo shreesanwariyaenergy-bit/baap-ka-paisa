@@ -41,18 +41,21 @@ echo "retry -> $(q "$(credit 2 600000 A)")"; $P -d bkp -c "$(credit 2 50000 A)" 
 
 echo "S3  The bell, the settling window and the close (window shortened to 3 seconds for the test)"
 $P -d bkp -c "alter table public.seasons drop constraint if exists seasons_check1; update public.engine_settings set settle_seconds = 3; with t as (select clock_timestamp() + interval '2 seconds' as e) update public.seasons set scheduled_end = t.e, ends_at = t.e from t where id = 1"
+PAID_FIRST=$(q "select quote_literal(clock_timestamp()) || '::timestamptz'"); sleep 0.4
 BEFORE_BELL=$(q "select quote_literal(clock_timestamp()) || '::timestamptz'")
-sleep 2.4
-echo "paid before the bell, webhook after it          -> $(q "$(credit 8 100000 LATE-OK "$BEFORE_BELL")")"
+sleep 2.0
+echo "paid SECOND before the bell, webhook arrives FIRST -> $(q "$(credit 8 100000 LATE-OK "$BEFORE_BELL")")"
+echo "paid FIRST before the bell, webhook arrives SECOND -> $(q "$(credit 9 100000 LATE-EARLIER "$PAID_FIRST")")"
+echo "  order on the board (same score): $(q "select string_agg('member ' || a.n, ' above ' order by b.rank) from public.ranked_board_at(1,'india',null,null,'infinity') b join audit_ids a on a.id = b.member_id where a.n in (8,9)")"
 echo "paid after the bell                              -> $(q "$(credit 9 100000 TOO-LATE)")"
 echo "forged capture time one hour in the future       -> $($P -d bkp -c "$(credit 9 100000 FORGED "clock_timestamp() + interval '1 hour'")" 2>&1 | head -1)"
-echo "direct ledger insert with a back-dated created_at -> created_at kept by caller? $(q "insert into public.rank_ledger (member_id, season_id, kind, rank_credit_paise, payment_ref, actor, created_at, captured_at) select id, 1, 'credit', 100000, 'BACKDATE', 'audit', now() - interval '5 days', $BEFORE_BELL from audit_ids where n=9 returning (created_at < now() - interval '1 day')" | head -1)"
+echo "direct ledger insert with a back-dated created_at -> created_at kept by caller? $(q "insert into public.rank_ledger (member_id, season_id, kind, rank_credit_paise, payment_ref, actor, created_at, captured_at) select id, 1, 'credit', 100000, 'BACKDATE', 'audit', now() - interval '5 days', $BEFORE_BELL from audit_ids where n=5 returning (created_at < now() - interval '1 day')" | head -1)"
 ( $P -d bkp -c "begin; $(credit 5 50000 IN-FLIGHT "$BEFORE_BELL"); select pg_sleep(2.2); commit;" >/dev/null 2>&1 & ); sleep 0.3
 echo "season after the bell, inside the window          -> $(q "select public.season_clock(); select status from public.seasons where id=1" | tail -1)"
 sleep 2.6; q "select public.season_clock()" >/dev/null     # this tick must wait for the in-flight credit, then close
 echo "paid before the bell, webhook after the close    -> $(q "$(credit 8 100000 AFTER-CLOSE "$BEFORE_BELL")")"
 echo "retry of a quarantined payment                   -> $(q "$(credit 8 100000 AFTER-CLOSE "$BEFORE_BELL")")"
-q "select 'season ' || (select status from public.seasons where id=1) || ' | late credits counted in the frozen results = ' || (select count(*) from public.season_results r join public.rank_ledger x on x.member_id = r.member_id and x.payment_ref in ('LATE-OK','IN-FLIGHT','BACKDATE') where r.season_id=1 and r.level='india') || ' of 3 | their ledger times before the bell = ' || (select bool_and(x.created_at < s.ends_at) from public.rank_ledger x join public.seasons s on s.id = x.season_id where x.payment_ref in ('LATE-OK','IN-FLIGHT','BACKDATE')) || ' | quarantined = ' || (select string_agg(payment_ref || ':' || reason, ', ' order by payment_ref) from public.late_payments) || ' | extensions = ' || (select count(*) from public.season_extensions where season_id = 1)"
+q "select 'season ' || (select status from public.seasons where id=1) || ' | late credits counted in the frozen results = ' || (select count(*) from public.season_results r join public.rank_ledger x on x.member_id = r.member_id and x.payment_ref in ('LATE-OK','LATE-EARLIER','IN-FLIGHT','BACKDATE') where r.season_id=1 and r.level='india') || ' of 4 rows | their ledger times before the bell = ' || (select bool_and(x.created_at < s.ends_at) from public.rank_ledger x join public.seasons s on s.id = x.season_id where x.payment_ref in ('LATE-OK','LATE-EARLIER','IN-FLIGHT','BACKDATE')) || ' | quarantined = ' || (select string_agg(payment_ref || ':' || reason, ', ' order by payment_ref) from public.late_payments) || ' | extensions = ' || (select count(*) from public.season_extensions where season_id = 1)"
 
 echo "S4  A late webhook that is an overtake in the last 15 minutes"
 q "select public.schedule_season(2, clock_timestamp(), clock_timestamp() + interval '3 seconds')" >/dev/null; sleep 0.1; q "select public.season_clock()" >/dev/null
@@ -61,6 +64,11 @@ BEFORE_BELL=$(q "select quote_literal(clock_timestamp()) || '::timestamptz'"); s
 echo "overtake paid before the bell, webhook after it  -> $(q "$(credit 2 250000 S4-TAKE "$BEFORE_BELL")")"
 q "select 'season ' || status || ' | extended by ' || extract(epoch from ends_at - scheduled_end) / 60 || ' min | #01 = member ' || (select a.n from public.ranked_board_at(2,'city','surat',null,clock_timestamp()) b join audit_ids a on a.id=b.member_id where b.rank=1) from public.seasons where id = 2"
 echo "a normal credit during the extension             -> $(q "$(credit 1 100000 S4-REPLY)")"
+
+echo "S5  Two payments for the same score, delivered in reverse order (season still running)"
+PAID_FIRST=$(q "select quote_literal(clock_timestamp()) || '::timestamptz'"); sleep 0.3; PAID_SECOND=$(q "select quote_literal(clock_timestamp()) || '::timestamptz'")
+echo "member 4 paid second, webhook first -> $(q "$(credit 4 650000 S5-B "$PAID_SECOND")") | member 3 paid first, webhook second -> $(q "$(credit 3 650000 S5-A "$PAID_FIRST")")"
+q "select '#01 = member ' || (select a.n from public.ranked_board_at(2,'city','surat',null,clock_timestamp()) b join audit_ids a on a.id=b.member_id where b.rank=1) || ' | #02 = member ' || (select a.n from public.ranked_board_at(2,'city','surat',null,clock_timestamp()) b join audit_ids a on a.id=b.member_id where b.rank=2) || ' | throne changes in this season = ' || (select count(*) from public.crown_events where season_id=2 and level='city') || ' | season extended by ' || round(extract(epoch from ends_at - scheduled_end) / 60) || ' min' from public.seasons where id = 2"
 q "update public.engine_settings set settle_seconds = 0; select public.season_clock((select ends_at + interval '1 second' from public.seasons where id = 2))" >/dev/null
 
 q "select public.schedule_season(3, clock_timestamp(), clock_timestamp() + interval '1 day')" >/dev/null; sleep 0.1; q "select public.season_clock()" >/dev/null

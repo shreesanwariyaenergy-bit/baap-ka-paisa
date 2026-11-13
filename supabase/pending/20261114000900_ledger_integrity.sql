@@ -16,8 +16,8 @@
 --   the final millisecond before the bell, in arrival order, and the normal rules run on it: if it is an
 --   overtake inside the last 15 minutes, the season is extended exactly as if the webhook had not been late.
 --   A payment that cannot be credited (captured after the bell, or arriving after the season has closed)
---   is never dropped and never credited silently: it is quarantined in late_payments for a refund or a
---   next-season credit, whichever rule the founder sets.
+--   is never dropped and never credited silently: it is quarantined in late_payments and refunded. Nothing is
+--   ever carried into the next season automatically.
 --
 -- WHAT THIS CHANGES ON EXISTING OBJECTS (all tables below are empty on the live project)
 --   engine_settings  + column settle_seconds
@@ -34,17 +34,15 @@ create index rank_ledger_season_time_idx on public.rank_ledger (season_id, creat
 -- Browser roles never write the ledger. (Row security already refused them; this removes the privilege too.)
 revoke insert, update, delete, truncate, references, trigger on public.rank_ledger from public, anon, authenticated;
 
--- Payments that arrived but could not be credited to a season. Decided by a person, not by code.
+-- Payments that arrived but could not be credited. Every row here is owed a refund.
 create table public.late_payments (
   payment_ref text primary key,
   member_id uuid not null references public.members (id),
   amount_paise bigint not null check (amount_paise > 0),
   captured_at timestamptz,
   received_at timestamptz not null default now(),
-  reason text not null check (reason in ('captured-after-close', 'arrived-after-settlement', 'no-open-season')),
-  season_id int references public.seasons (id),
-  resolution text check (resolution in ('refunded', 'credited-next-season')),
-  resolved_at timestamptz
+  reason text not null check (reason in ('paid-after-close', 'arrived-after-settlement', 'no-open-season')),
+  refunded_at timestamptz                          -- set by hand when the refund has been sent
 );
 alter table public.late_payments enable row level security;   -- no policies: invisible to the browser
 revoke all on public.late_payments from public, anon, authenticated;
@@ -114,7 +112,7 @@ end $$;
 -- Safe to call any number of times with the same reference.
 --   outcome = recorded          credited now
 --             already_recorded  this reference was credited before; nothing changed
---             late              could not be credited to a season; quarantined in late_payments
+--             late              could not be credited; quarantined in late_payments for a refund
 create function public.record_credit(p_member uuid, p_amount_paise bigint, p_payment_ref text, p_captured_at timestamptz, p_actor text)
 returns table (outcome text, ledger_id bigint, season_id int, recorded_at timestamptz)
 language plpgsql security definer set search_path = '' as $$
@@ -136,23 +134,20 @@ begin
     return query select 'already_recorded'::text, r.id, r.season_id, r.created_at; return;
   end if;
   if exists (select 1 from public.late_payments l where l.payment_ref = p_payment_ref) then
-    return query select 'late'::text, null::bigint, (select l.season_id from public.late_payments l where l.payment_ref = p_payment_ref), null::timestamptz; return;
+    return query select 'late'::text, null::bigint, null::int, null::timestamptz; return;
   end if;
 
   -- Decide under the season lock, so the answer cannot change before the row is written.
   select * into s from public.seasons where status = 'open' for update;
   v_now := clock_timestamp();
   select e.settle_seconds into v_settle from public.engine_settings e;
-  if s.id is null then
-    select * into s from public.seasons x where x.starts_at <= p_captured_at order by x.starts_at desc limit 1;
-    v_reason := case when s.id is not null and p_captured_at < s.ends_at then 'arrived-after-settlement' when s.id is not null then 'captured-after-close' else 'no-open-season' end;
-  elsif v_now >= s.ends_at and p_captured_at >= s.ends_at then v_reason := 'captured-after-close';
-  elsif v_now >= s.ends_at + make_interval(secs => coalesce(v_settle, 0)) then v_reason := 'arrived-after-settlement';
-  elsif v_now < s.starts_at then v_reason := 'no-open-season';
-  end if;
+  v_reason := case
+    when s.id is null or v_now < s.starts_at then 'no-open-season'
+    when v_now >= s.ends_at and p_captured_at >= s.ends_at then 'paid-after-close'
+    when v_now >= s.ends_at + make_interval(secs => coalesce(v_settle, 0)) then 'arrived-after-settlement'
+  end;
   if v_reason is not null then
-    insert into public.late_payments (payment_ref, member_id, amount_paise, captured_at, reason, season_id)
-      values (p_payment_ref, p_member, p_amount_paise, p_captured_at, v_reason, s.id);
+    insert into public.late_payments (payment_ref, member_id, amount_paise, captured_at, reason) values (p_payment_ref, p_member, p_amount_paise, p_captured_at, v_reason);
     return query select 'late'::text, null::bigint, s.id, null::timestamptz; return;
   end if;
 
@@ -218,7 +213,7 @@ $$;
 revoke execute on function public.ledger_guard(), public.season_tick(timestamptz), public.board_from_key(text, text),
   public.record_credit(uuid, bigint, text, timestamptz, text), public.ledger_invariants() from public, anon, authenticated, service_role;
 grant execute on function public.record_credit(uuid, bigint, text, timestamptz, text), public.ledger_invariants() to service_role;
-grant select, insert on public.late_payments to service_role;
+grant select, insert, update on public.late_payments to service_role;
 
 -- Rollback (the ledger must still be empty, or captured_at values are lost):
 --   re-create ledger_guard() and season_tick() from supabase/migrations/20261110000400_season_engine.sql
