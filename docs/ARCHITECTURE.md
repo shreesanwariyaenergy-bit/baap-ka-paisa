@@ -7,7 +7,7 @@ feature status is in `docs/STATUS.md`.
 
 | Piece | Technology | Where |
 |---|---|---|
-| Website and server logic | Next.js 15 (App Router), React 19, TypeScript. Every page is rendered on the server per request | Vercel project `baap-ka-paisa`, function region `iad1` |
+| Website and server logic | Next.js 15 (App Router), React 19, TypeScript. Every page is rendered on the server per request | Vercel project `baap-ka-paisa`, function region `bom1` (Mumbai; the production build of 12 Nov predates the setting and runs in `iad1` until redeployed) |
 | Database, accounts | Supabase project `baap-ka-paisa` (Postgres 17, Supabase Auth, REST) | `ap-south-1` (Mumbai), free plan |
 | Source | GitHub `shreesanwariyaenergy-bit/baap-ka-paisa`. `main` deploys to production; `feature/website-v1` deploys a preview that uses demo data | |
 

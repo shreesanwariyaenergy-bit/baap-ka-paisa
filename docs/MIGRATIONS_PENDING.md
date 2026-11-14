@@ -1,6 +1,6 @@
 # Migration register: pending production migrations
 
-18 November 2026. Seven files in `supabase/pending/`. **None is applied to production.** All seven are applied
+Seven files (18 November 2026) plus two added on 14 November (#8, #9) in `supabase/pending/`. **None is applied to production.** All nine are applied
 to the separate staging project and verified there on the real Supabase stack (`docs/STAGING_REPORT.md`),
 and tested on a throwaway local Postgres 16. Every production table they touch is empty (checked read-only on 15 Nov: 0 accounts, 0
 members, 0 seasons, 0 ledger rows).
@@ -16,6 +16,8 @@ Apply in the order shown. Each file ends with its own rollback statements.
 | 5 | `20261115001100_backing.sql` | — | `backings`, four functions, trigger on `seasons` | Allowed achievement list gains `backed-the-crown`; new trigger on `seasons` fires once when a season is marked closed | Backing works on demo data only; no backer counts on live boards |
 | 6 | `20261116001200_season_scores.sql` | **#3** (needs database-stamped, increasing ledger times) | `season_scores` (+4 indexes), trigger `rank_ledger_a_scores`, `board_top()`, `score_invariants()` | Bodies of `ledger_effects()` and `ranked_board_at()` (same results) | Credits stay at about 9 a second |
 | 7 | `20261116001300_social_handles.sql` | #1 for the "followers only" setting to mean anything (reads `follows`) | `member_socials`, `set_my_socials()`, `get_socials()` | None | Profile saves say handles "are being switched on" |
+| 8 | `20261117001400_anti_snipe_throne.sql` | **#6** (replaces its `ledger_effects()`) | None | Body of `ledger_effects()`: the season is extended only when a credit takes #01 on one of the member's boards | Any overtake at any rank anywhere extends the national season |
+| 9 | `20261117001500_operations.sql` | #3, #6, applied `…0700_season_clock` | `ops_alerts`, `run_checks()`, `get_health()` (visitors may call it) | Column `engine_settings.clock_last_run`; body of `season_clock()` (records each run) | No alert when the clock stops, a close is missed or an invariant breaks; `/api/health` reports "checks not installed" |
 
 ## Rollback considerations
 
@@ -48,3 +50,16 @@ Commands: `npm run test:db`, `bash scripts/db-audit.sh`, `bash scripts/load-test
 1. Re-run the read-only refusal checks against production (`docs/AUDIT.md`, section 3).
 2. #2: set the gate to `allowlist`, add tester emails, switch off sign-ups in Supabase Auth, send one invitation.
 3. #3 and #6: run `select * from ledger_invariants()` and `select * from score_invariants()`; both must return nothing.
+
+## #8 and #9 (14 November)
+
+Tested locally (`scripts/db-test.sh`, `supabase/tests/section_a.sql`): an overtake below #01 does not extend; taking a
+vacant locality throne extends by 15 minutes; taking four thrones at once extends once; running totals match the ledger.
+The clock alert is raised once, resolved when the clock runs, and a missed close is reported. Visitors may call
+`get_health()` only; `run_checks()` and `ops_alerts` are refused to visitors and members.
+Staging: applied from commit `1f13233` (md5 recorded in `staging_tools.applied`, identical to the files). pg_cron
+installed on staging only, with jobs `bkp-season-clock` (every minute) and `bkp-checks` (every 5 minutes). The first run
+resolved the "clock never ran" alert; integrity checks on staging data are clean.
+
+Production, after approval: apply #8 and #9 after #1–#7, then run the two `cron.schedule` lines at the top of #9.
+Rollback: #8, re-run `ledger_effects()` from #6; #9, as written at the top of the file.

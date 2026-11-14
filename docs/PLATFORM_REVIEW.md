@@ -171,12 +171,26 @@ latency is the US-to-Mumbai network (250 ms per call), not the database.
 or Telegram link preview renders a 1080×1350 image (CPU-heavy) plus database reads. A viral share means thousands
 of renders. **Fix:** `public, s-maxage=300, stale-while-revalidate=600` (code only). **Roadmap:** C.
 
-### V4. Server region. Gap, needs your decision
+### V4. Server region. Corrected 14 Nov: the setting is already Mumbai; production has not been rebuilt since
 
-Functions run in iad1 (US) and the database is in Mumbai, so each page pays 250–650 ms per database round trip. `bom1` is a
-one-line `vercel.json` change and free, but was not measured. It is the largest remaining speed and capacity gain,
-because a function that waits less serves more requests. **Roadmap:** A. Waiting on your choice between Option A and Option B from the
-performance report.
+Evidence (read-only, 14 Nov):
+- Project Function Region setting: Mumbai. Every build since 13 Nov records `regions: ["bom1"]` (latest preview
+  `dpl_JD2j8…`, commit `90e5cca`). The response header confirms it: `x-vercel-id: iad1:iad1::bom1::…`. The last
+  part is the region that ran the function.
+- **The live production deployment** (`dpl_4R431…`, commit `30a1fb0`, built 12 Nov, *before* the setting was
+  changed) records `regions: ["iad1"]` and answers `x-vercel-id: iad1::iad1::…`. Vercel fixes a deployment's region
+  when it is built. Production keeps running in the US until it is rebuilt.
+- There is no `vercel.json`, no route-level `preferredRegion` and no other per-function override.
+- Production and preview are the same Vercel project (`prj_UbK8…`) and use the same region setting.
+
+**Why the earlier measurements showed US latency:** the performance runs did not measure a Vercel deployment. They ran
+the app on this workspace's server, which is in US East (the first part of `x-vercel-id` is `iad1`, the Vercel edge nearest
+to it), against the Mumbai database. Preview deployments have no database to measure: they run on demo data.
+
+**Fix:** none needed in configuration. The next approved production deployment runs in `bom1`. To measure Mumbai
+latency for real, a deployment must run in `bom1` *and* point at a database. `/api/health` reports
+`region` (from `VERCEL_REGION`) and the database round-trip time, so the first production build can confirm both. **Roadmap:** A,
+done when production is redeployed (your approval).
 
 ### V5. No rate limiting. Gap
 
@@ -316,7 +330,7 @@ Nano, and edge-cached throughput once V1 to V3 are built.
 **A. Must fix before public launch**
 1. T4: decide the anti-snipe rule (recommended: extend only when a #01 changes).
 2. T5: schedule the season clock in production (approval) + alert on a missed close.
-3. V4: server region bom1 (your choice of trial option).
+3. V4: already set to bom1; takes effect with the next approved production deployment.
 4. S1 + S2: deploy the httpOnly cookie fix; apply the seven pending migrations (approval).
 5. S4: remove the committed staging password.
 6. O1: CI with all test suites, gating `main`.
@@ -342,3 +356,18 @@ Nano, and edge-cached throughput once V1 to V3 are built.
 3. S5: shorter token life if bans become common.
 
 All of A and B except V7 and O5's paid backups can be done in code, without spending.
+
+---
+
+## 9. Section A status (14 November, staging and feature branch only)
+
+| Item | Status | Evidence | Still needs |
+|---|---|---|---|
+| T4 anti-snipe rule | **Done.** Extends only when a credit takes #01 on one of the member's boards. TS engine, migration #8, homepage, Gazette and simulator copy | Unit tests (2 new), `section_a.sql`, ledger audit S4 still extends on a late #01 take; applied to staging, md5 matches | Your confirmation of the rule; production migration (approval) |
+| T5 season clock | **Running on staging**: pg_cron `bkp-season-clock` every minute, heartbeat in `engine_settings.clock_last_run` | First run 12:34 UTC 14 Nov succeeded; season 3 is due to close at 06:15 UTC on 15 Nov, the first unattended close | Production: the two `cron.schedule` lines (approval) |
+| V4 region | **Already set.** See V4: builds since 13 Nov run in `bom1` | `x-vercel-id …::bom1::` on the preview | A production redeploy (approval) |
+| S1 httpOnly cookies | Done on the branch; staging journey checks it | Journey 22/22 (`httpOnly=true`) | Production deploy (approval) |
+| S2 pending migrations | All 9 on staging | `staging_tools.applied` | Production (approval) |
+| S4 committed password | **Removed** from every tracked file; scripts read `BKP_STAGING_PASSWORD` | `git grep` finds nothing | It is still in git history: rotate the staging test password (staging test accounts only) |
+| O1 CI | **Added** `.github/workflows/ci.yml`: typecheck, lint, unit, build, 89 browser tests, database suite + ledger audit | First run failed on a YAML syntax error in the workflow file, fixed in the next commit | Optional: require it to pass before merging to `main` (GitHub branch protection: your setting) |
+| O4 monitoring | **Added** migration #9 (`run_checks()` every 5 min on staging, `ops_alerts`, `get_health()`), `/api/health` (200/503, edge-cached 10 s, reports region and DB time), `.github/workflows/uptime.yml` (every 15 min; GitHub emails you when a scheduled run fails) | Staging: "clock never ran" raised, then resolved by the first clock run; health 200; visitors refused `run_checks` and `ops_alerts` | Set repository variable `BKP_HEALTH_URL` once production runs the new build. Error tracking (Sentry free tier) needs an account: your decision |

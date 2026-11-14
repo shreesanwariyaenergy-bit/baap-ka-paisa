@@ -4,7 +4,9 @@ name: CI
 on:
   push:
   pull_request:
-concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 permissions: { contents: read }
 jobs:
   app:

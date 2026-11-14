@@ -69,7 +69,8 @@ an index lookup), then a concurrent stress test with a stated target.
 
 **H3. The web functions run in the United States and the database is in Mumbai.** Verified on the deployment
 (`regions: iad1`; database `ap-south-1`). Every database call crosses the world, about a dozen times per page.
-Fix: move the Vercel function region to Mumbai (`bom1`).
+Fix: move the Vercel function region to Mumbai (`bom1`). **Status 14 Nov:** the project setting is now Mumbai and every build since 13 Nov runs in `bom1`; the
+production build of 12 Nov still runs in `iad1` until it is redeployed (docs/PLATFORM_REVIEW.md, V4).
 
 **H4. No backup or recovery that has been tested, and "staging" is production.** The Supabase project is on the
 free plan: no point-in-time recovery, and free projects are paused after inactivity. No restore has ever been

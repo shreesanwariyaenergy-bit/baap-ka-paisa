@@ -25,7 +25,7 @@ all of the rest is waiting on the database.
 
 1. **The homepage is the 3–4 second page.** It makes about 13 database reads and several of them wait for
    one another instead of running together. Each read crosses from the US (where the site's server code
-   runs, Vercel `iad1`) to Mumbai (where the database is) and back.
+   runs, US East) to Mumbai (where the database is) and back.
 2. **Every page repeats the same reads.** The layout and the page each ask for the season and the signed-in
    member; nothing is shared between navigations and nothing is cached.
 3. **The numbers above are with an empty database.** With 20,000 members the board reads themselves take
@@ -52,8 +52,8 @@ phone profile (time to first content, time to interactive, navigation time betwe
 
 ## Results: staging, 18 November 2026
 
-Measured with the app running on this workspace's server (US East, the same region Vercel uses for
-production today, `iad1`) against the staging Supabase project in Mumbai. Script: `tests/perf/baseline.mjs`
+Measured with the app running on this workspace's server (US East; correction 14 Nov: the Vercel project is set to
+Mumbai `bom1`, and only the production build of 12 Nov still runs in `iad1`, see docs/PLATFORM_REVIEW.md V4) against the staging Supabase project in Mumbai. Script: `tests/perf/baseline.mjs`
 (server time until the page is fully rendered, median of 3 warm requests; `BKP_TRACE=1` logs every outbound
 call). Network noise between runs is about ±300 ms.
 
