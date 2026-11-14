@@ -9,6 +9,8 @@ import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
 import { indexingAllowed, testSeason } from '@/lib/flags';
 import { MainNav } from '@/components/MainNav';
+import { NavProgress } from '@/components/NavProgress';
+import { Suspense } from 'react';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
 
 
@@ -50,6 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {open && ds.availability === 'live' && testSeason() && <span className="demo-flag" data-testid="test-season-flag">Test season</span>}
           </div>
         </div>
+        <Suspense fallback={null}><NavProgress /></Suspense>
         <ProfileDialogProvider>
           <div className="shell">
             <header className="site-header">

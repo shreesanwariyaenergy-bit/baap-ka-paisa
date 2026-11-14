@@ -11,10 +11,11 @@ export const metadata: Metadata = { title: 'India' };
 export default async function IndiaPage() {
   const ds = await getDataSource();
   const season = ds.season();
-  const [summaries, viewer] = await Promise.all([ds.cities(), ds.viewer()]);
-  const homeCity = cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
+  // The India board is the same for everyone (the city only labels it), so it is read alongside the rest.
+  const def = cityById(DEFAULT_CITY_ID)!;
+  const [summaries, viewer, national] = await Promise.all([ds.cities(), ds.viewer(), ds.board({ level: 'india', cityId: def.id, locality: def.localities[0] }, { limit: 5 })]);
+  const homeCity = cityById(viewer?.member.cityId) ?? def;
   const mine = summaries.find((s) => s.cityId === homeCity.id);
-  const national = await ds.board({ level: 'india', cityId: homeCity.id, locality: homeCity.localities[0] }, { limit: 5 });
   const movers = summaries.filter((s) => s.previousRank !== null && s.previousRank !== s.rank);
   return (
     <>

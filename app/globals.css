@@ -1000,3 +1000,8 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .dethroned span { font-size: 16px; } .dethroned a { text-decoration: underline; font-weight: 700; }
 .dethroned small { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B1CCC3; flex-basis: 100%; }
 @media (max-width: 860px) { .bill-stage { grid-template-columns: 1fr; } .bill { margin: 0 auto; } }
+
+/* ---------- Navigation feedback ---------- */
+.nav-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 1000; background: linear-gradient(90deg, transparent, #0C251F 30%, #CCFF00 50%, #0C251F 70%, transparent); background-size: 200% 100%; animation: nav-progress 1s linear infinite; }
+@keyframes nav-progress { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .nav-progress { animation: none; background: #0C251F; } }

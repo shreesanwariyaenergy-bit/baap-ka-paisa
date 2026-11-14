@@ -1,6 +1,7 @@
 'use client';
 // City, locality and search controls for The Board. They only change the URL; the server ranks the board.
 import { useRouter } from 'next/navigation';
+import { startNav } from './NavProgress';
 import { useState } from 'react';
 import type { Level } from '@/lib/geo';
 
@@ -12,6 +13,7 @@ export function BoardFilters({ view, level, cityId, locality, query, cities, loc
   const go = (p: Record<string, string>) => {
     const s = new URLSearchParams({ level, city: cityId, ...(level === 'locality' ? { locality } : {}), ...(view !== 'season' && view !== 'none' ? { view } : {}), ...p });
     if (!s.get('q')) s.delete('q');
+    startNav();
     router.push(`${basePath}?${s.toString()}`);
   };
   return (
