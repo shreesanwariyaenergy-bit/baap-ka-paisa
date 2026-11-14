@@ -1,8 +1,8 @@
 # Migration register: pending production migrations
 
-17 November 2026. Seven files in `supabase/pending/`. **None is applied to production or to staging.**
-All are tested on a throwaway local Postgres 16 with a stub for Supabase Auth; none has run on the real
-Supabase stack. Every production table they touch is empty (checked read-only on 15 Nov: 0 accounts, 0
+18 November 2026. Seven files in `supabase/pending/`. **None is applied to production.** All seven are applied
+to the separate staging project and verified there on the real Supabase stack (`docs/STAGING_REPORT.md`),
+and tested on a throwaway local Postgres 16. Every production table they touch is empty (checked read-only on 15 Nov: 0 accounts, 0
 members, 0 seasons, 0 ledger rows).
 
 Apply in the order shown. Each file ends with its own rollback statements.
