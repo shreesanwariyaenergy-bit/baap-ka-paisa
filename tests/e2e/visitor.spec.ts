@@ -28,6 +28,10 @@ for (const w of [360, 390]) {
 test('crown sits on top of 01 in the board row and on the throne', async ({ page }) => {
   await page.goto('/');
   const row = page.locator('#home-board .rank-row.first .rank-no');
+  // The homepage streams in behind a loading skeleton: measure only once the board and the leader card are
+  // rendered and the web fonts (which set the size of the numerals) have loaded.
+  await expect(row.locator('svg.crown')).toBeVisible(); await expect(page.getByTestId('leader-feature').locator('.big01 b')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   const crown = await row.locator('svg.crown').boundingBox(); const num = await row.locator('.rank-number').boundingBox();
   // directly above the numerals, horizontally centred on them, touching distance
   expect(crown && num && crown.y + crown.height <= num.y + 6 && num.y - (crown.y + crown.height) < 8 && Math.abs((crown.x + crown.width / 2) - (num.x + num.width / 2)) < 4).toBeTruthy();
