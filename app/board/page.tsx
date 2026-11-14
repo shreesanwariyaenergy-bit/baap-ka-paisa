@@ -18,10 +18,14 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const scope = parseScope(sp, viewer?.member.cityId, viewer?.member.locality);
   const view = parseView(sp.view);
   const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
-  const seasonBoard = await ds.board(scope, { limit: 100, query });
-  const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? await ds.respectBoard(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
-  // Backer counts on the season view of city and locality boards (display only; never an input to rank).
-  const backers = view === 'season' && (scope.level === 'city' || scope.level === 'locality') ? Object.fromEntries((await ds.mostBacked(scope.cityId, 100)).map((b) => [b.member.username, b.backers])) : undefined;
+  // Backer counts on the season view of city and locality boards (display only; never an input to rank). Read alongside the board.
+  const [seasonBoard, other, backed] = await Promise.all([
+    ds.board(scope, { limit: 100, query }),
+    view === 'hall' ? ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? ds.respectBoard(scope, { limit: 100 }) : null,
+    view === 'season' && (scope.level === 'city' || scope.level === 'locality') ? ds.mostBacked(scope.cityId, 100) : null,
+  ]);
+  const board = other ?? (view === 'movers' ? movers(seasonBoard) : seasonBoard);
+  const backers = backed ? Object.fromEntries(backed.map((b) => [b.member.username, b.backers])) : undefined;
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const season = ds.season();

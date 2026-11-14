@@ -25,10 +25,9 @@ export default async function MePage() {
   }
   const m = viewer.member;
   const city = cityById(m.cityId)!;
-  const social = await ds.social(m.username);
-  const [handles, blocks] = await Promise.all([ds.socials(m.username), ds.availability === 'live' ? myBlocks() : []]);
+  const [social, handles, blocks] = await Promise.all([ds.social(m.username), ds.socials(m.username), ds.availability === 'live' ? myBlocks() : []]);
   const st = await readDemoSocial({ follows: [], rivals: social?.rivals.map((r) => r.member.username) ?? [], respected: {} });
-  const rivals = await Promise.all(st.rivals.map(async (u) => ({ m: await ds.member(u), s: (await ds.standings(u)).find((x) => x.level === 'city') })));
+  const rivals = await Promise.all(st.rivals.map(async (u) => { const [m, st] = await Promise.all([ds.member(u), ds.standings(u)]); return { m, s: st.find((x) => x.level === 'city') }; }));
   const lockDate = placeLockedUntil(new Date('2026-08-09T00:00:00+05:30')); // demo member joined 9 Aug 2026
   const lockedUntil = lockDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   return (

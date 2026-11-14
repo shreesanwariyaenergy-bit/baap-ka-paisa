@@ -6,18 +6,27 @@ import { seasonFor, type SeasonInfo } from '../season';
 import { monthName, monthShort } from '../format';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
+import { tracedFetch } from '../trace';
 import { LINES, toOvertake } from '../engine/callout';
 import type { SocialHandles, BackingView, DeclarationView, AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 interface Cfg { url: string; key: string; }
 
-async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}, token?: string | null): Promise<T> {
-  const res = await fetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
-    cache: 'no-store',
-  });
+async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}, token?: string | null, retry = true): Promise<T> {
+  // These are read-only functions, so a connection dropped in transit is retried once instead of failing the page.
+  let res: Response;
+  try {
+    res = await tracedFetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    if (retry) return rpcRaw<T>(cfg, fn, args, token, false);
+    throw e;
+  }
+  if (res.status === 401 && token) return rpcRaw<T>(cfg, fn, args, null);   // token no longer valid: read as a visitor
   if (!res.ok) throw new Error(`Ranking service error (${fn}): ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -44,10 +53,46 @@ function lite(name: string, display: string | null, masked: boolean, cityId: str
     locality, memberNo: null, seasonScore: 0, lifetimeTier: null };
 }
 
+// The signed-in member's own profile, started before the season row has arrived. Keyed by token and kept only
+// until the data source for the same request picks it up.
+const early = new Map<string, Promise<unknown>>();
+export function prefetchViewer(cfg: Cfg, token: string) {
+  const key = token + 'get_me{}';
+  if (!early.has(key)) { early.set(key, rpcRaw(cfg, 'get_me', {}, token).catch(() => [])); setTimeout(() => early.delete(key), 10_000); }
+}
+
 export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string | null = null): DataSource {
   // Reads carry the member's own token when signed in, so the database can mark "your row".
   const cfg = base;
-  const rpc = <T,>(c: Cfg, fn: string, args: Record<string, unknown> = {}) => rpcRaw<T>(c, fn, args, token);
+  // One data source exists per request (lib/data/index.ts), so identical reads within a request are made once
+  // and shared. Nothing is kept between requests, so this can never serve an out-of-date rank.
+  const memo = new Map<string, Promise<unknown>>();
+  const rpc = <T,>(c: Cfg, fn: string, args: Record<string, unknown> = {}): Promise<T> => {
+    const key = fn + JSON.stringify(args);
+    let p = memo.get(key) as Promise<T> | undefined;
+    if (!p && token && early.has(token + key)) { p = early.get(token + key) as Promise<T>; early.delete(token + key); memo.set(key, p); }
+    if (!p) { p = rpcRaw<T>(c, fn, args, token); memo.set(key, p); p.catch(() => memo.delete(key)); }
+    return p;
+  };
+  let viewerP: ReturnType<DataSource['viewer']> | null = null;
+  async function loadViewer(): ReturnType<DataSource['viewer']> {
+    if (!token) return null;
+    const recordP = rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => []);   // started now, used below
+      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
+      if (!me) return null; // account exists but has no member profile yet
+      const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
+      const lifetime = Math.round(Number(me.lifetime_paise) / 100);
+      // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
+      const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
+        cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
+      const [standings, archive] = await Promise.all([src.standings(publicName), recordP]);
+      const joined = seasonFor(new Date(me.joined_at), null);
+      const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
+      for (const r of archive) { const e = bySeason.get(r.season_id) ?? { starts: r.starts_at, city: null, loc: null }; if (r.level === 'city') e.city = r.final_rank; if (r.level === 'locality') e.loc = r.final_rank; bySeason.set(r.season_id, e); }
+      const record = [...bySeason.entries()].sort((a, b) => b[0] - a[0]).map(([id, e]) => { const s = seasonFor(new Date(e.starts), null); return { seasonLabel: `Season ${id}`, monthLabel: `${monthShort(s.month)} ${s.year}`, cityRank: e.city, localityRank: e.loc, note: null }; });
+      return { member, lifetimeScore: lifetime, memberSince: `${monthShort(joined.month)} ${joined.year}`, standings, record, insignia: [], cityMovement: null } satisfies ViewerSeal;
+    }
+
   const boardArgs = (s: Scope) => ({ p_level: s.level, p_city: s.level === 'india' ? null : s.cityId, p_locality: s.level === 'locality' ? s.locality : null });
 
   const src: DataSource = {
@@ -84,27 +129,15 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       return rows[0] ? toMember(rows[0]) : null;
     },
     async standings(name) {
-      const m = await src.member(name);
+      const [m, rows] = await Promise.all([src.member(name), rpc<{ level: Level; rank: number | null; total: number }[]>(cfg, 'get_standings', { p_name: name })]);
       if (!m) return [];
-      const rows = await rpc<{ level: Level; rank: number | null; total: number }[]>(cfg, 'get_standings', { p_name: name });
       return rows.map((r): Standing => ({ level: r.level, scope: { level: r.level, cityId: m.cityId, locality: m.locality }, rank: r.rank, of: r.total }));
     },
-    async viewer() {
-      if (!token) return null;
-      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
-      if (!me) return null; // account exists but has no member profile yet
-      const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
-      const lifetime = Math.round(Number(me.lifetime_paise) / 100);
-      // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
-      const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
-        cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
-      const [standings, archive] = await Promise.all([src.standings(publicName), rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => [])]);
-      const joined = seasonFor(new Date(me.joined_at), null);
-      const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
-      for (const r of archive) { const e = bySeason.get(r.season_id) ?? { starts: r.starts_at, city: null, loc: null }; if (r.level === 'city') e.city = r.final_rank; if (r.level === 'locality') e.loc = r.final_rank; bySeason.set(r.season_id, e); }
-      const record = [...bySeason.entries()].sort((a, b) => b[0] - a[0]).map(([id, e]) => { const s = seasonFor(new Date(e.starts), null); return { seasonLabel: `Season ${id}`, monthLabel: `${monthShort(s.month)} ${s.year}`, cityRank: e.city, localityRank: e.loc, note: null }; });
-      return { member, lifetimeScore: lifetime, memberSince: `${monthShort(joined.month)} ${joined.year}`, standings, record, insignia: [], cityMovement: null } satisfies ViewerSeal;
+    viewer() {
+      if (!viewerP) viewerP = loadViewer();
+      return viewerP;
     },
+
     async cities() {
       const rows = await rpc<{ city_id: string; members: number; season_total_paise: number; leader_name: string | null; leader_masked: boolean | null; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries');
       return rows.filter((r) => r.rank !== null).map((r): CitySummary => ({
@@ -140,6 +173,8 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       const rows = await rpc<{ followers: number; following: number; respect_this_season: number; rival_names: string[] }[]>(cfg, 'get_social', { p_name: name });
       const r = rows[0];
       if (!r) return null;
+      // The member's own rivals are shown with their city rank (home, /me): start those reads now, together with the profiles.
+      if (token && viewerP && (await viewerP)?.member.username === name) r.rival_names.forEach((n) => { void src.standings(n); });
       const rivals = (await Promise.all(r.rival_names.map((n) => src.member(n)))).filter((m): m is PublicMember => !!m).map((m): BoardRow => ({ rank: 0, member: m, movement: null }));
       return { followers: r.followers, following: r.following, respectThisSeason: r.respect_this_season, rivals } satisfies SocialSummary;
     },

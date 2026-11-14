@@ -49,3 +49,85 @@ Target: common interactions within 1 second where technically practical, on a mo
 Before and after, per step, with the same measurements: server time per page (cold and warm), number of
 database reads per page, database time per read at 20,000 members, and field measurements on a throttled
 phone profile (time to first content, time to interactive, navigation time between the main pages).
+
+## Results: staging, 18 November 2026
+
+Measured with the app running on this workspace's server (US East, the same region Vercel uses for
+production today, `iad1`) against the staging Supabase project in Mumbai. Script: `tests/perf/baseline.mjs`
+(server time until the page is fully rendered, median of 3 warm requests; `BKP_TRACE=1` logs every outbound
+call). Network noise between runs is about ±300 ms.
+
+### Where the time went (measured)
+
+- **The database is fast.** Every read function runs in 0.3–10 ms inside the database (median of 5, staging).
+- **Each call costs a round trip of ~250 ms** between US East and Mumbai, and ~650 ms when a new connection has
+  to be opened (several pages open many at once).
+- **Pages made calls one after another.** The signed-in homepage made 39 calls in about 8 sequential steps.
+- **The same call was repeated** within one page: the signed-in member's profile was read up to 4 times per
+  request (once by the header, again by the page), and `get_member` up to 15 times.
+- **Every signed-in page waited on a call to the Auth server** before it could start reading.
+
+### Changes (code only; no database or infrastructure change)
+
+| Change | Where |
+|---|---|
+| Identical reads within one request are made once and shared. Nothing is kept between requests, so no rank can be stale | `lib/data/supabase.ts` |
+| The signed-in member's profile is computed once per request and started at the same time as the season read | `lib/data/supabase.ts`, `lib/data/index.ts` |
+| Independent reads on the homepage, profile, board, The Seal and `/me` run as one parallel batch | `app/page.tsx`, `app/u/[username]/page.tsx`, `app/board/page.tsx`, `app/seal/page.tsx`, `app/me/page.tsx` |
+| Sessions verified locally against the project's published ES256 signing key (`getClaims`) instead of a call to the Auth server on every request | `lib/supabase-server.ts`, `middleware.ts` |
+| Registration no longer reads the season just to validate the form; its checks run together | `app/auth-actions.ts` |
+| A dropped connection on a read is retried once; a token the database rejects is read as a visitor instead of an error page | `lib/data/supabase.ts` |
+| Optional call tracing (`BKP_TRACE=1`), off by default | `lib/trace.ts` |
+
+### Before and after (ms)
+
+| Page | Before | After | Calls before → after |
+|---|---|---|---|
+| Visitor homepage | 4,571 | ~1,050–1,400 | 12 → 11 |
+| Visitor profile `/u/…` | 3,470 | ~1,250 | 13 → 9 |
+| Visitor city board | 1,552 | ~960 | 2 → 2 |
+| Member homepage | 6,727 | ~2,200–2,400 | 39 → 25 |
+| Member profile `/u/…` | 4,591 | ~1,500 | 25 → 17 |
+| Member `/me` | 3,926 | ~1,800–2,000 | 29 → 16 |
+| Member The Seal | 3,082 | ~1,100–1,600 | 15 → 9 |
+| Member board | 2,250 | ~1,200–1,500 | 12 → 7 |
+| **Create profile (wizard's last step)** | **3,332** | **1,315** | 5 → 5 (two season reads removed; the username check moved in) |
+
+### Concurrency (visitors, app on one local server process, staging database)
+
+| Concurrent | Homepage req/s, p50 / p97.5 | City board req/s, p50 / p97.5 |
+|---|---|---|
+| 5 | 4.7, 964 / 1,774 ms | 8.7, 534 / 940 ms |
+| 10 | 11.9, 903 / 1,382 ms | 16.7, 534 / 967 ms |
+| 20 | 19.1, 914 / 2,110 ms | 36, 532 / 716 ms |
+| 40 | 22.6, 1,603 / 4,170 ms, **0 errors** (before the retry: 1 failure in 370, a reset connection) | 66.8, 551 / 957 ms |
+
+The board scales almost linearly (1–2 calls per view). The homepage flattens near 20–25 per second because
+each view makes 11 calls (~250 database calls per second at the plateau). Not determined: whether the limit
+is the staging database (free tier), this workspace's network proxy or the single local server process.
+
+### Still open
+
+1. **Region (largest remaining cost).** Every call still crosses US East ↔ Mumbai. With the functions taking
+   0.3–10 ms, running the server in Mumbai (`bom1`) should bring each call to tens of milliseconds. Not
+   measured: it needs a Vercel setting change (infrastructure; your approval).
+2. **Call count on the homepage.** 11 calls for a visitor, 25 for a member. One combined read function per page
+   would cut this to a few; that is a database change (new functions, no table change) for a later review.
+3. **Public-page caching** for signed-out visitors keyed to the ledger, as planned. Not started.
+4. **Session revocation trade-off:** with local verification, a session revoked elsewhere (for example "sign
+   out everywhere", a deleted account) stays valid until its token expires, 1 hour by default. Sign-out on the
+   same device still ends the session immediately. Acceptable for launch in my view; shorten the token lifetime
+   in Supabase if not.
+
+## Session cookies (finding M1)
+
+- **Finding (confirmed on staging):** the Supabase session cookies were readable by page scripts
+  (`httpOnly=false`, the library default). Any script-injection bug would have exposed a member's session.
+- **Why it is safe to change:** the site never reads the session in the browser; there is no browser Supabase
+  client. Every sign-in, refresh and sign-out happens on the server.
+- **Change:** `lib/auth-cookies.ts` sets `httpOnly`, `secure` (production builds), `sameSite=lax`, same lifetime;
+  used by the server client and the middleware.
+- **Verified on staging:** the 22-step journey passes and now fails if a session cookie is script-readable;
+  observed `httpOnly=true secure=true`; `document.cookie` after sign-in contains no session.
+- **Rollout:** existing sessions keep their old cookie flags until the next refresh rewrites them (within the
+  token lifetime). Nothing for members to do. Rollback: remove `cookieOptions` from the two clients.

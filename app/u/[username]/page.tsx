@@ -26,21 +26,25 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const ds = await getDataSource();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) notFound();
-  const [standings, achievements, reigns, social] = await Promise.all([ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 10 }), ds.social(m.username)]);
-  const grouped = groupAchievements(achievements);
+  // Everything below depends only on the member and the viewer, so it is read in one parallel batch.
   const viewer = await ds.viewer();
   const isSelf = viewer?.member.username === m.username;
   const demo = ds.availability === 'demo';
-  const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
-  const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
-  const [backing, myBacking] = await Promise.all([ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null]);
-  const claim = strongestClaim({ standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
+  const [standings, achievements, allReigns, social, backing, myBacking, recentMoments, handles, feudAll, liveState, viewerSocial] = await Promise.all([
+    ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 100 }), ds.social(m.username),
+    ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null,
+    ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)),
+    m.masked ? null : ds.socials(m.username), ds.declarations({ username: m.username }),
+    viewer && !demo && !isSelf ? socialState(m.username) : null, viewer && demo ? ds.social(viewer.member.username) : null,
+  ]);
+  const reigns = allReigns.slice(0, 10);
+  const grouped = groupAchievements(achievements);
+  const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: viewerSocial?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
+  const claim = strongestClaim({ standings, achievements, reigns: allReigns });
   // The band a member wears for 24 hours after losing a #01.
-  const allReigns = await ds.throneHistory({ username: m.username, limit: 100 });
-  const band = dethronedBand(allReigns, await ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)), ds.now());
-  const handles = m.masked ? null : await ds.socials(m.username);
+  const band = dethronedBand(allReigns, recentMoments, ds.now());
   const holdsCity = standings.find((x) => x.level === 'city')?.rank === 1;
-  const feud = (await ds.declarations({ username: m.username })).slice(0, 4);
+  const feud = feudAll.slice(0, 4);
   const canDeclareHere = holdsCity && viewer && !isSelf && viewer.member.cityId === m.cityId && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
   const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;

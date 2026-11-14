@@ -94,7 +94,7 @@ and invitations depend on Supabase URL settings and email delivery that only a r
 
 ### Medium
 
-- **M1. Session cookies are readable by page scripts.** `lib/supabase-server.ts` says sessions are httpOnly, but no
+- **M1. Session cookies are readable by page scripts.** *(Fixed on the feature branch 18 Nov 2026, verified on staging; see `docs/PERFORMANCE.md`.)* `lib/supabase-server.ts` says sessions are httpOnly, but no
   cookie options are set, so the library default (not httpOnly) applies. Any script-injection bug would expose
   session tokens. Fix: set `httpOnly`, `secure`, `sameSite=lax`.
 - **M2. No timeout or retry on database calls.** `rpcRaw` uses `fetch` with no deadline; a slow database hangs page

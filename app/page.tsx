@@ -32,27 +32,32 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const city = cityById(sp.city) ?? cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
   const locality = viewer && viewer.member.cityId === city.id ? viewer.member.locality : city.localities[0];
   const scopes = Object.fromEntries(LEVELS.map((l) => [l, { level: l, cityId: city.id, locality } satisfies Scope])) as Record<Level, Scope>;
-  const boards = Object.fromEntries(await Promise.all(LEVELS.map(async (l) => [l, await ds.board(scopes[l], { limit: 10 })] as const))) as Record<Level, Board>;
+  // Every read below depends only on the city, so they run together: the page waits for the slowest, not the sum.
+  const since = new Date(ds.now().getTime() - 86_400_000);
+  const [boardList, events, moments, summaries, reigns, archive, respect, declared, mySocial] = await Promise.all([
+    Promise.all(LEVELS.map((l) => ds.board(scopes[l], { limit: 10 }))), ds.events(scopes.city, 3), ds.crownMoments(scopes.city, since),
+    ds.cities(), ds.throneHistory({ scope: scopes.city, limit: 40 }), ds.archive(), ds.respectBoard(scopes.city, { limit: 1 }),
+    ds.declarations({ cityId: city.id }), viewer ? ds.social(viewer.member.username) : null,
+  ]);
+  const boards = Object.fromEntries(LEVELS.map((l, n) => [l, boardList[n]])) as Record<Level, Board>;
   const names = Object.fromEntries(LEVELS.map((l) => [l, scopeName(scopes[l])])) as Record<Level, string>;
   const cityBoard = boards.city;
   const leader = cityBoard.rows[0];
-  const events = await ds.events(scopes.city, 3);
   // Crown Moment: the newest #01 change on this city board in the last 24 hours.
-  const latestMoment = (await ds.crownMoments(scopes.city, new Date(ds.now().getTime() - 86_400_000)))[0];
+  const latestMoment = moments[0];
   const nm = (m: PublicMember) => (m.masked ? m.publicLabel : m.displayName ?? m.username);
   const hoursAgo = latestMoment ? Math.max(0, Math.round((ds.now().getTime() - latestMoment.at.getTime()) / 3_600_000)) : 0;
   const isDemo = ds.availability === 'demo';
   const open = rankingsOpen(ds);
-  const [summaries, reign, archive] = await Promise.all([ds.cities(), ds.throneHistory({ scope: scopes.city, limit: 1 }), ds.archive()]);
+  const reign = reigns.slice(0, 1);
   const second = cityBoard.rows[1];
   const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
 
-  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns: await ds.throneHistory({ scope: scopes.city, limit: 40 }), moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect: await ds.respectBoard(scopes.city, { limit: 1 }) });
-  const declared = await ds.declarations({ cityId: city.id });
+  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns, moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect });
   const myCity = viewer?.standings.find((s) => s.level === 'city');
   // Rival strip: each rival's current city rank next to yours.
-  const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
-  const rivals = (await Promise.all(rivalNames.map(async (u) => ({ m: await ds.member(u), s: (await ds.standings(u)).find((x) => x.level === 'city') })))).filter((r) => r.m);
+  const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: mySocial?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
+  const rivals = (await Promise.all(rivalNames.map(async (u) => { const [m, st] = await Promise.all([ds.member(u), ds.standings(u)]); return { m, s: st.find((x) => x.level === 'city') }; }))).filter((r) => r.m);
 
   return (
     <>

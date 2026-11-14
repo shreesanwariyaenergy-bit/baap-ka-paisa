@@ -3,7 +3,7 @@ import { cache } from 'react';
 import { dataSourceName, seasonOneMonth, supabaseConfig } from '../config';
 import { demoSource } from './demo';
 import { unavailableSource } from './unavailable';
-import { loadSeason, supabaseSource } from './supabase';
+import { loadSeason, prefetchViewer, supabaseSource } from './supabase';
 import type { DataSource } from './types';
 import { currentAccount } from '../supabase-server';
 
@@ -13,7 +13,14 @@ export const getDataSource = cache(async (): Promise<DataSource> => {
   if (name === 'demo') return demoSource;
   if (name === 'supabase') {
     const cfg = supabaseConfig();
-    if (cfg) { const acct = await currentAccount(); return supabaseSource(cfg, await loadSeason(cfg), acct?.token ?? null); }
+    if (cfg) {
+      // The season row and the signed-in member's own profile are both needed by almost every page and neither
+      // depends on the other: read them at the same time.
+      const seasonP = loadSeason(cfg);
+      const acct = await currentAccount();               // local check, no network call
+      if (acct) prefetchViewer(cfg, acct.token);
+      return supabaseSource(cfg, await seasonP, acct?.token ?? null);
+    }
   }
   return unavailableSource(seasonOneMonth());
 });

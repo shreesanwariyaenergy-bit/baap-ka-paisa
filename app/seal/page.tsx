@@ -40,11 +40,13 @@ export default async function SealPage() {
   const cityStanding = viewer.standings.find((s) => s.level === 'city');
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
   const mv = movementLabel(viewer.cityMovement);
-  const [qr, achievements, reigns] = await Promise.all([profileQr(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 20 })]);
+  // One parallel batch. The "most backed" list is only shown when the member has not backed anyone, but reading it
+  // alongside costs nothing extra in time.
+  const [qr, achievements, allReigns, backing, mostBacked] = await Promise.all([profileQr(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 100 }), ds.backing(m.username), ds.mostBacked(m.cityId, 3)]);
+  const reigns = allReigns.slice(0, 20);
   const grouped = groupAchievements(achievements);
-  const claim = strongestClaim({ standings: viewer.standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
-  const backing = await ds.backing(m.username);
-  const contenders = backing && !backing.pick ? await ds.mostBacked(m.cityId, 3) : [];
+  const claim = strongestClaim({ standings: viewer.standings, achievements, reigns: allReigns });
+  const contenders = backing && !backing.pick ? mostBacked : [];
   const nm2 = (x: { masked: boolean; publicLabel: string; displayName: string | null; username: string }) => (x.masked ? x.publicLabel : x.displayName ?? x.username);
   const finishes = [cityStanding?.rank ?? null, ...viewer.record.map((r) => r.cityRank)].filter((n): n is number => !!n);
   const best = finishes.length ? Math.min(...finishes) : null;
