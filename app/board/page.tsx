@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
-import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
+import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -46,7 +46,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           {LEVELS.map((l) => <Link key={l} href={levelHref(l)} aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
         </span>
         <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
-          cities={CITIES.map((c) => ({ id: c.id, name: c.name }))} localities={city.localities} />
+          cities={cityOptionGroups()} localities={city.localities} />
       </div>
       <nav className="view-tabs" aria-label="Board view">
         {BOARD_VIEWS.map((vw) => <Link key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</Link>)}

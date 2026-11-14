@@ -24,3 +24,7 @@ echo "--- anti-snipe on #01 and operations (fresh database)"
 $P -c "create database bkp3"; $P -d bkp3 -f supabase/tests/platform_stub.sql 2>/dev/null | grep -v "already exists" || true
 for f in supabase/migrations/*.sql supabase/pending/*.sql; do [ -e "$f" ] && $P -d bkp3 -f "$f" >/dev/null; done
 $P -d bkp3 -f supabase/tests/section_a.sql 2>&1 | grep -vE "^$|^SET|^UPDATE|^CREATE"
+echo "--- city expansion migration (fresh database without it, then applied by the test)"
+$P -c "create database bkp4"; $P -d bkp4 -f supabase/tests/platform_stub.sql 2>/dev/null | grep -v "already exists" || true
+for f in supabase/migrations/*.sql supabase/pending/*.sql; do case "$f" in *_city_expansion.sql) continue;; esac; [ -e "$f" ] && $P -d bkp4 -f "$f" >/dev/null; done
+$P -d bkp4 -f supabase/tests/city_expansion.sql 2>&1 | grep -E "NOTICE|ERROR|CONTEXT" | grep -v "bkp_found"

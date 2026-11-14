@@ -150,3 +150,32 @@ test('The Bill and the Dethroned Band (demo prototypes)', async ({ page }) => {
   await expect(page.getByTestId('bill')).not.toContainText('VOID');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
+
+test('registration: cities grouped by state, localities follow the chosen city, Other offered plainly', async ({ page }) => {
+  await page.goto('/join');
+  await page.getByTestId('f-email').fill('city.test@example.com');
+  await page.getByTestId('f-password').fill('strongpass1'); await page.getByTestId('f-confirm').fill('strongpass1');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-step-2')).toBeVisible();
+  const city = page.getByTestId('f-city'), loc = page.getByTestId('f-locality');
+  await expect(city.locator('optgroup')).toHaveCount(19);
+  await expect(city.locator('optgroup[label="Uttar Pradesh"] option')).toHaveText(['Lucknow', 'Kanpur', 'Noida', 'Varanasi', 'Agra', 'Ghaziabad']);
+  await expect(city.locator('option')).toHaveCount(45);
+  await expect(city).toHaveValue('surat');   // unchanged default
+  await loc.selectOption('Vesu');
+  await city.selectOption('jaipur');
+  await expect(loc).toHaveValue('');   // a locality from the previous city is never kept
+  await expect(loc.locator('option')).toHaveText(['Choose your locality', 'C-Scheme', 'Malviya Nagar', 'Vaishali Nagar', 'Mansarovar', 'Raja Park', 'Walled City', 'Other']);
+  await loc.selectOption('Other');
+  await page.getByTestId('f-name').fill('City Test'); await page.getByTestId('f-username').fill('city.test');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-step-3')).toBeVisible();   // Jaipur / Other accepted by the server-side check
+});
+
+test('homepage for a visitor: the five launch cities and Bengaluru, and a link to all 45', async ({ page }) => {
+  await page.goto('/');
+  const tiles = page.getByTestId('featured-cities').locator('.terr b');
+  await expect(tiles).toHaveCount(6);
+  expect((await tiles.allInnerTexts()).map((t) => t.toLowerCase()).sort()).toEqual(['ahmedabad', 'bengaluru', 'delhi', 'mumbai', 'pune', 'surat']);
+  await expect(page.getByTestId('explore-cities')).toContainText('Explore all 45 cities');
+});

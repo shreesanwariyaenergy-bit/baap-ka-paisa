@@ -1,5 +1,5 @@
 // Profile and onboarding rules from the Product Blueprint. Run on the server for every submission.
-import { CITIES, cityById } from './geo';
+import { cityById } from './geo';
 
 export const TITLES = ['Founder', 'Co-founder', 'Creator', 'Entrepreneur', 'Doctor', 'Lawyer', 'CA', 'Student', 'Athlete', 'Artist', 'Investor', 'Other'] as const;
 export const SOCIAL_VISIBILITY = ['everyone', 'followers', 'nobody'] as const;
@@ -65,7 +65,7 @@ export function validateProfile(p: ProfileInput, mode: 'join' | 'edit', today = 
     else if (age < 18) e.dateOfBirth = 'BAAP KA PAISA is for people aged 18 and over.';
     else if (age > 110) e.dateOfBirth = 'Check the year of birth.';
     const c = cityById(p.cityId);
-    if (!c) e.cityId = `Choose one of the launch cities: ${CITIES.map((x) => x.name).join(', ')}.`;
+    if (!c) e.cityId = 'Choose a city from the list.';
     else if (!c.localities.includes(p.locality ?? '')) e.locality = `Choose a locality in ${c.name}.`;
   }
   if (p.title !== undefined && p.title !== '' && !(TITLES as readonly string[]).includes(p.title)) e.title = 'Choose a title from the list.';

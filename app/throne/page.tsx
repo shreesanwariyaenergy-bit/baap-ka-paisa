@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { ReignView } from '@/lib/data/types';
 import { throneTime } from '@/lib/claim';
-import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
+import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { Crown, PastChampionMark } from '@/components/Crown';
 import { BoardFilters } from '@/components/BoardFilters';
 
@@ -40,7 +40,7 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
           {LEVELS.map((l) => <Link key={l} href={href(l)} aria-current={scope.level === l ? 'true' : undefined}>{LEVEL_LABEL[l]}</Link>)}
         </span>
         <BoardFilters view="none" basePath="/throne" level={scope.level} cityId={scope.cityId} locality={scope.locality} query=""
-          cities={CITIES.map((c) => ({ id: c.id, name: c.name }))} localities={city.localities} />
+          cities={cityOptionGroups()} localities={city.localities} />
       </div>
       <div className="board-layout">
         <div className="board-panel">

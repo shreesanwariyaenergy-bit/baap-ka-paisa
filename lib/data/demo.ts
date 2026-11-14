@@ -105,7 +105,8 @@ function buildLog() {
   const r500 = (v: number) => Math.max(500, 500 * Math.round(v / 500));
   const members: EngineMember[] = [];
   const profile = new Map<string, { p: P; city: string; memberNo: number }>();
-  for (const c of CITIES) for (const p of PEOPLE[c.id]) {
+  // Demo people exist for the five launch cities only; the other cities stay empty (nothing is invented for them).
+  for (const c of CITIES) for (const p of PEOPLE[c.id] ?? []) {
     members.push({ id: p[0], cityId: c.id, state: c.state, locality: p[2] });
     profile.set(p[0], { p, city: c.id, memberNo: p[0] === VIEWER ? 4812 : 100 + Math.floor(rnd() * 4900) });
   }
@@ -118,7 +119,7 @@ function buildLog() {
   for (const s of SIM_SEASONS) {
     const end = Math.min(s.scheduledEnd, SIM_NOW) - HOUR;
     for (const c of CITIES) {
-      PEOPLE[c.id].forEach((p, i) => {
+      (PEOPLE[c.id] ?? []).forEach((p, i) => {
         if (scripted.has(p[0])) return;
         if (rnd() < 0.18 && s.id < 4) return; // some members skip a season (breaks streaks)
         const target = Math.max(1000, r500(TOP[c.id] * Math.pow(0.8, i) * (0.85 + rnd() * 0.3) * (s.id === 4 ? 0.85 : 1)));
@@ -315,7 +316,8 @@ export const demoSource: DataSource = {
     } satisfies ViewerSeal;
   },
   async cities() {
-    const tot = (t: number) => CITIES.map((c) => ({ c, t: boardAt(SIM, CURRENT.id, `city:${c.id}`, t).reduce((a, r) => a + r.score, 0) })).sort((a, b) => b.t - a.t);
+    // Like the live source: only cities with a season total are ranked; empty cities have no summary.
+    const tot = (t: number) => CITIES.map((c) => ({ c, t: boardAt(SIM, CURRENT.id, `city:${c.id}`, t).reduce((a, r) => a + r.score, 0) })).filter((x) => x.t > 0).sort((a, b) => b.t - a.t);
     const now = tot(SIM_NOW), prev = tot(SIM_NOW - DAY);
     return now.map(({ c, t }, i): CitySummary => {
       const b = boardAt(SIM, CURRENT.id, `city:${c.id}`, SIM_NOW);

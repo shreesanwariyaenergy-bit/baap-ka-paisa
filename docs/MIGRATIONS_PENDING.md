@@ -18,6 +18,7 @@ Apply in the order shown. Each file ends with its own rollback statements.
 | 7 | `20261116001300_social_handles.sql` | #1 for the "followers only" setting to mean anything (reads `follows`) | `member_socials`, `set_my_socials()`, `get_socials()` | None | Profile saves say handles "are being switched on" |
 | 8 | `20261117001400_anti_snipe_throne.sql` | **#6** (replaces its `ledger_effects()`) | None | Body of `ledger_effects()`: the season is extended only when a credit takes #01 on one of the member's boards | Any overtake at any rank anywhere extends the national season |
 | 9 | `20261117001500_operations.sql` | #3, #6, applied `…0700_season_clock` | `ops_alerts`, `run_checks()`, `get_health()` (visitors may call it) | Column `engine_settings.clock_last_run`; body of `season_clock()` (records each run) | No alert when the clock stops, a close is missed or an invariant breaks; `/api/health` reports "checks not installed" |
+| 10 | `20261118001600_city_expansion.sql` | — (independent; created 14 Nov, **not applied anywhere**) | 16 rows in `states`, 40 in `cities`, 268 in `localities` | None. Inserts only; the 3 existing states, 5 cities and 67 localities (and their ids) are checked and left exactly as they are | The 40 new cities show on the website but cannot be joined (registration checks the locality in the database) |
 
 ## Rollback considerations
 
@@ -63,3 +64,36 @@ resolved the "clock never ran" alert; integrity checks on staging data are clean
 
 Production, after approval: apply #8 and #9 after #1–#7, then run the two `cron.schedule` lines at the top of #9.
 Rollback: #8, re-run `ledger_effects()` from #6; #9, as written at the top of the file.
+
+## #10 City expansion (created 14 November; NOT applied to staging or production)
+
+`supabase/pending/20261118001600_city_expansion.sql` adds 16 states/UTs, 40 cities and 268 localities (228 major areas
+plus `Other` for each new city). Website side: `lib/geo.ts`. The two are compared record by record by
+`tests/unit/geo-sync.test.ts`.
+
+- **Inserts only**, into `states`, then `cities`, then `localities`. No update, delete, rename, schema, function,
+  trigger, policy or constraint change. No `on conflict`: an unexpected duplicate fails loudly.
+- **One statement** (a single `do` block), so it is all-or-nothing under any runner (Supabase migrations, `psql`,
+  the staging apply helper).
+- **Pre-checks** (abort before any insert): exactly the 3 expected states, the 5 expected cities with their exact
+  names, states, regions and active flag, exactly 67 localities with each launch city's list in its original order,
+  and none of the new state codes, city ids or city names present.
+- **Post-checks** (abort and undo): 19 states, 45 cities, 335 localities; every city ends with `Other`; every city
+  has a state and every state a city; the launch cities' localities and the state rows unchanged; member, season,
+  ledger, result and reign counts unchanged.
+- **Tested** on a throwaway local Postgres (`scripts/db-test.sh`, `supabase/tests/city_expansion.sql`): rankings
+  built in the launch cities before the migration are identical after it; locality ids unchanged; new cities rank on
+  locality, `Other`, city, new-state and India boards; Noida ranks in Uttar Pradesh, not Delhi; a locality from
+  another city and an unknown city are refused; a second run is refused and adds nothing. All earlier suites pass
+  with it in place.
+- **Order of environments:** staging first, then production, each with separate approval. Apply the migration
+  **before** deploying an app build that lists the new cities (an older build simply ignores them).
+- **Rollback:** none automatic. New rows may be removed only after confirming nothing references them
+  (`select count(*) from public.members where city_id in (…new ids…)` must be 0, and no result, reign, crown event,
+  declaration or backing names a new city's board); the foreign keys refuse such deletes anyway. Once anyone has
+  joined a new city, roll forward instead (hide the city in `lib/geo.ts`).
+- **Performance note (not changed by this migration):** `get_city_summaries()`, used by Home and Cities on every
+  request, does work per city. Local measurement with 20,000 members: 5 cities 509 ms p50; 45 cities 1,016 ms
+  (members unchanged) and 2,226 ms (members spread over 45 cities). Negligible with today's data; a separately
+  approved rewrite of that function (summing `season_scores` by city in one query) is recommended before large
+  membership.

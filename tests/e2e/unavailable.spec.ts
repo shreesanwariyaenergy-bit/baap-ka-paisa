@@ -21,7 +21,7 @@ test('archive and cities stay honest', async ({ page }) => {
   await page.goto('/archive');
   await expect(page.locator('body')).toContainText('No finished seasons yet.');
   await page.goto('/cities');
-  await expect(page.locator('.city-card')).toHaveCount(5);
+  await expect(page.locator('.city-card')).toHaveCount(45);
   await expect(page.locator('body')).not.toContainText(/on the board/);
 });
 test('Rank Up and Hall of Fame stay closed', async ({ page }) => {

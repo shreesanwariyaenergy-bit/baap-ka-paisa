@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { register, validateStep, type RegErrors, type RegInput, type RegResult } from '@/app/auth-actions';
 
-interface CityOpt { id: string; name: string; localities: readonly string[] }
+interface CityOpt { id: string; name: string; localities: readonly string[]; group: string }
 const STEPS = ['Account', 'Profile', 'Eligibility', 'Preview', 'Done'];
 const Err = ({ e }: { e?: string }) => (e ? <span className="field-error" role="alert">{e}</span> : null);
 
@@ -17,6 +17,8 @@ export function JoinWizard({ cities, live, hasAccount, accountEmail, referrer }:
   const [pending, start] = useTransition();
   const set = (patch: Partial<RegInput>) => setD((x) => ({ ...x, ...patch }));
   const city = cities.find((c) => c.id === d.cityId)!;
+  // City picker grouped by state/UT (cities arrive in display order, grouped)
+  const groups = cities.reduce<[string, CityOpt[]][]>((acc, c) => { const last = acc.at(-1); if (last && last[0] === c.group) last[1].push(c); else acc.push([c.group, [c]]); return acc; }, []);
 
   const next = () => start(async () => {
     const e = await validateStep(step as 1 | 2 | 3, d);
@@ -51,7 +53,7 @@ export function JoinWizard({ cities, live, hasAccount, accountEmail, referrer }:
           <p>{hasAccount && accountEmail ? `Signed in as ${accountEmail}. ` : ''}This is how the register will know you.</p>
           <label className="field"><span className="field-label">Display name</span><input maxLength={40} value={d.displayName} onChange={(e) => set({ displayName: e.target.value })} aria-invalid={!!errors.displayName} data-testid="f-name" /></label><Err e={errors.displayName} />
           <label className="field"><span className="field-label">Username</span><input maxLength={24} autoCapitalize="none" value={d.username} onChange={(e) => set({ username: e.target.value.toLowerCase().replace(/\s/g, '') })} aria-invalid={!!errors.username} data-testid="f-username" /><span className="field-hint">3–24 characters: lowercase letters, numbers, dots, underscores. This is your public link.</span></label><Err e={errors.username} />
-          <label className="field"><span className="field-label">City</span><select value={d.cityId} onChange={(e) => set({ cityId: e.target.value, locality: '' })} data-testid="f-city">{cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><Err e={errors.cityId} />
+          <label className="field"><span className="field-label">City</span><select value={d.cityId} onChange={(e) => set({ cityId: e.target.value, locality: '' })} data-testid="f-city">{groups.map(([label, list]) => <optgroup key={label} label={label}>{list.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></label><Err e={errors.cityId} />
           <label className="field"><span className="field-label">Locality</span><select value={d.locality} onChange={(e) => set({ locality: e.target.value })} aria-invalid={!!errors.locality} data-testid="f-locality"><option value="">Choose your locality</option>{city.localities.map((l) => <option key={l}>{l}</option>)}</select><span className="field-hint">City and locality lock for 90 days after you join.</span></label><Err e={errors.locality} />
           <label className="field"><span className="field-label">Flex line, optional ({(d.flexLine ?? '').length}/40)</span><input maxLength={40} value={d.flexLine} onChange={(e) => set({ flexLine: e.target.value })} aria-invalid={!!errors.flexLine} /></label><Err e={errors.flexLine} />
           <label className="check"><input type="checkbox" checked={!!d.mystery} onChange={(e) => set({ mystery: e.target.checked })} /><span><b>Mystery mode.</b> Rank as ANON until you choose to reveal yourself.</span></label>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent } from '@/lib/data/types';
-import { CITIES, STATES, cityById, DEFAULT_CITY_ID, scopeName, type Level, type Scope } from '@/lib/geo';
+import { CITIES, STATES, cityById, DEFAULT_CITY_ID, featuredCities, scopeName, type Level, type Scope } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { HomeBoard } from '@/components/HomeBoard';
@@ -171,15 +171,16 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="section-head"><div><p>Territories</p><h2>Pick your ground</h2></div>
-        <Link className="textlink" href="/cities">All cities ↗</Link></div>
-      <div className="terr-grid">
-        {CITIES.map((c) => { const sm = summaries.find((x) => x.cityId === c.id); return (
+        <Link className="textlink" href="/cities">All {CITIES.length} cities ↗</Link></div>
+      <div className="terr-grid" data-testid="featured-cities">
+        {featuredCities({ viewerCityId: viewer?.member.cityId, currentCityId: city.id, summaries }).map((c) => { const sm = summaries.find((x) => x.cityId === c.id); return (
           <Link className="terr" key={c.id} href={`/?city=${c.id}`} aria-current={c.id === city.id ? 'true' : undefined} scroll={false}>
             <small>{STATES[c.state]}</small><b>{c.name}</b>
             <span>{sm ? `${sm.members} ranked · #${pad2(sm.rank)} city` : 'Open territory'}</span>
           </Link>
         ); })}
       </div>
+      <Link className="btn explore-cities" href="/cities" data-testid="explore-cities">Explore all {CITIES.length} cities <span className="arrow">→</span></Link>
       <div className="loc-chips" aria-label={`Localities in ${city.name}`}>
         {city.localities.filter((l) => l !== 'Other').map((l) => (
           <Link key={l} href={`/board?level=locality&city=${city.id}&locality=${encodeURIComponent(l)}`} className={ranked.has(l) ? '' : 'open'}>{l}{ranked.has(l) ? '' : ' · unclaimed'}</Link>

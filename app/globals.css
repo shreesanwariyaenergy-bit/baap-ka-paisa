@@ -1005,3 +1005,22 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .nav-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 1000; background: linear-gradient(90deg, transparent, #0C251F 30%, #CCFF00 50%, #0C251F 70%, transparent); background-size: 200% 100%; animation: nav-progress 1s linear infinite; }
 @keyframes nav-progress { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .nav-progress { animation: none; background: #0C251F; } }
+
+/* ---- National city expansion: featured cities on the homepage, grouped and searchable city index ---- */
+.terr-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.terr b { font-size: clamp(20px, 2.1vw, 30px); overflow-wrap: anywhere; }
+.explore-cities { margin: 16px 0 4px; }
+.city-filters input[type="search"] { flex: 1 1 260px; }
+.region-chips { display: flex; gap: 9px; flex-wrap: wrap; }
+.city-count { margin: -6px 0 8px; font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted-strong); }
+.state-group { margin: 26px 0 0; }
+.state-head { display: flex; align-items: baseline; gap: 12px; margin: 0; padding-bottom: 8px; border-bottom: var(--rule); font: 700 30px/.9 var(--font-display); text-transform: uppercase; letter-spacing: -.02em; }
+.state-head span { font: 700 10px var(--font-mono); letter-spacing: .1em; color: var(--muted-strong); }
+.state-group .city-grid { margin: 14px 0 22px; }
+@media (max-width: 980px) { .terr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .terr-grid { grid-template-columns: 1fr 1fr; }
+  .region-chips { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .region-chips button { flex: none; }
+  .state-head { font-size: 24px; }
+}
