@@ -131,3 +131,63 @@ is the staging database (free tier), this workspace's network proxy or the singl
   observed `httpOnly=true secure=true`; `document.cookie` after sign-in contains no session.
 - **Rollout:** existing sessions keep their old cookie flags until the next refresh rewrites them (within the
   token lifetime). Nothing for members to do. Rollback: remove `cookieOptions` from the two clients.
+
+## Launch-blocking lag investigation, 19 November 2026
+
+Scripts: `tests/perf/navigation.mjs` (real browser clicks through the sections, p50/p95/p99 from click),
+`tests/perf/baseline.mjs` (server time and every outbound call), `tests/perf/frontend.mjs` (browser cost on a
+4×-slowed phone CPU). App run on this workspace's server (US East, same region as production today) against
+the staging database (Mumbai).
+
+### Root causes (measured)
+
+1. **No feedback on click.** Only `/board` had a loading state, so after a click the old page stayed on screen,
+   unchanged, until the server had built the whole new page: the 2–3 s the member feels.
+2. **Every database call crosses US East ↔ Mumbai**: ~250 ms each, ~650 ms when a new connection opens. The
+   database work itself is 0.3–10 ms. A page needs 2–5 rounds of calls one after another.
+3. **Repeated and sequential calls** (fixed in the previous round: 39 → 25 calls on the member homepage).
+4. **Not a cause:** the browser. Pages send 111–118 kB of JavaScript, no images other than icons, and paint in
+   150–280 ms even on a 4×-slowed phone CPU. No full page reloads were found: navigation uses the client router.
+
+### Fixes in this round
+
+| Change | Files |
+|---|---|
+| Loading state for every section that never answers "not found" or redirects (home, Gazette, Cities, India, board, Seal, `/me`, archive, throne, closing, invite, simulator, Rank Up). Next.js prefetches these shells for links in view | `components/PageSkeleton.tsx`, `app/*/loading.tsx`, homepage moved to `app/(home)/page.tsx` (route group: the address does not change) |
+| A progress bar on every in-site click, including filter changes on the same page and pages that keep exact 404s and redirects (profile, Bill, declaration, sign-in, join) | `components/NavProgress.tsx`, `app/layout.tsx`, `components/BoardFilters.tsx` |
+| India page reads its board, the city list and the member together | `app/india/page.tsx` |
+| Forgot-password link uses the client router | `components/SignInForm.tsx` |
+
+A root-level loading state was tried first and rejected: under it, unknown members returned a normal page
+instead of a 404, and signed-in redirects ran in the browser. The tests caught it.
+
+### Navigation, click to screen (ms, 5 rounds, visitor / member)
+
+| Section | Feedback before | Feedback after | Complete before (p50) | Complete after (p50) |
+|---|---|---|---|---|
+| Gazette | 1,052 / 1,717 | **56 / 55** | 1,055 / 1,719 | 1,038 / 1,638 |
+| Cities | 624 / 1,007 | **48 / 47** | 627 / 1,009 | 659 / 841 |
+| India | 882 / 1,136 | **48 / 47** | 886 / 1,138 | 628 / 643 |
+| Board | 49 / 56 | 47 / 47 | — | 626 / 1,627 |
+| Locality board, Hall of Fame | 277–1,269 | progress bar, under 100 | 347–1,297 | 564–1,272 |
+| Profile, The Bill | 1,255–1,960 | **6–7** (progress bar) | 1,297–2,006 | 1,255–1,910 |
+| The Seal | 333 / 1,309 | **47 / 46** | 335 / 1,312 | 665 / 907 |
+| Home | 1,299 / 2,482 | **49 / 42** | 1,302 / 2,488 | 1,325 / 1,855 |
+
+Feedback target (under 100 ms) is met everywhere. Completion is still bounded by the US–Mumbai round trips.
+
+### Remaining bottleneck and the fix that needs approval
+
+Server region. With the database in Mumbai and the server in US East, each of the 2–5 sequential rounds costs
+250–650 ms. Running the server in Mumbai (`bom1`, a one-line `vercel.json` setting, free on every plan) should
+bring each round to roughly 5–20 ms: estimated server time per page 100–300 ms instead of 600–1,900 ms, and
+members in India also reach the server over a short distance. **Not measured:** the measurement needed two
+temporary preview deployments on separate branches, which is outside "existing development branch only" and
+was not done. Options: approve those two temporary branches, or approve the region setting on the
+development branch's preview (with that preview reading staging instead of demo data).
+
+### Not done, deliberately
+
+Caching rankings between requests. Without a cheap "has anything changed" signal from the database, any
+cache would show some members an out-of-date rank. A small read-only function returning the latest ledger,
+throne and season change would allow exact caching; that is a database change for review.
