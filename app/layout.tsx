@@ -27,30 +27,85 @@ export const dynamic = 'force-dynamic';
 
 export const viewport: Viewport = { themeColor: '#0C251F', width: 'device-width', initialScale: 1 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+// The shell (navigation, page skeleton) streams at once. The three parts that need the database (season line,
+// season pill and account area, footer line) stream in their own boundaries, so the first paint and the page's
+// own loading state never wait for a database round trip.
+async function SeasonLine() {
   const ds = await getDataSource();
   const season = ds.season();
   const left = timeLeft(season, ds.now());
   const open = rankingsOpen(ds);
+  return (
+    <>
+      {open && <>
+        <span className="opt">{season.label}</span>
+        <span className="opt" aria-hidden="true">•</span>
+        <span className="opt">{left.closed ? 'Season closed' : `${left.days} days left`}</span>
+      </>}
+      {ds.availability === 'demo' && <span className="demo-flag" data-testid="demo-flag">Demo data</span>}
+      {!open && <span className="demo-flag">Rankings not open yet</span>}
+      {open && ds.availability === 'live' && testSeason() && <span className="demo-flag" data-testid="test-season-flag">Test season</span>}
+    </>
+  );
+}
+
+async function HeaderAccount() {
+  const ds = await getDataSource();
+  const season = ds.season();
   const viewer = await ds.viewer();
   const account = viewer ? null : await currentAccount();
   const viewerLabel = viewer ? (viewer.member.masked ? viewer.member.publicLabel : viewer.member.displayName ?? viewer.member.username) : null;
+  return (
+    <>
+      <div className="season-pill">{season.short}</div>
+      {viewer ? (
+        <details className="profile-menu" data-testid="profile-menu">
+          <summary aria-label={`Account menu for ${viewerLabel}`}>
+            <span className="avatar-mini" aria-hidden="true">{initials(viewerLabel!)}</span>
+            <span className="who">{viewer.member.masked ? viewer.member.publicLabel : `@${viewer.member.username}`}<small>{ds.availability === 'demo' ? 'Demo member · ' : ''}No. {memberNo(viewer.member.memberNo)}</small></span>
+          </summary>
+          <div className="menu">
+            <Link href="/seal">The Seal</Link>
+            <Link href="/me">Profile</Link>
+            <Link href="/invite">Invite friends</Link>
+            <form action={signOut}><button type="submit" data-testid="sign-out">Sign out</button></form>
+          </div>
+        </details>
+      ) : (
+        <div className="auth-actions" data-testid="auth-actions">
+          <Link className="signin" href="/signin">Sign in</Link>
+          <Link className="btn" href="/join" data-testid="create-profile">{account ? 'Finish profile' : 'Create profile'}</Link>
+        </div>
+      )}
+    </>
+  );
+}
+// Same footprint as the signed-out header while the account loads, invisible and not focusable.
+const HeaderAccountFallback = () => (
+  <>
+    <div className="season-pill" style={{ visibility: 'hidden' }} aria-hidden="true">S00 / NOV &apos;26</div>
+    <div className="auth-actions" style={{ visibility: 'hidden' }} aria-hidden="true"><span className="signin">Sign in</span><span className="btn">Create profile</span></div>
+  </>
+);
+
+async function FooterLine() {
+  const ds = await getDataSource();
+  return (
+    <>
+      <span>BAAP KA PAISA © {ds.season().year}</span>
+      <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
+    </>
+  );
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-IN">
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
         <div className="topline">
           <div className="live"><i className="dot" aria-hidden="true" /> The public status register <span style={{ opacity: .5 }}>/</span> India</div>
-          <div className="rightline">
-            {open && <>
-              <span className="opt">{season.label}</span>
-              <span className="opt" aria-hidden="true">•</span>
-              <span className="opt">{left.closed ? 'Season closed' : `${left.days} days left`}</span>
-            </>}
-            {ds.availability === 'demo' && <span className="demo-flag" data-testid="demo-flag">Demo data</span>}
-            {!open && <span className="demo-flag">Rankings not open yet</span>}
-            {open && ds.availability === 'live' && testSeason() && <span className="demo-flag" data-testid="test-season-flag">Test season</span>}
-          </div>
+          <div className="rightline"><Suspense fallback={null}><SeasonLine /></Suspense></div>
         </div>
         <Suspense fallback={null}><NavProgress /></Suspense>
         <ProfileDialogProvider>
@@ -62,32 +117,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </Link>
               <MainNav />
               <div className="header-right">
-                <div className="season-pill">{season.short}</div>
-                {viewer ? (
-                  <details className="profile-menu" data-testid="profile-menu">
-                    <summary aria-label={`Account menu for ${viewerLabel}`}>
-                      <span className="avatar-mini" aria-hidden="true">{initials(viewerLabel!)}</span>
-                      <span className="who">{viewer.member.masked ? viewer.member.publicLabel : `@${viewer.member.username}`}<small>{ds.availability === 'demo' ? 'Demo member · ' : ''}No. {memberNo(viewer.member.memberNo)}</small></span>
-                    </summary>
-                    <div className="menu">
-                      <Link href="/seal">The Seal</Link>
-                      <Link href="/me">Profile</Link>
-                      <Link href="/invite">Invite friends</Link>
-                      <form action={signOut}><button type="submit" data-testid="sign-out">Sign out</button></form>
-                    </div>
-                  </details>
-                ) : (
-                  <div className="auth-actions" data-testid="auth-actions">
-                    <Link className="signin" href="/signin">Sign in</Link>
-                    <Link className="btn" href="/join" data-testid="create-profile">{account ? 'Finish profile' : 'Create profile'}</Link>
-                  </div>
-                )}
+                <Suspense fallback={<HeaderAccountFallback />}><HeaderAccount /></Suspense>
               </div>
             </header>
             <main id="main">{children}</main>
             <footer className="site-footer">
-              <span>BAAP KA PAISA © {season.year}</span>
-              <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
+              <Suspense fallback={<span>BAAP KA PAISA</span>}><FooterLine /></Suspense>
               <nav aria-label="Explore" className="footer-links">
                 <Link href="/join">Create profile</Link><Link href="/invite">Invite</Link><Link href="/archive">Archive</Link><Link href="/throne">Throne history</Link><Link href="/closing">The Closing</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
               </nav>

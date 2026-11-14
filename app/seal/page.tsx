@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource } from '@/lib/data';
+import { getDataSourceEarly } from '@/lib/data';
 import { LEVEL_LABEL, STATES, cityById, scopeName } from '@/lib/geo';
 import { inr, memberNo, pad2 } from '@/lib/format';
 import { Seal } from '@/components/Seal';
@@ -14,9 +14,10 @@ import { Crown, PastChampionMark } from '@/components/Crown';
 export const metadata: Metadata = { title: 'The Seal' };
 
 export default async function SealPage() {
-  const ds = await getDataSource();
+  // The member's own profile and standings load in the same round trip as the season row.
+  const ds = await getDataSourceEarly();
+  const [viewer] = await Promise.all([ds.viewer(), ds.ready()]);
   const season = ds.season();
-  const viewer = await ds.viewer();
   const intro = (
     <section className="page-intro">
       <div><div className="eyebrow">Permanent member identity / 04</div><h1>The Seal.<br />Your status.</h1></div>

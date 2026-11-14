@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource, rankingsOpen } from '@/lib/data';
+import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
 import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
@@ -13,8 +13,11 @@ export const metadata: Metadata = { title: 'The Board' };
 
 export default async function BoardPage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; q?: string; view?: string }> }) {
   const sp = await searchParams;
-  const ds = await getDataSource();
-  const viewer = await ds.viewer();
+  // Reads start without waiting for the season row; only the member's own profile (one prefetched read) decides
+  // which board to show when the address names none.
+  const ds = await getDataSourceEarly();
+  const named = !!sp.city && (sp.level !== 'locality' || !!sp.locality);   // the address fully decides the board
+  const viewer = named ? null : await ds.viewerMember().then((member) => (member ? { member } : null));
   const scope = parseScope(sp, viewer?.member.cityId, viewer?.member.locality);
   const view = parseView(sp.view);
   const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
@@ -24,6 +27,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
     view === 'hall' ? ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? ds.respectBoard(scope, { limit: 100 }) : null,
     view === 'season' && (scope.level === 'city' || scope.level === 'locality') ? ds.mostBacked(scope.cityId, 100) : null,
   ]);
+  await ds.ready();
   const board = other ?? (view === 'movers' ? movers(seasonBoard) : seasonBoard);
   const backers = backed ? Object.fromEntries(backed.map((b) => [b.member.username, b.backers])) : undefined;
   const city = cityById(scope.cityId)!;
@@ -33,6 +37,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const href = (l: string, vw: string) => `/board?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}${vw !== 'season' ? `&view=${vw}` : ''}`;
   const levelHref = (l: string) => href(l, view);
   const v = seasonBoard.viewerRow;
+  const me = viewer?.member ?? (await ds.viewerMember());
   const unavailable = !rankingsOpen(ds);
 
   return (
@@ -79,8 +84,8 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           ) : (
             <>
               <div className="big">—</div>
-              <h3>{viewer ? <>Not on<br />this board.</> : <>Not on the<br />register yet.</>}</h3>
-              <p>{viewer ? `Your boards are ${viewer.member.locality}, ${CITY_NAMES[viewer.member.cityId]}, and their state and India boards.` : 'Create a profile to see your own row here.'}</p>
+              <h3>{me ? <>Not on<br />this board.</> : <>Not on the<br />register yet.</>}</h3>
+              <p>{me ? `Your boards are ${me.locality}, ${CITY_NAMES[me.cityId]}, and their state and India boards.` : 'Create a profile to see your own row here.'}</p>
             </>
           )}
           <div className="aside-stat"><span>Season</span><b>{season.label}</b></div>

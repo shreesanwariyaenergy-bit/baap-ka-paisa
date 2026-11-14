@@ -7,6 +7,8 @@ export function unavailableSource(seasonOneMonth?: string | null): DataSource {
   return {
     availability: 'unavailable',
     now: () => new Date(),
+    ready: async () => {},
+    viewerMember: async () => null,
     season: () => seasonFor(new Date(), seasonOneMonth),
     async board(scope) { return { scope, rows: [], total: 0, viewerRow: null }; },
     async hallOfFame(scope) { return { scope, rows: [], total: 0, viewerRow: null }; },

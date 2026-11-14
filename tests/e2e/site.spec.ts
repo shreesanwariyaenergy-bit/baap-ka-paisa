@@ -287,6 +287,22 @@ test.describe('season simulator (server-side engine)', () => {
     await expect(page.getByTestId('sim-result')).toContainText('Season extended');
     await expect(page.locator('.rank-row.first')).toHaveAttribute('data-member', 'sim.zoya');
   });
+  test('the first tap while a Crown Moment is open reaches what was tapped (closes and navigates)', async ({ page }) => {
+    await page.goto('/simulator?step=7');
+    await expect(page.getByTestId('crown-moment')).toBeVisible();
+    const link = page.locator('nav.main-nav a[href="/india"]').first();
+    const box = (await link.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);   // a real tap on the backdrop above the link
+    await expect(page).toHaveURL(/\/india$/);
+    await expect(page.getByTestId('crown-moment')).toHaveCount(0);
+  });
+  test('a tap on an empty part of the Crown Moment backdrop only closes it', async ({ page }) => {
+    await page.goto('/simulator?step=7');
+    await expect(page.getByTestId('crown-moment')).toBeVisible();
+    await page.mouse.click(5, 420);
+    await expect(page.getByTestId('crown-moment')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/simulator\?step=7$/);
+  });
   test('closing freezes the result and awards the Season Crown', async ({ page }) => {
     await page.goto('/simulator?step=10');
     await expect(page.getByTestId('sim-closed')).toContainText('2 extensions');

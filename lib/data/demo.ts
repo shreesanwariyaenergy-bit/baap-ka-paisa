@@ -256,6 +256,8 @@ async function forViewer(b: Board): Promise<Board> {
 export const demoSource: DataSource = {
   availability: 'demo',
   now: () => new Date(SIM_NOW),
+  ready: async () => {},
+  async viewerMember() { return (await demoSource.viewer())?.member ?? null; },
   season: (): SeasonInfo => {
     const base = seasonFor(new Date(CURRENT.startsAt), null);
     return { ...base, number: CURRENT.id, startsAt: new Date(CURRENT.startsAt), endsAt: new Date(CURRENT.endsAt), label: seasonLabel(CURRENT.id),

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getDataSource } from '@/lib/data';
+import { getDataSource, getDataSourceEarly } from '@/lib/data';
 import { LEVEL_LABEL, STATES, cityById, scopeName } from '@/lib/geo';
 import { inr, memberNo, pad2 } from '@/lib/format';
 import { Crown } from '@/components/Crown';
@@ -23,20 +23,25 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function MemberPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const ds = await getDataSource();
-  const m = await ds.member(decodeURIComponent(username));
-  if (!m) notFound();
-  // Everything below depends only on the member and the viewer, so it is read in one parallel batch.
-  const viewer = await ds.viewer();
-  const isSelf = viewer?.member.username === m.username;
+  // Every read that depends only on the name in the address starts at once, in the same round trip as the season
+  // row and the member lookup, instead of waiting for the lookup and then the viewer.
+  const ds = await getDataSourceEarly();
+  const addressName = decodeURIComponent(username);
   const demo = ds.availability === 'demo';
-  const [standings, achievements, allReigns, social, backing, myBacking, recentMoments, handles, feudAll, liveState, viewerSocial] = await Promise.all([
-    ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 100 }), ds.social(m.username),
-    ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null,
+  const byName = (n: string) => Promise.all([ds.standings(n), ds.achievements(n), ds.throneHistory({ username: n, limit: 100 }), ds.social(n), ds.backing(n), ds.socials(n), ds.declarations({ username: n })] as const);
+  const earlyP = byName(addressName); earlyP.catch(() => {});
+  const [m, me] = await Promise.all([ds.member(addressName), ds.viewerMember()]);
+  if (!m) notFound();
+  const viewer = me ? { member: me } : null;
+  const isSelf = viewer?.member.username === m.username;
+  // The lookup can return the stored spelling of the name; reads are only reused when they were made for it.
+  const [[standings, achievements, allReigns, social, backing, socialsRaw, feudAll], myBacking, recentMoments, liveState, viewerSocial] = await Promise.all([
+    m.username === addressName ? earlyP : byName(m.username),
+    viewer && !isSelf ? ds.backing(viewer.member.username) : null,
     ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)),
-    m.masked ? null : ds.socials(m.username), ds.declarations({ username: m.username }),
     viewer && !demo && !isSelf ? socialState(m.username) : null, viewer && demo ? ds.social(viewer.member.username) : null,
   ]);
+  const handles = m.masked ? null : socialsRaw;
   const reigns = allReigns.slice(0, 10);
   const grouped = groupAchievements(achievements);
   const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: viewerSocial?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;

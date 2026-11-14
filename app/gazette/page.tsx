@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource, rankingsOpen } from '@/lib/data';
+import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, DEFAULT_CITY_ID, cityById, type Scope } from '@/lib/geo';
 import { buildEdition } from '@/lib/gazette';
 import { inr, inrShort } from '@/lib/format';
@@ -10,15 +10,18 @@ export const metadata: Metadata = { title: 'The Gazette' };
 
 export default async function GazettePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;
-  const ds = await getDataSource();
-  const viewer = await ds.viewer();
-  const city = cityById(sp.city) ?? cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
+  // Reads start in the same round trip as the season row; the member's own profile (one prefetched read) is only
+  // needed when the address names no city.
+  const ds = await getDataSourceEarly();
+  const viewerCity = cityById(sp.city) ? null : (await ds.viewerMember())?.cityId;
+  const city = cityById(sp.city) ?? cityById(viewerCity) ?? cityById(DEFAULT_CITY_ID)!;
   const scope: Scope = { level: 'city', cityId: city.id, locality: city.localities[0] };
   const now = ds.now();
   const [board, reigns, moments, events, cities, respect, backed, declarations] = await Promise.all([
     ds.board(scope, { limit: 10 }), ds.throneHistory({ scope, limit: 40 }), ds.crownMoments(scope, new Date(now.getTime() - 7 * 86_400_000)),
     ds.events(scope, 12), ds.cities(), ds.respectBoard(scope, { limit: 3 }), ds.mostBacked(city.id, 3), ds.declarations({ cityId: city.id }),
   ]);
+  await ds.ready();
   const ed = buildEdition({ city, season: ds.season(), now, open: rankingsOpen(ds), board, reigns, moments, events, cities, respect, backed, declarations });
   return (
     <article className="gazette" data-testid="gazette">

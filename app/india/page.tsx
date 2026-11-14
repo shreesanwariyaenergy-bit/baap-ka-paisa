@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDataSource, rankingsOpen } from '@/lib/data';
+import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { cityById, DEFAULT_CITY_ID } from '@/lib/geo';
 import { inrShort, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -9,11 +9,13 @@ import { CITY_NAMES } from '@/components/cityNames';
 export const metadata: Metadata = { title: 'India' };
 
 export default async function IndiaPage() {
-  const ds = await getDataSource();
-  const season = ds.season();
-  // The India board is the same for everyone (the city only labels it), so it is read alongside the rest.
+  // Every read starts in the same round trip as the season row. The India board is the same for everyone (the city
+  // only labels it); the member's own profile is one prefetched read.
+  const ds = await getDataSourceEarly();
   const def = cityById(DEFAULT_CITY_ID)!;
-  const [summaries, viewer, national] = await Promise.all([ds.cities(), ds.viewer(), ds.board({ level: 'india', cityId: def.id, locality: def.localities[0] }, { limit: 5 })]);
+  const [summaries, me, national] = await Promise.all([ds.cities(), ds.viewerMember(), ds.board({ level: 'india', cityId: def.id, locality: def.localities[0] }, { limit: 5 }), ds.ready()]);
+  const viewer = me ? { member: me } : null;
+  const season = ds.season();
   const homeCity = cityById(viewer?.member.cityId) ?? def;
   const mine = summaries.find((s) => s.cityId === homeCity.id);
   const movers = summaries.filter((s) => s.previousRank !== null && s.previousRank !== s.rank);

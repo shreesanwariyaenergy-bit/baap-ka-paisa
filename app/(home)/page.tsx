@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { getDataSource, rankingsOpen } from '@/lib/data';
-import type { Board, BoardEvent } from '@/lib/data/types';
+import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
+import type { Board, BoardEvent, CitySummary } from '@/lib/data/types';
+import { Suspense } from 'react';
 import { CITIES, STATES, cityById, DEFAULT_CITY_ID, featuredCities, scopeName, type Level, type Scope } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
@@ -25,20 +26,25 @@ function eventText(e: BoardEvent) {
 
 export default async function ScenePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;
-  const ds = await getDataSource();
-  const season = ds.season();
-  const left = timeLeft(season, ds.now());
-  const viewer = await ds.viewer();
-  const city = cityById(sp.city) ?? cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
-  const locality = viewer && viewer.member.cityId === city.id ? viewer.member.locality : city.localities[0];
+  // Reads start in the same round trip as the season row. Only the member's own profile (one prefetched read)
+  // is needed before them, to pick the city; the full viewer (standings) is read alongside the rest.
+  const ds = await getDataSourceEarly();
+  const me = await ds.viewerMember();
+  const city = cityById(sp.city) ?? cityById(me?.cityId) ?? cityById(DEFAULT_CITY_ID)!;
+  const locality = me && me.cityId === city.id ? me.locality : city.localities[0];
   const scopes = Object.fromEntries(LEVELS.map((l) => [l, { level: l, cityId: city.id, locality } satisfies Scope])) as Record<Level, Scope>;
   // Every read below depends only on the city, so they run together: the page waits for the slowest, not the sum.
   const since = new Date(ds.now().getTime() - 86_400_000);
-  const [boardList, events, moments, summaries, reigns, archive, respect, declared, mySocial] = await Promise.all([
+  // The city summaries (45 cities) are the slowest read and only feed the Gazette headline and the featured
+  // cities: they stream into those two sections instead of holding back the whole page.
+  const summariesP = ds.cities();
+  const [boardList, events, moments, reigns, archive, respect, declared, mySocial, viewer] = await Promise.all([
     Promise.all(LEVELS.map((l) => ds.board(scopes[l], { limit: 10 }))), ds.events(scopes.city, 3), ds.crownMoments(scopes.city, since),
-    ds.cities(), ds.throneHistory({ scope: scopes.city, limit: 40 }), ds.archive(), ds.respectBoard(scopes.city, { limit: 1 }),
-    ds.declarations({ cityId: city.id }), viewer ? ds.social(viewer.member.username) : null,
+    ds.throneHistory({ scope: scopes.city, limit: 40 }), ds.archive(), ds.respectBoard(scopes.city, { limit: 1 }),
+    ds.declarations({ cityId: city.id }), me ? ds.social(me.username) : null, ds.viewer(), ds.ready(),
   ]);
+  const season = ds.season();
+  const left = timeLeft(season, ds.now());
   const boards = Object.fromEntries(LEVELS.map((l, n) => [l, boardList[n]])) as Record<Level, Board>;
   const names = Object.fromEntries(LEVELS.map((l) => [l, scopeName(scopes[l])])) as Record<Level, string>;
   const cityBoard = boards.city;
@@ -53,7 +59,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const second = cityBoard.rows[1];
   const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
 
-  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns, moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect });
+  const editionInput = { city, season, now: ds.now(), open, board: cityBoard, reigns, moments: latestMoment ? [latestMoment] : [], events, respect };
   const myCity = viewer?.standings.find((s) => s.level === 'city');
   // Rival strip: each rival's current city rank next to yours.
   const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: mySocial?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
@@ -90,9 +96,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       {open && season.endsAt.getTime() - ds.now().getTime() < 86_400_000 && (
         <Link className="gz-strip" href={`/closing?city=${city.id}`} data-testid="closing-strip"><small>The Closing</small><b>The board closes within a day. Watch the final stretch.</b><span>Open ↗</span></Link>
       )}
-      <Link className="gz-strip" href={`/gazette?city=${city.id}`} data-testid="gazette-strip">
-        <small>The {city.name} Gazette</small><b>{edition.lead.headline}</b><span>Read today&apos;s edition ↗</span>
-      </Link>
+      <Suspense fallback={<GazetteStripView cityId={city.id} cityName={city.name} headline={'\u00a0'} pending />}>
+        <GazetteStrip summariesP={summariesP} input={editionInput} />
+      </Suspense>
 
       {latestMoment && (
         <CrownMoment moment={{ id: `${latestMoment.boardName}-${latestMoment.at.getTime()}`, boardName: latestMoment.boardName, toName: nm(latestMoment.to),
@@ -172,14 +178,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
 
       <div className="section-head"><div><p>Territories</p><h2>Pick your ground</h2></div>
         <Link className="textlink" href="/cities">All {CITIES.length} cities ↗</Link></div>
-      <div className="terr-grid" data-testid="featured-cities">
-        {featuredCities({ viewerCityId: viewer?.member.cityId, currentCityId: city.id, summaries }).map((c) => { const sm = summaries.find((x) => x.cityId === c.id); return (
-          <Link className="terr" key={c.id} href={`/?city=${c.id}`} aria-current={c.id === city.id ? 'true' : undefined} scroll={false}>
-            <small>{STATES[c.state]}</small><b>{c.name}</b>
-            <span>{sm ? `${sm.members} ranked · #${pad2(sm.rank)} city` : 'Open territory'}</span>
-          </Link>
-        ); })}
-      </div>
+      <Suspense fallback={<FeaturedCitiesView viewerCityId={me?.cityId ?? null} currentCityId={city.id} summaries={null} />}>
+        <FeaturedCities summariesP={summariesP} viewerCityId={me?.cityId ?? null} currentCityId={city.id} />
+      </Suspense>
       <Link className="btn explore-cities" href="/cities" data-testid="explore-cities">Explore all {CITIES.length} cities <span className="arrow">→</span></Link>
       <div className="loc-chips" aria-label={`Localities in ${city.name}`}>
         {city.localities.filter((l) => l !== 'Other').map((l) => (
@@ -218,4 +219,34 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       </div>
     </>
   );
+}
+
+// ---- Sections fed by the city summaries, streamed so the rest of the page does not wait for them ----
+type EditionInput = Omit<Parameters<typeof buildEdition>[0], 'cities'>;
+// Placeholders (pending) carry no test id: while a streamed section is swapped in, both briefly exist in the page.
+function GazetteStripView({ cityId, cityName, headline, pending = false }: { cityId: string; cityName: string; headline: string; pending?: boolean }) {
+  return (
+    <Link className="gz-strip" href={`/gazette?city=${cityId}`} data-testid={pending ? undefined : 'gazette-strip'}>
+      <small>The {cityName} Gazette</small><b>{headline}</b><span>Read today&apos;s edition ↗</span>
+    </Link>
+  );
+}
+async function GazetteStrip({ summariesP, input }: { summariesP: Promise<CitySummary[]>; input: EditionInput }) {
+  const edition = buildEdition({ ...input, cities: await summariesP });
+  return <GazetteStripView cityId={input.city.id} cityName={input.city.name} headline={edition.lead.headline} />;
+}
+function FeaturedCitiesView({ viewerCityId, currentCityId, summaries }: { viewerCityId: string | null; currentCityId: string; summaries: CitySummary[] | null }) {
+  return (
+    <div className="terr-grid" data-testid={summaries ? 'featured-cities' : undefined} aria-busy={summaries ? undefined : true}>
+      {featuredCities({ viewerCityId, currentCityId, summaries: summaries ?? [] }).map((c) => { const sm = summaries?.find((x) => x.cityId === c.id); return (
+        <Link className="terr" key={c.id} href={`/?city=${c.id}`} aria-current={c.id === currentCityId ? 'true' : undefined} scroll={false}>
+          <small>{STATES[c.state]}</small><b>{c.name}</b>
+          <span>{!summaries ? '\u00a0' : sm ? `${sm.members} ranked · #${pad2(sm.rank)} city` : 'Open territory'}</span>
+        </Link>
+      ); })}
+    </div>
+  );
+}
+async function FeaturedCities({ summariesP, viewerCityId, currentCityId }: { summariesP: Promise<CitySummary[]>; viewerCityId: string | null; currentCityId: string }) {
+  return <FeaturedCitiesView viewerCityId={viewerCityId} currentCityId={currentCityId} summaries={await summariesP} />;
 }
