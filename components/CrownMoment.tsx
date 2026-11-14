@@ -21,6 +21,18 @@ export function CrownMoment({ moment, autoPlay = true }: { moment: CrownMomentDa
     window.addEventListener('keydown', onKey);
     return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
   }, [open]);
+  // A tap on the backdrop closes the takeover AND reaches what was tapped underneath (a link, a button, a field),
+  // so the visitor's first tap is never swallowed by the overlay.
+  const passThrough = (e: React.MouseEvent<HTMLDivElement>) => {
+    const overlay = e.currentTarget;
+    overlay.style.pointerEvents = 'none';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    overlay.style.pointerEvents = '';
+    setOpen(false);
+    const target = under?.closest<HTMLElement>('a[href], button, summary, select, input, textarea, [role="button"]');
+    if (!target) return;
+    if (target.matches('input, select, textarea')) target.focus(); else target.click();
+  };
   return (
     <>
       <div className="crown-strip" data-testid="crown-strip">
@@ -29,7 +41,7 @@ export function CrownMoment({ moment, autoPlay = true }: { moment: CrownMomentDa
         <button type="button" onClick={() => setOpen(true)} data-testid="crown-replay">Watch the Crown Moment</button>
       </div>
       {open && (
-        <div className="crown-moment" role="dialog" aria-modal="true" aria-labelledby="cm-title" data-testid="crown-moment" onClick={() => setOpen(false)}>
+        <div className="crown-moment" role="dialog" aria-modal="true" aria-labelledby="cm-title" data-testid="crown-moment" onClick={passThrough}>
           <div className="cm-card" onClick={(e) => e.stopPropagation()}>
             <p className="cm-kicker">{moment.seasonLabel} · {moment.boardName}{moment.simulated ? ' · Simulation' : ''}</p>
             <div className="cm-insignia" aria-hidden="true"><span className="cm-crown"><Crown /></span><span className="cm-01">01</span></div>

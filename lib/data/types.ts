@@ -126,7 +126,12 @@ export interface DataSource {
   availability: Availability;
   /** "As of" clock used for season maths. Real time, or a fixed clock for demo data. */
   now(): Date;
+  /** The current season. Only valid after `ready()` has resolved (always true for getDataSource()). */
   season(): SeasonInfo;
+  /** The signed-in member's own public profile, from one read (no standings or record). Null when signed out. */
+  viewerMember(): Promise<PublicMember | null>;
+  /** Resolves once the season row has loaded. getDataSourceEarly() callers await it before calling season(). */
+  ready(): Promise<void>;
   board(scope: Scope, opts?: { limit?: number; query?: string }): Promise<Board>;
   /** Lifetime Score ranking across all seasons. Never resets. */
   hallOfFame(scope: Scope, opts?: { limit?: number }): Promise<Board>;

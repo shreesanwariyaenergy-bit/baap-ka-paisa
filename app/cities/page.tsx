@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
-import { getDataSource, rankingsOpen } from '@/lib/data';
+import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, REGIONS, STATES, STATE_ORDER } from '@/lib/geo';
 import { CityIndex, type CityCardData } from '@/components/CityIndex';
 
 export const metadata: Metadata = { title: 'Cities' };
 
 export default async function CitiesPage() {
-  const ds = await getDataSource();
-  const [summaries, viewer] = await Promise.all([ds.cities(), ds.viewer()]);
+  // Reads start in the same round trip as the season row; only the member's own profile (one prefetched read) is needed.
+  const ds = await getDataSourceEarly();
+  const [summaries, me] = await Promise.all([ds.cities(), ds.viewerMember(), ds.ready()]);
+  const viewer = me ? { member: me } : null;
   const cards: CityCardData[] = CITIES.map((c) => {
     const s = summaries.find((x) => x.cityId === c.id);
     return { id: c.id, name: c.name, stateCode: c.state, stateName: STATES[c.state], region: c.region, mark: c.mark, nickname: c.nickname ?? STATES[c.state],

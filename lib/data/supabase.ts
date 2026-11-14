@@ -61,7 +61,11 @@ export function prefetchViewer(cfg: Cfg, token: string) {
   if (!early.has(key)) { early.set(key, rpcRaw(cfg, 'get_me', {}, token).catch(() => [])); setTimeout(() => early.delete(key), 10_000); }
 }
 
-export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string | null = null): DataSource {
+export function supabaseSource(base: Cfg, seasonP: Promise<SeasonInfo>, token: string | null = null): DataSource {
+  // The season row arrives in parallel with the page's own reads (getDataSourceEarly); season() is valid once ready().
+  let seasonCache: SeasonInfo | null = null;
+  const readyP = seasonP.then((s) => { seasonCache = s; });
+  readyP.catch(() => {});   // a failure still reaches every caller that awaits ready(); this only avoids an unhandled-rejection report
   // Reads carry the member's own token when signed in, so the database can mark "your row".
   const cfg = base;
   // One data source exists per request (lib/data/index.ts), so identical reads within a request are made once
@@ -75,16 +79,29 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
     return p;
   };
   let viewerP: ReturnType<DataSource['viewer']> | null = null;
-  async function loadViewer(): ReturnType<DataSource['viewer']> {
-    if (!token) return null;
-    const recordP = rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => []);   // started now, used below
-      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
+  type MeRow = { username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number };
+  // The member's own profile: one read (prefetched in lib/data/index.ts), shared by viewerMember() and viewer().
+  let meP: Promise<{ me: MeRow; member: PublicMember; lifetime: number } | null> | null = null;
+  function loadMe() {
+    if (!meP) meP = (async () => {
+      if (!token) return null;
+      const me = (await rpc<MeRow[]>(cfg, 'get_me'))[0];
       if (!me) return null; // account exists but has no member profile yet
       const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
       const lifetime = Math.round(Number(me.lifetime_paise) / 100);
       // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
       const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
         cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
+      return { me, member, lifetime };
+    })();
+    return meP;
+  }
+  async function loadViewer(): ReturnType<DataSource['viewer']> {
+    if (!token) return null;
+    const recordP = rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => []);   // started now, used below
+      const mine = await loadMe();
+      if (!mine) return null;
+      const { me, member, lifetime } = mine; const publicName = member.username;
       const [standings, archive] = await Promise.all([src.standings(publicName), recordP]);
       const joined = seasonFor(new Date(me.joined_at), null);
       const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
@@ -98,7 +115,8 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
   const src: DataSource = {
     availability: 'live',
     now: () => new Date(),
-    season: () => seasonCache,
+    season: () => { if (!seasonCache) throw new Error('season() read before ready()'); return seasonCache; },
+    ready: () => readyP,
     async board(scope, opts = {}) {
       const rows = await rpc<BoardDbRow[]>(cfg, 'get_board', { ...boardArgs(scope), p_limit: opts.limit ?? 100, p_query: opts.query || null });
       const limit = opts.limit ?? 100;
@@ -137,6 +155,7 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       if (!viewerP) viewerP = loadViewer();
       return viewerP;
     },
+    async viewerMember() { return (await loadMe())?.member ?? null; },
 
     async cities() {
       const rows = await rpc<{ city_id: string; members: number; season_total_paise: number; leader_name: string | null; leader_masked: boolean | null; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries');
@@ -185,8 +204,9 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
         pick_rank: number | null; pick_of: number | null; pick_gap_paise: number | null; pick_since: string | null; history: { season_id: number; name: string; display: string | null; masked: boolean; city: string; final_rank: number | null }[] }[]>(cfg, 'get_backing', { p_name: name }).catch(() => null);
       const r = rows?.[0];
       if (!r) return null;
+      await readyP;
       return {
-        open: r.season_id !== null, seasonLabel: r.season_id ? `Season ${r.season_id}` : seasonCache.label, backers: r.backers, contender: r.contender,
+        open: r.season_id !== null, seasonLabel: r.season_id ? `Season ${r.season_id}` : seasonCache!.label, backers: r.backers, contender: r.contender,
         pick: r.pick_name ? { member: lite(r.pick_name, r.pick_display, !!r.pick_masked, r.pick_city!, r.pick_locality!), cityRank: r.pick_rank, cityOf: r.pick_of ?? 0, gapToFirst: Math.round(Number(r.pick_gap_paise ?? 0) / 100), since: new Date(r.pick_since!) } : null,
         history: r.history.map((h) => ({ seasonLabel: `Season ${h.season_id}`, member: lite(h.name, h.display, h.masked, h.city, ''), finalRank: h.final_rank, crowned: h.final_rank === 1 })),
       } satisfies BackingView;
