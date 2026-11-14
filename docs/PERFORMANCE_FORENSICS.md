@@ -147,6 +147,30 @@ Breakdown of a typical tap after repair, from these measurements: browser feedba
 on a cold connection; the rest is network distance (US workspace here; roughly 50–100 ms round trip in India on 4G,
 not measured from India).
 
+## D2. After deployment to the preview (`154f3af`, `dpl_BX2ScaHJQf6dSk1esiS1GoUDPMjT`, `bom1`, staging data)
+
+Measured after the push, on the real deployment:
+
+| Measurement | Before (`087f92a` preview) | After (`154f3af` preview) |
+|---|---|---|
+| Hydration / stream-swap errors, live loads through this workspace | 4 routes per run affected; ~15 % of loads | **0 of 40** |
+| Full HTML **from Mumbai** (staging database server fetching each page, 5 rounds, p50 / max): Home | 229 / 500 ms | 209 / 257 ms |
+| City board | 109 / 131 ms | 104 / 117 ms |
+| Cities | 200 / 249 ms | 193 / 205 ms |
+| Gazette | 191 / 256 ms | 195 / 242 ms |
+| Phone emulation from the US: taps Cities → Jaipur / board → Home / Home → India / India → Gazette | 1,128 / 1,041 / 1,003 / 1,047 ms | 1,002 / 1,003 / 1,033 / 1,091 ms |
+| Phone emulation from the US: city picker / locality picker | 912 / 713 ms | 766 / 719 ms |
+| Phone emulation from the US: Home cold content p50 / p95 | 1,521 / 3,058 ms | 1,535 / 2,366 ms |
+| Console errors | React #418 | none |
+
+What this means: from India, page HTML now arrives in about 0.1–0.26 s (Mumbai measurement), and the large
+local gains (which came from removing database round trips that cost ~250 ms each from this US workspace) shrink to
+tens of milliseconds per page in Mumbai, where a round trip costs 20–50 ms. The decisive user-facing changes on the
+deployment are: the page shell and skeleton are no longer held back by database reads, worst-case Home loads are
+halved, and the hydration failure that made the phone rebuild part of the page on about 15 % of loads is gone. From
+this US workspace, ~550 ms of every request is distance that no code change can remove. A real phone in India has
+still not been measured.
+
 ## E. Root causes, ranked
 
 | # | Cause | Where | Status | Previous work | Correction | Measure |
@@ -176,12 +200,12 @@ not measured from India).
 
 Checks on the repaired code: TypeScript pass; lint pass; unit 121/121; production build pass; browser tests
 (demo, visitor, unavailable) 83/83; no console or page errors in any measurement run. Database code unchanged.
-**Not deployed:** the live preview and production still run `087f92a`/`c502dc2` without these repairs.
+Deployed to the preview as `154f3af` (see D2); production still runs `c502dc2` without these repairs.
 
 ## G. Remaining blockers and limits
 
-- Repairs are local only; they need a commit, a preview deployment and the same measurements on the preview
-  (your approval), then production.
+- Repairs are on the preview (`154f3af`, measured in D2) but not in production: a merge and production deployment
+  need your approval.
 - Connection reuse to Supabase (cause 9) is the largest remaining server lever; it needs a deployed test.
 - `get_city_summaries()` (cause 10) needs a database-function rewrite before large membership (migration, approval).
 - `season_scores` and the other pending migrations are not in production (boards are computed from the ledger there).
@@ -192,7 +216,6 @@ Checks on the repaired code: TypeScript pass; lint pass; unit 121/121; productio
 ## H. Release readiness
 
 **CONDITIONALLY READY**, provided:
-1. The repairs are committed, deployed to the preview and re-measured there (same scripts), then released to
-   production.
+1. The repairs (preview-verified in D2) are released to production.
 2. A real phone in India confirms taps in well under a second on 4G.
 3. Before large membership: the `get_city_summaries()` rewrite and the `season_scores` migration in production.
