@@ -5,7 +5,7 @@
 
 ## Verdict
 
-**Ready to deploy the application code, with three pre-deploy steps (A1–A3), all needing your approval.**
+**Ready to deploy the application code. The three pre-deploy steps (A1–A3) are completed; the deploy waits for your UI changes and your approval.**
 No blocker comes from the new code itself. Every feature that needs a pending migration was checked: each degrades to
 an honest "being switched on" state against the production database. Production has 0 members, 0 seasons and
 0 ledger rows, so nothing live can be lost or corrupted by the deploy, and rollback is instant.
@@ -125,13 +125,19 @@ runs in Mumbai (30–75 ms, measured in the traces).
   tokens. It should not be set on production.
 - **Sessions:** cookies are per host. Preview, `vercel.app` and `baapkapaisa.com` sessions are separate.
 
-## Blockers (must be done before the production deploy; each needs your approval)
+## Blockers: all three completed (14 November 2026)
 
-| # | Item | Why |
+| # | Item | Status |
 |---|---|---|
-| A1 | Read-only check of the new build against production, signed out, run locally (as in section 8) | Confirms against the real production schema what the code review in section 2 shows |
-| A2 | Set production `BKP_SITE_URL` to `https://baapkapaisa.com` (production variable, your approval) | It is still `https://baap-ka-paisa.vercel.app`, so Seal QR codes would point to the old address |
-| A3 | In Supabase Auth for production, add `https://baapkapaisa.com` as the Site URL and an allowed redirect (an auth setting: you change it, or approve me doing it) | Password-reset and confirmation emails link to the address the request came from; links from the new domain fail if it is not allowed |
+| A1 | Read-only check of the new build against production, signed out, run locally | **Done, passed.** All 35 routes: 30 return 200 and 5 return the expected 404s for items not in production. Health `checks: "not installed"`. Public journey passes on desktop and iPhone with no console or HTTP errors and no sideways overflow. 288 database calls, all to 11 read-only functions; no write or Auth calls; no server errors. Production write counters identical before (14:38:35 UTC) and after (14:47:02 UTC): 301 historical writes, 0 Auth users, 0 sessions, 0 members, 0 seasons, 0 ledger rows |
+| A2 | Production `BKP_SITE_URL` | **Done.** Changed by me with your approval and read back from Vercel: `https://baapkapaisa.com`, target Production only (variable `yuxm9CFsJQt4p5xD`). Previously `https://baap-ka-paisa.vercel.app`. No Preview or Development value exists; the other eight variables are unchanged; no deployment was triggered. Takes effect with the next production deployment |
+| A3 | Supabase Auth URL configuration (production `kxbqaqbistbmxczyqbvq`) | **Done by the owner in the Supabase dashboard (reported, not readable by the available tools).** Site URL set to `https://baapkapaisa.com`; the authentication callback URLs for `https://baapkapaisa.com/auth/callback` were added (the app uses `/auth/callback` for confirmation and `/auth/callback?next=/reset` for password reset); existing entries kept |
+
+**After deploying, check A3 end to end:** request a password reset from `https://baapkapaisa.com/forgot` for a test
+address and confirm the email link opens `https://baapkapaisa.com/auth/callback…` and lands on `/reset`. This sends
+one email and creates no account.
+
+Open before the deploy, from you: the city expansion and footer/UI changes.
 
 ## Non-blocking (can follow the deploy)
 
