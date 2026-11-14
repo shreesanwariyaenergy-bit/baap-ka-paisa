@@ -37,6 +37,7 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
         <p>{ed.lead.body}</p>
         <div className="gz-share">
           <CopyLink path={`/gazette?city=${city.id}`} shareText={ed.shareLine} />
+          <a className="btn light" href={`/api/gazette-card/${city.id}`} target="_blank" rel="noopener noreferrer" data-testid="gazette-card-link">Front page as an image</a>
           {ed.quiet && <Link className="btn light" href="/join">Be the first name</Link>}
         </div>
       </section>

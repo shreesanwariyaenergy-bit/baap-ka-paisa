@@ -1,6 +1,9 @@
 -- Full season lifecycle and social actions, with test members only. Run by scripts/db-test.sh
 -- against a throwaway local Postgres. Never run against the live project.
 \set ON_ERROR_STOP 1
+-- This suite replays a season on a simulated clock, so it uses the owner-only import override.
+set bkp.ledger_clock = 'caller';
+update public.engine_settings set settle_seconds = 0;   -- the simulated clock closes seasons at their end; the settling window is tested in scripts/db-audit.sh
 create temp table t (k text primary key, u uuid);
 do $$
 declare
@@ -13,6 +16,7 @@ begin
   -- ---- registration gate (pending migration): closed, then allow-list, then open ----
   insert into auth.users (email, email_confirmed_at) values ('gate@test.invalid', now()) returning id into a;
   perform set_config('request.jwt.claim.sub', a::text, true);
+  perform set_config('request.jwt.claim.role', 'authenticated', true);
   begin perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu'); assert false, 'closed gate must refuse'; exception when insufficient_privilege then null; end;
   update public.registration_gate set mode = 'allowlist';
   begin perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu'); assert false, 'not on the list must be refused'; exception when insufficient_privilege then null; end;
@@ -20,6 +24,23 @@ begin
   update auth.users set email = 'Gate@Test.invalid' where id = a;
   insert into public.registration_allowlist (email) values ('gate@test.invalid');
   perform public.create_member('t.gate', 'Gate Test', date '1990-01-01', 'surat', 'Vesu');
+  -- identity: an allow-listed, signed-in account cannot create a profile under another account's id,
+  -- even on a path that skips row security (this block runs as the table owner with a member session)
+  insert into auth.users (email, email_confirmed_at) values ('victim@test.invalid', now()) returning id into v_tmp;
+  begin insert into public.members (id, username, display_name, city_id, locality_id) select v_tmp, 't.stolen', 'Stolen', 'surat', l.id from public.localities l where l.city_id = 'surat' limit 1;
+    assert false, 'profile for another account must be refused'; exception when insufficient_privilege then null; end;
+  begin perform public.create_member('t.gate2', 'Second', date '1990-01-01', 'surat', 'Vesu'); assert false, 'one profile per account'; exception when unique_violation then null; end;
+  -- an anonymous API request can never insert
+  perform set_config('request.jwt.claim.sub', '', true); perform set_config('request.jwt.claim.role', 'anon', true);
+  begin insert into public.members (id, username, display_name, city_id, locality_id) select v_tmp, 't.anon', 'Anon', 'surat', l.id from public.localities l where l.city_id = 'surat' limit 1;
+    assert false, 'anonymous insert must be refused'; exception when insufficient_privilege then null; end;
+  -- administrative insert (service role / owner connection, no member session) is allowed and bypasses the gate by design
+  perform set_config('request.jwt.claim.role', 'service_role', true);
+  update public.registration_gate set mode = 'closed';
+  insert into public.members (id, username, display_name, city_id, locality_id) select v_tmp, 't.admin', 'Admin Made', 'surat', l.id from public.localities l where l.city_id = 'surat' limit 1;
+  delete from public.members where id = v_tmp;
+  update public.registration_gate set mode = 'allowlist';
+  perform set_config('request.jwt.claim.sub', a::text, true); perform set_config('request.jwt.claim.role', 'authenticated', true);
   update auth.users set email_confirmed_at = null where id = a;
   assert not public.registration_allowed(), 'an unconfirmed email is never allowed';
   delete from public.member_private where member_id = a; delete from public.members where id = a;
@@ -192,7 +213,7 @@ reset role;
 -- ---- unrelated objects untouched by the social migration: grants on every other table are as before ----
 do $$ declare bad text; begin
   select string_agg(c.relname, ', ') into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist')
+   where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('follows', 'respects', 'rivals', 'engine_settings', 'registration_gate', 'registration_allowlist', 'rank_ledger', 'late_payments', 'declarations', 'declaration_blocks', 'backings', 'season_scores', 'member_socials', 'ops_alerts')
      and not has_table_privilege('authenticated', c.oid, 'insert');
   assert bad is null, 'grants changed on: ' || bad;
   raise notice 'OTHER TABLE GRANTS UNCHANGED OK';

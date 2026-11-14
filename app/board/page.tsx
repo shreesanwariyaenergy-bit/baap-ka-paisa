@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
-import { CITIES, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
+import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -18,8 +18,14 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   const scope = parseScope(sp, viewer?.member.cityId, viewer?.member.locality);
   const view = parseView(sp.view);
   const query = view === 'season' ? (sp.q ?? '').slice(0, 60) : '';
-  const seasonBoard = await ds.board(scope, { limit: 100, query });
-  const board = view === 'hall' ? await ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? await ds.respectBoard(scope, { limit: 100 }) : view === 'movers' ? movers(seasonBoard) : seasonBoard;
+  // Backer counts on the season view of city and locality boards (display only; never an input to rank). Read alongside the board.
+  const [seasonBoard, other, backed] = await Promise.all([
+    ds.board(scope, { limit: 100, query }),
+    view === 'hall' ? ds.hallOfFame(scope, { limit: 100 }) : view === 'respect' ? ds.respectBoard(scope, { limit: 100 }) : null,
+    view === 'season' && (scope.level === 'city' || scope.level === 'locality') ? ds.mostBacked(scope.cityId, 100) : null,
+  ]);
+  const board = other ?? (view === 'movers' ? movers(seasonBoard) : seasonBoard);
+  const backers = backed ? Object.fromEntries(backed.map((b) => [b.member.username, b.backers])) : undefined;
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const season = ds.season();
@@ -40,7 +46,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           {LEVELS.map((l) => <Link key={l} href={levelHref(l)} aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
         </span>
         <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
-          cities={CITIES.map((c) => ({ id: c.id, name: c.name }))} localities={city.localities} />
+          cities={cityOptionGroups()} localities={city.localities} />
       </div>
       <nav className="view-tabs" aria-label="Board view">
         {BOARD_VIEWS.map((vw) => <Link key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</Link>)}
@@ -52,7 +58,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
             <h3 data-testid="board-title">{name} / {LEVEL_LABEL[scope.level]} board</h3>
             <span>{VIEW_LABEL[view]}{board.total > 0 ? ` · ${board.total} on this board` : ''}{ds.availability === 'demo' ? ' · Demo data' : ''}</span>
           </div>
-          <BoardList board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
+          <BoardList backers={backers} board={board} scopeLabel={name} metaMode={scope.level === 'state' || scope.level === 'india' ? 'city' : 'flex'} cityNames={CITY_NAMES}
             crownLive={view === 'season' || view === 'movers'} valueLabel={view === 'hall' ? 'lifetime' : 'season'}
             emptyTitle={unavailable ? 'Rankings are not open yet.' : view === 'respect' ? `No Respect given in ${name} yet.` : view === 'hall' ? `No lifetime record in ${name} yet.` : `No one rules ${name} yet.`}
             emptyText={unavailable ? 'This board will fill as soon as the first season opens. Nothing here is hidden; there is simply no one ranked yet.'

@@ -36,7 +36,8 @@ describe('Declarations', () => {
     const { res, r } = run([d('a', 'spam', 3), d('b', 'spam', 3.5), d('c', 'king', 3), d('e', 'zz', 3), d('f', 'spam', 20.5)], T0 + 5 * DAY);
     expect(Object.fromEntries(r.rejected.map((x) => [x.event.id, x.reason]))).toEqual({ b: 'already-standing', c: 'self', e: 'not-a-member' });
     expect(canDeclare(res, [], [], 'new', B, T0 + 20.5 * DAY)).toEqual({ ok: false, reason: 'season-not-open' });
-    expect(canDeclare(res, [], [], 'new', 'city:pune', T0 + 3 * DAY)).toEqual({ ok: false, reason: 'vacant' });
+    expect(canDeclare(res, [], [], 'new', 'city:pune', T0 + 3 * DAY)).toEqual({ ok: false, reason: 'not-your-board' });
+    expect(canDeclare(res, [], [], 'new', 'city:surat', T0 + 0.5 * DAY)).toEqual({ ok: false, reason: 'vacant' });
     // spam's first declaration is spent on day 8; a new one inside 72h of the last is refused, then three per season is the cap
     const many = run([d('a', 'spam', 3), d('b', 'spam', 8.5), d('c', 'spam', 5), d('g', 'spam', 12.5), d('h', 'spam', 16), d('i', 'spam', 19.5)], T0 + 20 * DAY).r;
     expect(many.declarations.map((x) => x.id)).toEqual(['a', 'b', 'g']);

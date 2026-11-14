@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY, HOUR, boardAt, runEngine, type EngineEvent, type EngineMember, type SeasonDef } from '@/lib/engine/engine';
 import { backersOf, canBack, mostBacked, pickOf, runBacking, type BackEvent } from '@/lib/engine/backing';
-import { priceOfThrone, strongestClaim, throneTime } from '@/lib/claim';
+import { dethronedBand, priceOfThrone, strongestClaim, throneTime } from '@/lib/claim';
 import type { ReignView, Standing } from '@/lib/data/types';
 
 const T0 = Date.UTC(2026, 0, 1);
@@ -81,5 +81,22 @@ describe('claims and throne time', () => {
   });
   it('prices the throne one step past the leader', () => {
     expect(priceOfThrone(null)).toBe(1000); expect(priceOfThrone(24000)).toBe(24500); expect(priceOfThrone(24000, 18000)).toBe(6500); expect(priceOfThrone(24000, 24000)).toBe(500);
+  });
+});
+
+describe('the dethroned band', () => {
+  const scope = { level: 'city' as const, cityId: 'surat', locality: 'Vesu' };
+  const mk = (u: string) => ({ username: u, displayName: u.toUpperCase(), masked: false, publicLabel: u, title: null, flexLine: null, cityId: 'surat', state: 'GJ' as const, locality: 'Vesu', memberNo: 1, seasonScore: 0, lifetimeTier: null });
+  const now = new Date('2026-11-10T12:00:00Z');
+  const h = (n: number) => new Date(now.getTime() - n * 3_600_000);
+  const reign = (from: Date, to: Date | null, endReason: 'overtaken' | 'season-end' | null): ReignView => ({ seasonLabel: 'Season 4', scope, boardName: 'Surat', member: mk('loser'), from, to, endReason, hours: 10, current: !to, untouchable: false, revenge: false });
+  const taken = (at: Date) => [{ boardName: 'Surat', from: mk('loser'), to: mk('winner'), at }];
+  it('is worn for 24 hours after being overtaken, naming who took it', () => {
+    expect(dethronedBand([reign(h(50), h(3), 'overtaken')], taken(h(3)), now)).toMatchObject({ boardName: 'Surat', by: 'WINNER', hoursAgo: 3, hoursLeft: 21 });
+  });
+  it('comes off after 24 hours, when the throne is taken back, and never for a season that simply ended', () => {
+    expect(dethronedBand([reign(h(80), h(25), 'overtaken')], taken(h(25)), now)).toBeNull();
+    expect(dethronedBand([reign(h(1), null, null), reign(h(50), h(3), 'overtaken')], taken(h(3)), now)).toBeNull();
+    expect(dethronedBand([reign(h(50), h(3), 'season-end')], [], now)).toBeNull();
   });
 });

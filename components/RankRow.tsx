@@ -10,7 +10,7 @@ export function memberLabel(row: BoardRow) {
   return m.masked ? m.publicLabel : (m.displayName ?? m.username);
 }
 
-export function RankRow({ row, scopeLabel, meta, isViewer, crownLive = true, unit = 'inr' }: { row: BoardRow; scopeLabel: string; meta: string; isViewer?: boolean; crownLive?: boolean; unit?: 'inr' | 'count' }) {
+export function RankRow({ row, scopeLabel, meta, isViewer, crownLive = true, unit = 'inr', backers }: { backers?: number; row: BoardRow; scopeLabel: string; meta: string; isViewer?: boolean; crownLive?: boolean; unit?: 'inr' | 'count' }) {
   const { open } = useProfileDialog();
   const mv = movementLabel(row.movement);
   const name = memberLabel(row);
@@ -22,7 +22,7 @@ export function RankRow({ row, scopeLabel, meta, isViewer, crownLive = true, uni
       <span className="rank-avatar" aria-hidden="true">{row.member.masked ? row.member.publicLabel.slice(-2) : initials(name)}</span>
       <span style={{ minWidth: 0 }}>
         <span className="rank-name" style={{ display: 'block' }}>{name}{isViewer ? ' (you)' : ''}</span>
-        <span className="rank-meta" style={{ display: 'block' }}>{meta}</span>
+        <span className="rank-meta" style={{ display: 'block' }}>{meta}{backers ? <span data-testid="row-backers"> · {backers} backing</span> : null}</span>
       </span>
       <span className="rank-value">{unit === 'count' ? `${row.score ?? 0} Respect` : inr(row.score ?? row.member.seasonScore)}</span>
       <span className={`rank-change ${mv.cls}`}><span aria-hidden="true">{mv.text}</span><span className="sr-only">{mv.sr}</span></span>

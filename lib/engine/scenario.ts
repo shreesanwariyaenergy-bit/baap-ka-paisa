@@ -8,7 +8,7 @@ const END = SCENARIO_SEASON.scheduledEnd;
 export const SCENARIO_MEMBERS: (EngineMember & { name: string })[] = [
   { id: 'sim.riya', name: 'Riya (simulated)', cityId: 'surat', state: 'GJ', locality: 'Vesu' },
   { id: 'sim.aman', name: 'Aman (simulated)', cityId: 'surat', state: 'GJ', locality: 'Adajan' },
-  { id: 'sim.zoya', name: 'Zoya (simulated)', cityId: 'surat', state: 'GJ', locality: 'Pal' },
+  { id: 'sim.zoya', name: 'Zoya (simulated)', cityId: 'surat', state: 'GJ', locality: 'Vesu' },
 ];
 
 export interface ScenarioStep { event: EngineEvent; title: string; expect: string; }
@@ -20,9 +20,9 @@ export const SCENARIO_STEPS: ScenarioStep[] = [
   { event: c('s3', 'sim.aman', 700, SCENARIO_START + 6 * HOUR), title: 'Aman tries ₹700', expect: 'Rejected on the server: amounts go in steps of ₹500.' },
   { event: c('s4', 'sim.aman', 2500, SCENARIO_START + 20 * HOUR), title: 'Aman adds ₹2,500 (₹5,500 total)', expect: 'Passes Riya by ₹500: new #01, Crown Moment.' },
   { event: c('s5', 'sim.riya', 1000, SCENARIO_START + 30 * HOUR), title: 'Riya adds ₹1,000 (₹6,000 total)', expect: 'Retakes #01 within 24 hours: Revenge Taken.' },
-  { event: c('s6', 'sim.zoya', 1000, END - 10 * MINUTE), title: 'Zoya enters with ₹1,000, 10 minutes before the close', expect: 'Passes nobody, so the season is not extended.' },
-  { event: c('s7', 'sim.zoya', 6000, END - 8 * MINUTE), title: 'Zoya adds ₹6,000 (₹7,000 total), 8 minutes before the close', expect: 'Overtake in the last 15 minutes: new #01 and the season is extended by 15 minutes.' },
-  { event: c('s8', 'sim.aman', 2000, END + 3 * MINUTE), title: 'Aman adds ₹2,000 (₹7,500 total) in the extension', expect: 'Accepted because the season was extended; another overtake extends it again.' },
+  { event: c('s6', 'sim.zoya', 1000, END - 10 * MINUTE), title: 'Zoya enters with ₹1,000, 10 minutes before the close', expect: 'Takes no #01 on any board (Riya holds Vesu), so the season is not extended.' },
+  { event: c('s7', 'sim.zoya', 6000, END - 8 * MINUTE), title: 'Zoya adds ₹6,000 (₹7,000 total), 8 minutes before the close', expect: 'Takes #01 in the last 15 minutes: Crown Moment and the season is extended by 15 minutes.' },
+  { event: c('s8', 'sim.aman', 2000, END + 3 * MINUTE), title: 'Aman adds ₹2,000 (₹7,500 total) in the extension', expect: 'Accepted because the season was extended; taking #01 again extends it again.' },
   { event: c('s9', 'sim.riya', 1000, END + 40 * MINUTE), title: 'Riya tries ₹1,000 after the final whistle', expect: 'Rejected: the season has closed.' },
 ];
 

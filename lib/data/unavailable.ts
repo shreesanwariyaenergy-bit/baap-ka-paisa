@@ -17,6 +17,7 @@ export function unavailableSource(seasonOneMonth?: string | null): DataSource {
     async cities() { return []; },
     async archive() { return []; },
     async backing() { return null; },
+    async socials() { return null; },
     async mostBacked() { return []; },
     async declarations() { return []; },
     async respectBoard(scope) { return { scope, unit: 'count', rows: [], total: 0, viewerRow: null }; },

@@ -33,10 +33,25 @@ language sql stable security definer set search_path = '' as $$
     else false end
 $$;
 
--- Runs before every new member row, whichever function or role inserts it.
+-- Runs before every new member row, whichever function or role inserts it. Deny by default.
+--   authenticated  -> only the profile of the account it is signed in as, and only if the gate allows it
+--   trusted admin  -> exactly two contexts bypass the gate:
+--                       (a) an API request carrying the service-role key (JWT role = service_role)
+--                       (b) an owner connection with no API request at all: session user postgres or
+--                           supabase_admin and no JWT role (SQL editor, migrations)
+--   anything else  -> refused: anon, a missing role on an API connection, or any role not named above
 create function public.enforce_registration_gate() returns trigger
 language plpgsql security definer set search_path = '' as $$
+declare v_uid uuid := auth.uid(); v_role text := coalesce(auth.role(), '');
 begin
+  if v_role = 'service_role' then return new; end if;                                              -- (a)
+  if v_role = '' and v_uid is null and session_user in ('postgres', 'supabase_admin') then return new; end if;  -- (b)
+  if v_role <> 'authenticated' or v_uid is null then
+    raise exception 'Not allowed to create a member profile' using errcode = 'insufficient_privilege';
+  end if;
+  if new.id is distinct from v_uid then
+    raise exception 'A profile can only be created for the signed-in account' using errcode = 'insufficient_privilege';
+  end if;
   if not public.registration_allowed() then
     raise exception 'Registration is not open' using errcode = 'insufficient_privilege';
   end if;

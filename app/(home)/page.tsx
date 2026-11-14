@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent } from '@/lib/data/types';
-import { CITIES, STATES, cityById, DEFAULT_CITY_ID, scopeName, type Level, type Scope } from '@/lib/geo';
+import { CITIES, STATES, cityById, DEFAULT_CITY_ID, featuredCities, scopeName, type Level, type Scope } from '@/lib/geo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { HomeBoard } from '@/components/HomeBoard';
@@ -32,27 +32,32 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const city = cityById(sp.city) ?? cityById(viewer?.member.cityId) ?? cityById(DEFAULT_CITY_ID)!;
   const locality = viewer && viewer.member.cityId === city.id ? viewer.member.locality : city.localities[0];
   const scopes = Object.fromEntries(LEVELS.map((l) => [l, { level: l, cityId: city.id, locality } satisfies Scope])) as Record<Level, Scope>;
-  const boards = Object.fromEntries(await Promise.all(LEVELS.map(async (l) => [l, await ds.board(scopes[l], { limit: 10 })] as const))) as Record<Level, Board>;
+  // Every read below depends only on the city, so they run together: the page waits for the slowest, not the sum.
+  const since = new Date(ds.now().getTime() - 86_400_000);
+  const [boardList, events, moments, summaries, reigns, archive, respect, declared, mySocial] = await Promise.all([
+    Promise.all(LEVELS.map((l) => ds.board(scopes[l], { limit: 10 }))), ds.events(scopes.city, 3), ds.crownMoments(scopes.city, since),
+    ds.cities(), ds.throneHistory({ scope: scopes.city, limit: 40 }), ds.archive(), ds.respectBoard(scopes.city, { limit: 1 }),
+    ds.declarations({ cityId: city.id }), viewer ? ds.social(viewer.member.username) : null,
+  ]);
+  const boards = Object.fromEntries(LEVELS.map((l, n) => [l, boardList[n]])) as Record<Level, Board>;
   const names = Object.fromEntries(LEVELS.map((l) => [l, scopeName(scopes[l])])) as Record<Level, string>;
   const cityBoard = boards.city;
   const leader = cityBoard.rows[0];
-  const events = await ds.events(scopes.city, 3);
   // Crown Moment: the newest #01 change on this city board in the last 24 hours.
-  const latestMoment = (await ds.crownMoments(scopes.city, new Date(ds.now().getTime() - 86_400_000)))[0];
+  const latestMoment = moments[0];
   const nm = (m: PublicMember) => (m.masked ? m.publicLabel : m.displayName ?? m.username);
   const hoursAgo = latestMoment ? Math.max(0, Math.round((ds.now().getTime() - latestMoment.at.getTime()) / 3_600_000)) : 0;
   const isDemo = ds.availability === 'demo';
   const open = rankingsOpen(ds);
-  const [summaries, reign, archive] = await Promise.all([ds.cities(), ds.throneHistory({ scope: scopes.city, limit: 1 }), ds.archive()]);
+  const reign = reigns.slice(0, 1);
   const second = cityBoard.rows[1];
   const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
 
-  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns: await ds.throneHistory({ scope: scopes.city, limit: 40 }), moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect: await ds.respectBoard(scopes.city, { limit: 1 }) });
-  const declared = await ds.declarations({ cityId: city.id });
+  const edition = buildEdition({ city, season, now: ds.now(), open, board: cityBoard, reigns, moments: latestMoment ? [latestMoment] : [], events, cities: summaries, respect });
   const myCity = viewer?.standings.find((s) => s.level === 'city');
   // Rival strip: each rival's current city rank next to yours.
-  const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
-  const rivals = (await Promise.all(rivalNames.map(async (u) => ({ m: await ds.member(u), s: (await ds.standings(u)).find((x) => x.level === 'city') })))).filter((r) => r.m);
+  const rivalNames = viewer ? (await readDemoSocial({ follows: [], rivals: mySocial?.rivals.map((r) => r.member.username) ?? [], respected: {} })).rivals : [];
+  const rivals = (await Promise.all(rivalNames.map(async (u) => { const [m, st] = await Promise.all([ds.member(u), ds.standings(u)]); return { m, s: st.find((x) => x.level === 'city') }; }))).filter((r) => r.m);
 
   return (
     <>
@@ -82,6 +87,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           </ol>
         </aside>
       </section>
+      {open && season.endsAt.getTime() - ds.now().getTime() < 86_400_000 && (
+        <Link className="gz-strip" href={`/closing?city=${city.id}`} data-testid="closing-strip"><small>The Closing</small><b>The board closes within a day. Watch the final stretch.</b><span>Open ↗</span></Link>
+      )}
       <Link className="gz-strip" href={`/gazette?city=${city.id}`} data-testid="gazette-strip">
         <small>The {city.name} Gazette</small><b>{edition.lead.headline}</b><span>Read today&apos;s edition ↗</span>
       </Link>
@@ -163,15 +171,16 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="section-head"><div><p>Territories</p><h2>Pick your ground</h2></div>
-        <Link className="textlink" href="/cities">All cities ↗</Link></div>
-      <div className="terr-grid">
-        {CITIES.map((c) => { const sm = summaries.find((x) => x.cityId === c.id); return (
+        <Link className="textlink" href="/cities">All {CITIES.length} cities ↗</Link></div>
+      <div className="terr-grid" data-testid="featured-cities">
+        {featuredCities({ viewerCityId: viewer?.member.cityId, currentCityId: city.id, summaries }).map((c) => { const sm = summaries.find((x) => x.cityId === c.id); return (
           <Link className="terr" key={c.id} href={`/?city=${c.id}`} aria-current={c.id === city.id ? 'true' : undefined} scroll={false}>
             <small>{STATES[c.state]}</small><b>{c.name}</b>
             <span>{sm ? `${sm.members} ranked · #${pad2(sm.rank)} city` : 'Open territory'}</span>
           </Link>
         ); })}
       </div>
+      <Link className="btn explore-cities" href="/cities" data-testid="explore-cities">Explore all {CITIES.length} cities <span className="arrow">→</span></Link>
       <div className="loc-chips" aria-label={`Localities in ${city.name}`}>
         {city.localities.filter((l) => l !== 'Other').map((l) => (
           <Link key={l} href={`/board?level=locality&city=${city.id}&locality=${encodeURIComponent(l)}`} className={ranked.has(l) ? '' : 'open'}>{l}{ranked.has(l) ? '' : ' · unclaimed'}</Link>
@@ -203,7 +212,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
         <Link className="textlink" href="/archive">Open the archive ↗</Link></div>
       <div className="season-band">
         <div><small>Now</small><b>{open ? season.label : 'Not open'}</b><span>{open ? season.monthLabel : 'Season 1 has not started'}</span></div>
-        <div><small>Closes in</small><b>{!open ? '—' : left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Last-minute overtakes extend the close by 15 minutes</span></div>
+        <div><small>Closes in</small><b>{!open ? '—' : left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Taking a #01 in the last 15 minutes extends the close by 15 minutes</span></div>
         <div><small>Then</small><b>Boards reset</b><span>Every throne is empty again on the 1st</span></div>
         <div><small>Forever</small><b>{archive.length} {archive.length === 1 ? 'season' : 'seasons'} archived</b><span><Link href="/board?view=hall">Hall of Fame</Link> and <Link href="/archive">past champions</Link></span></div>
       </div>

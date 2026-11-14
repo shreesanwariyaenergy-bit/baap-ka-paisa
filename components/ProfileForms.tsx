@@ -62,12 +62,13 @@ export function JoinForm({ cities }: { cities: CityOpt[] }) {
   );
 }
 
-export function EditProfileForm({ initial, place, demo }: {
+export function EditProfileForm({ initial, place, demo, socials }: {
+  socials?: { instagram: string; snapchat: string; vis: string };
   initial: { displayName: string; username: string; title: string; flexLine: string; mystery: boolean; locality: string };
   place: { label: string; lockedUntil: string; locked: boolean }; demo: boolean;
 }) {
   const [res, action, pending] = useActionState<FormResult | null, FormData>(saveProfile, null);
-  const [f, setF] = useState({ ...initial, instagram: '', snapchat: '', vis: 'nobody' });
+  const [f, setF] = useState({ ...initial, instagram: socials?.instagram ?? '', snapchat: socials?.snapchat ?? '', vis: socials?.vis ?? 'nobody' });
   const e = res?.errors ?? {};
   return (
     <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }} className="join-form" noValidate>

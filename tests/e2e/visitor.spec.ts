@@ -28,6 +28,10 @@ for (const w of [360, 390]) {
 test('crown sits on top of 01 in the board row and on the throne', async ({ page }) => {
   await page.goto('/');
   const row = page.locator('#home-board .rank-row.first .rank-no');
+  // The homepage streams in behind a loading skeleton: measure only once the board and the leader card are
+  // rendered and the web fonts (which set the size of the numerals) have loaded.
+  await expect(row.locator('svg.crown')).toBeVisible(); await expect(page.getByTestId('leader-feature').locator('.big01 b')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   const crown = await row.locator('svg.crown').boundingBox(); const num = await row.locator('.rank-number').boundingBox();
   // directly above the numerals, horizontally centred on them, touching distance
   expect(crown && num && crown.y + crown.height <= num.y + 6 && num.y - (crown.y + crown.height) < 8 && Math.abs((crown.x + crown.width / 2) - (num.x + num.width / 2)) < 4).toBeTruthy();
@@ -105,4 +109,73 @@ test('signed-out visitors can read a declaration but cannot declare', async ({ p
   await expect(page.getByTestId('declaration-status')).toHaveText('Standing');
   await page.goto('/u/kinjal.adajan');
   await expect(page.getByTestId('declare-start')).toHaveCount(0);
+});
+
+test('The Closing: server-run final stretch, anti-snipe extension, and a final verdict', async ({ page, context, baseURL }) => {
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'idle');
+  await page.getByTestId('closing-start').click();
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'live');
+  await expect(page.getByTestId('closing-holder')).toHaveText('Riya Kapadia');
+  await expect(page.getByTestId('closing-price')).toHaveText('₹42,500');
+  const first = await page.getByTestId('closing-countdown').innerText();
+  // Aman takes the throne 12 practice minutes before the close: the server extends the season.
+  await expect(page.getByTestId('closing-extensions')).toContainText('Extended 1×', { timeout: 25_000 });
+  await expect(page.getByTestId('closing-holder')).toHaveText('Aman Shroff');
+  await expect(page.getByTestId('closing-price')).toHaveText('₹43,000');
+  expect(await page.getByTestId('closing-countdown').innerText()).not.toBe(first);
+  // The client cannot move the clock: a forged start time in the future is ignored by the server.
+  const state = await (await page.request.get('/api/closing')).json();
+  expect(state.phase).toBe('extended');
+  // A replay that started long ago is over: the server returns the verdict.
+  await context.addCookies([{ name: 'bkp_closing_start', value: String(Date.now() - 10 * 60_000), url: baseURL! }]);
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', 'closed');
+  await expect(page.getByTestId('closing-winner')).toHaveText('Riya Kapadia');
+  await context.addCookies([{ name: 'bkp_closing_start', value: String(Date.now() + 60_000), url: baseURL! }]);
+  expect((await (await page.request.get('/api/closing')).json()).phase).toBe('idle');
+});
+
+test('The Bill and the Dethroned Band (demo prototypes)', async ({ page }) => {
+  await page.goto('/u/vesu.vikram');
+  await expect(page.getByTestId('dethroned-band')).toContainText('Surat was taken by Kinjal Shah');
+  await page.goto('/u/kinjal.adajan');
+  await expect(page.getByTestId('dethroned-band')).toHaveCount(0);
+  await page.getByTestId('bill-link').click();
+  await expect(page.getByTestId('bill-name')).toHaveText('KINJAL SHAH');
+  await expect(page.getByTestId('bill')).toContainText('HOLDING');
+  await expect(page.getByTestId('bill')).toContainText('NOT A TAX INVOICE');
+  await page.goto('/bill/vesu.vikram');
+  await expect(page.getByTestId('bill')).toContainText('REIGN ENDED · BY KINJAL SHAH');
+  await expect(page.getByTestId('bill')).not.toContainText('VOID');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test('registration: cities grouped by state, localities follow the chosen city, Other offered plainly', async ({ page }) => {
+  await page.goto('/join');
+  await page.getByTestId('f-email').fill('city.test@example.com');
+  await page.getByTestId('f-password').fill('strongpass1'); await page.getByTestId('f-confirm').fill('strongpass1');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-step-2')).toBeVisible();
+  const city = page.getByTestId('f-city'), loc = page.getByTestId('f-locality');
+  await expect(city.locator('optgroup')).toHaveCount(19);
+  await expect(city.locator('optgroup[label="Uttar Pradesh"] option')).toHaveText(['Lucknow', 'Kanpur', 'Noida', 'Varanasi', 'Agra', 'Ghaziabad']);
+  await expect(city.locator('option')).toHaveCount(45);
+  await expect(city).toHaveValue('surat');   // unchanged default
+  await loc.selectOption('Vesu');
+  await city.selectOption('jaipur');
+  await expect(loc).toHaveValue('');   // a locality from the previous city is never kept
+  await expect(loc.locator('option')).toHaveText(['Choose your locality', 'C-Scheme', 'Malviya Nagar', 'Vaishali Nagar', 'Mansarovar', 'Raja Park', 'Walled City', 'Other']);
+  await loc.selectOption('Other');
+  await page.getByTestId('f-name').fill('City Test'); await page.getByTestId('f-username').fill('city.test');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('wizard-step-3')).toBeVisible();   // Jaipur / Other accepted by the server-side check
+});
+
+test('homepage for a visitor: the five launch cities and Bengaluru, and a link to all 45', async ({ page }) => {
+  await page.goto('/');
+  const tiles = page.getByTestId('featured-cities').locator('.terr b');
+  await expect(tiles).toHaveCount(6);
+  expect((await tiles.allInnerTexts()).map((t) => t.toLowerCase()).sort()).toEqual(['ahmedabad', 'bengaluru', 'delhi', 'mumbai', 'pune', 'surat']);
+  await expect(page.getByTestId('explore-cities')).toContainText('Explore all 45 cities');
 });

@@ -30,21 +30,22 @@ function checkAccount(i: RegInput): RegErrors {
   if (!e.password && i.confirm !== p) e.confirm = 'Passwords do not match.';
   return e;
 }
+// "Today" for the age check: the demo's fixed clock, otherwise real time. Only the demo needs the data source,
+// so live registration no longer waits on a season read just to validate a form.
+const today = async () => (dataSourceName() === 'demo' ? (await getDataSource()).now() : new Date());
 async function checkProfile(i: RegInput): Promise<RegErrors> {
-  const ds = await getDataSource();
-  const all = validateProfile(i, 'join', ds.availability === 'demo' ? ds.now() : new Date());
+  const all = validateProfile(i, 'join', await today());
   const e: RegErrors = { username: all.username, displayName: all.displayName, cityId: all.cityId, locality: all.locality, flexLine: all.flexLine, title: all.title };
   if (!e.username && i.username) {
     const taken = dataSourceName() === 'supabase'
       ? !(await (await supabaseAuth())!.rpc('username_available', { p_username: i.username })).data
-      : !!(await ds.member(i.username));
+      : !!(await (await getDataSource()).member(i.username));
     if (taken) e.username = 'That username is taken.';
   }
   return e;
 }
 async function checkEligibility(i: RegInput): Promise<RegErrors> {
-  const ds = await getDataSource();
-  const e: RegErrors = { dateOfBirth: validateProfile(i, 'join', ds.availability === 'demo' ? ds.now() : new Date()).dateOfBirth };
+  const e: RegErrors = { dateOfBirth: validateProfile(i, 'join', await today()).dateOfBirth };
   if (!i.adult) e.adult = 'Confirm that you are 18 or older.';
   if (!i.terms) e.terms = 'Accept the Terms and Privacy Notice to continue.';
   return e;
@@ -81,7 +82,8 @@ export async function enterTesterCode(_prev: { message: string } | null, fd: For
 
 export async function register(i: RegInput): Promise<RegResult> {
   if (!(await canRegister())) return { ok: false, errors: {}, message: CLOSED };
-  const errors = clean({ ...checkAccount(i), ...(await checkProfile(i)), ...(await checkEligibility(i)) });
+  const [prof, elig] = await Promise.all([checkProfile(i), checkEligibility(i)]);
+  const errors = clean({ ...checkAccount(i), ...prof, ...elig });
   if (Object.keys(errors).length) return { ok: false, errors, message: 'Some details need fixing.' };
   const profile: ProfileInput = { username: i.username, displayName: i.displayName?.trim(), dateOfBirth: i.dateOfBirth, cityId: i.cityId, locality: i.locality, title: i.title, flexLine: i.flexLine?.trim(), mystery: !!i.mystery };
 

@@ -9,6 +9,41 @@ Status key:
 - **Blocked by external approval**: waiting for a decision or approval outside the codebase.
 - **Not started**: later roadmap phase.
 
+## Update, 17 November 2026: feature set complete on the feature branch
+
+- **Nothing applied to production; nothing deployed to production.** Seven migrations pending: `docs/MIGRATIONS_PENDING.md`.
+- **Feature gaps closed:** holder's block control on declaration pages and a block list with unblock on `/me`; saved social handles with a visibility setting (everyone, followers, nobody), shown on profiles; backer counts on city and locality board rows; Gazette front page as a share image (`/api/gazette-card/[city]`); "taken from" and "ended by" names on every level of The Bill.
+- **Running totals:** `season_scores` verified identical to the ledger after concurrent credits, duplicate webhooks, late payments, a refund, extensions and two season closures.
+- **Staging:** Supabase project `baap-ka-paisa-staging` exists, empty. Isolation checked: separate keys (each project rejects the other's), no staging reference in the repository or in Vercel's settings, no storage buckets, no payment configuration anywhere. Migrations not yet loaded into it.
+- **Tests:** 109 unit, 89 browser (including one integrated journey through every agreed feature on demo data), database suite, audit script.
+- **Not yet proven:** nothing has run against the real Supabase stack with these migrations; sign-up, reset and invite emails are untested with a real inbox.
+
+## Update, 15 November 2026: integration milestone
+
+- **Feature branch only. No migration applied, nothing deployed to production.** See `docs/MIGRATIONS_PENDING.md` for the five pending migrations and their exact impact.
+- **The Bill and the Dethroned Band** now run on every data source (they read existing public records) and are linked from profiles and The Seal.
+- **The Closing** runs on a real season in its final 24 hours and for a day after the close (`lib/closing-live.ts`); otherwise the practice replay is shown. The homepage links to it during that window.
+- **Declarations and Backing** have database migrations (pending) and live code paths: the site reads `get_declarations`, `get_backing`, `get_most_backed` and writes through `declare_for`, `back_member`. Until the migrations are applied these return nothing and the buttons say "being switched on". A member can only declare for a board they are on.
+- **Official rules** (`/legal/terms`) state that the register's own recording time decides order, the provider's capture time decides only eligibility, the 10-minute confirmation window, and that uncountable payments are refunded.
+- **Tests:** 106 unit, 88 browser, database suite (season lifecycle, role-by-role gate and ledger permissions, Declarations and Backing on a fresh database), and the audit script (concurrency, bell, settling, late and reversed webhooks, stress, checker self-test).
+
+## Update, 14 November 2026: ledger integrity fix (pending), gate tightened, The Bill, Dethroned Band
+
+- **Not deployed to production; no migration applied.** Feature branch only.
+- **Ledger integrity, revised 14 Nov (still pending, still local only):** adds the verified capture time (`captured_at`, evidence only), a settling window after the bell for payments captured before it, a `late_payments` quarantine, `record_credit()` executable by the service role only, and `ledger_invariants()` across locality, city, state and India. `scripts/db-audit.sh` covers S1–S4, a stress run and a self-test of the checker; `supabase/tests/ledger_roles.sql` prints the permission matrix.
+- **Ledger integrity (pending, `supabase/pending/20261114000900_ledger_integrity.sql`):** fixes audit findings C1 and C2 at the table: every ledger insert locks its season, is time-stamped by the database after the lock, and is validated under it. Adds `record_credit()` (idempotent on the payment reference) and `ledger_invariants()` (consistency check). `scripts/db-audit.sh`: S1b and S3 no longer reproduce; a 60-credit, 12-connection stress run ends with zero violations. Locally tested only.
+- **Social migration (pending):** now rejects a NULL action or target. Verified read-only against the live schema.
+- **Registration gate (pending):** deny by default. Only the service role or an owner connection with no API request bypasses; unknown roles are refused. Role-by-role results in `supabase/tests/gate_roles.sql` (run by `npm run test:db`).
+- **The Bill (demo prototype, `/bill/[username]`):** a member's standing as an itemised thermal-paper bill; lost thrones are stamped REIGN ENDED. Not reachable outside demo. The Seal is unchanged.
+- **Dethroned Band (demo prototype):** for 24 hours after losing a #01, the profile carries a band naming who took it; it comes off early only by retaking the throne.
+
+## Update, 13 November 2026 (evening): pre-migration checks, The Closing
+
+- **Not deployed to production.** This work is on `feature/website-v1` only. No migration was applied and nothing on the live database, settings or environment changed.
+- **Social migration (pending):** the app makes no direct table writes anywhere; all five actions and the state read call `social_action()` only (`tests/unit/social-live.test.ts`). Concurrent requests on separate connections hold the limits (`scripts/db-audit.sh`, SOC).
+- **Registration gate migration (pending, corrected):** the trigger now refuses a profile whose id is not the signed-in account, refuses anonymous API inserts, and documents that the service role and an owner connection are administrative and not held to the gate. Tested locally.
+- **The Closing (practice season only):** `/closing`. The server holds the clock in an httpOnly cookie and computes every state with the season engine (`lib/closing.ts`, `app/api/closing/route.ts`): countdown, price of the throne, challengers, declarations at stake, anti-snipe extensions, final verdict. Invented members; no payment and no real season.
+
 ## Update, 13 November 2026 (later): season clock applied, Declarations, labelled throne price
 
 - **Season clock migration applied to the live database** (`supabase/migrations/20261112000700_season_clock.sql`). Verified after applying: `auto_rollover` false, 0 seasons, pg_cron not installed, the three functions not executable by anon or authenticated.

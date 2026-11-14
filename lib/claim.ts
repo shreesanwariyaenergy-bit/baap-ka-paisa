@@ -48,3 +48,19 @@ export function priceOfThrone(leaderScore: number | null, myScore = 0): number {
   if (!leaderScore) return 1000;                       // vacant: the entry minimum takes it
   return Math.max(myScore ? 500 : 1000, leaderScore - myScore + 500);
 }
+
+export interface DethronedBand { boardName: string; by: string; byUsername: string; at: Date; hoursAgo: number; hoursLeft: number }
+/**
+ * The band a member wears for 24 hours after losing a #01 they held. It comes off early only if they
+ * take that throne back. Widest board first. Derived from the throne record; nothing is stored.
+ */
+export function dethronedBand(reigns: ReignView[], taken: { boardName: string; from: { username: string } | null; to: { username: string; displayName: string | null; masked: boolean; publicLabel: string }; at: Date }[], now: Date): DethronedBand | null {
+  const lost = reigns.filter((r) => r.endReason === 'overtaken' && r.to && now.getTime() - r.to.getTime() < 24 * 3_600_000 && now.getTime() >= r.to.getTime())
+    .filter((r) => !reigns.some((x) => x.boardName === r.boardName && x.from.getTime() >= r.to!.getTime()))   // took it back: the band is off
+    .sort((a, b) => WIDTH[b.scope.level] - WIDTH[a.scope.level] || b.to!.getTime() - a.to!.getTime())[0];
+  if (!lost) return null;
+  const ev = taken.find((t) => t.boardName === lost.boardName && Math.abs(t.at.getTime() - lost.to!.getTime()) < 60_000);
+  if (!ev) return null;
+  const hoursAgo = Math.floor((now.getTime() - lost.to!.getTime()) / 3_600_000);
+  return { boardName: lost.boardName, by: ev.to.masked ? ev.to.publicLabel : ev.to.displayName ?? ev.to.username, byUsername: ev.to.username, at: lost.to!, hoursAgo, hoursLeft: Math.max(1, 24 - hoursAgo) };
+}

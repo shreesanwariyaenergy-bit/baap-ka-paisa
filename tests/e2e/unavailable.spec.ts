@@ -21,7 +21,7 @@ test('archive and cities stay honest', async ({ page }) => {
   await page.goto('/archive');
   await expect(page.locator('body')).toContainText('No finished seasons yet.');
   await page.goto('/cities');
-  await expect(page.locator('.city-card')).toHaveCount(5);
+  await expect(page.locator('.city-card')).toHaveCount(45);
   await expect(page.locator('body')).not.toContainText(/on the board/);
 });
 test('Rank Up and Hall of Fame stay closed', async ({ page }) => {
@@ -52,4 +52,8 @@ test('Backing is not switched on outside the demo', async ({ page }) => {
 
 test('Declarations are not switched on outside the demo', async ({ page }) => {
   expect((await page.goto('/declare/d402'))?.status()).toBe(404);
+});
+
+test('The Bill prototype is not reachable outside the demo', async ({ page }) => {
+  expect((await page.goto('/bill/anyone'))?.status()).toBe(404);
 });

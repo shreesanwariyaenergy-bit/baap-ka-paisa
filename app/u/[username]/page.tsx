@@ -9,7 +9,7 @@ import { groupAchievements } from '@/lib/achievements';
 import { SocialActions } from '@/components/SocialActions';
 import { socialState } from '@/app/actions';
 import { BackingPanel } from '@/components/BackingPanel';
-import { strongestClaim } from '@/lib/claim';
+import { dethronedBand, strongestClaim } from '@/lib/claim';
 import { DeclareButton } from '@/components/DeclareButton';
 import { LINES, toOvertake } from '@/lib/engine/callout';
 import { readDemoSocial } from '@/lib/demo-social';
@@ -26,26 +26,41 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
   const ds = await getDataSource();
   const m = await ds.member(decodeURIComponent(username));
   if (!m) notFound();
-  const [standings, achievements, reigns, social] = await Promise.all([ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 10 }), ds.social(m.username)]);
-  const grouped = groupAchievements(achievements);
+  // Everything below depends only on the member and the viewer, so it is read in one parallel batch.
   const viewer = await ds.viewer();
   const isSelf = viewer?.member.username === m.username;
   const demo = ds.availability === 'demo';
-  const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: (await ds.social(viewer.member.username))?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
-  const liveState = viewer && !demo && !isSelf ? await socialState(m.username) : null;
-  const [backing, myBacking] = await Promise.all([ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null]);
-  const claim = strongestClaim({ standings, achievements, reigns: await ds.throneHistory({ username: m.username, limit: 100 }) });
+  const [standings, achievements, allReigns, social, backing, myBacking, recentMoments, handles, feudAll, liveState, viewerSocial] = await Promise.all([
+    ds.standings(m.username), ds.achievements(m.username), ds.throneHistory({ username: m.username, limit: 100 }), ds.social(m.username),
+    ds.backing(m.username), viewer && !isSelf ? ds.backing(viewer.member.username) : null,
+    ds.crownMoments({ level: 'city', cityId: m.cityId, locality: m.locality }, new Date(ds.now().getTime() - 86_400_000)),
+    m.masked ? null : ds.socials(m.username), ds.declarations({ username: m.username }),
+    viewer && !demo && !isSelf ? socialState(m.username) : null, viewer && demo ? ds.social(viewer.member.username) : null,
+  ]);
+  const reigns = allReigns.slice(0, 10);
+  const grouped = groupAchievements(achievements);
+  const demoState = viewer && demo ? await readDemoSocial({ follows: [], rivals: viewerSocial?.rivals.map((r) => r.member.username) ?? [], respected: {} }) : null;
+  const claim = strongestClaim({ standings, achievements, reigns: allReigns });
+  // The band a member wears for 24 hours after losing a #01.
+  const band = dethronedBand(allReigns, recentMoments, ds.now());
   const holdsCity = standings.find((x) => x.level === 'city')?.rank === 1;
-  const feud = (await ds.declarations({ username: m.username })).slice(0, 4);
-  const canDeclareHere = ds.availability === 'demo' && holdsCity && viewer && !isSelf && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
+  const feud = feudAll.slice(0, 4);
+  const canDeclareHere = holdsCity && viewer && !isSelf && viewer.member.cityId === m.cityId && !feud.some((d) => d.status === 'standing' && d.challenger.username === viewer.member.username);
   const today = istDay(ds.now().getTime());
   const city = cityById(m.cityId)!;
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
   const top = standings.find((s) => s.rank === 1);
   return (
     <>
+      {band && (
+        <div className="dethroned" role="status" data-testid="dethroned-band">
+          <b>Dethroned</b><span>{band.boardName} was taken by <Link href={`/u/${encodeURIComponent(band.byUsername)}`}>{band.by}</Link> {band.hoursAgo < 1 ? 'less than an hour' : `${band.hoursAgo} ${band.hoursAgo === 1 ? 'hour' : 'hours'}`} ago.</span>
+          <small>This band stays for {band.hoursLeft} more {band.hoursLeft === 1 ? 'hour' : 'hours'}, or until {name} takes {band.boardName} back.</small>
+        </div>
+      )}
       <section className="page-intro">
         <div><div className="eyebrow">Public profile</div><h1 style={{ overflowWrap: 'anywhere' }}>{name}</h1>
+          <p style={{ margin: '14px 0 0' }}><Link className="textlink" href={`/bill/${encodeURIComponent(m.username)}`} data-testid="bill-link">The Bill ↗</Link></p>
           {claim && <div className="claim" data-testid="claim" style={{ marginTop: 16 }}>{claim.headline}<small>{claim.proof}</small></div>}</div>
         <p>{m.masked ? 'This member uses Mystery mode. Their name, photo and socials stay hidden until they choose to reveal them.' : `@${m.username}${m.title ? ` · ${m.title}` : ''} · ${m.locality}, ${city.name}, ${STATES[city.state]}.`}</p>
       </section>
@@ -75,6 +90,13 @@ export default async function MemberPage({ params }: { params: Promise<{ usernam
             <h3>Declarations</h3>
             {feud.map((d) => <Link className="history-row" key={d.id} href={`/declare/${d.id}`}><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{d.no.split('/').pop()}</b><span>{d.challenger.username === m.username ? `Declared for ${d.boardName}` : `${d.challenger.masked ? d.challenger.publicLabel : d.challenger.displayName} declared against them`}</span><small>{d.status === 'won' ? 'Made good' : d.status === 'standing' ? 'Standing' : d.status === 'lapsed' ? 'Lapsed' : 'Throne moved'}</small></Link>)}
             {canDeclareHere && <div style={{ marginTop: 14 }}><DeclareButton cityId={m.cityId} city={city.name} holder={name} lines={LINES} required={inr(toOvertake(m.seasonScore, viewer!.member.cityId === m.cityId ? viewer!.member.seasonScore : 0))} /></div>}
+          </div>
+        )}
+        {handles && (handles.instagram || handles.snapchat) && (
+          <div className="history" style={{ marginTop: 0 }} data-testid="profile-socials"><h3>Socials</h3>
+            {handles.instagram && <div className="history-row"><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>IG</b><span>@{handles.instagram}</span><small>unverified</small></div>}
+            {handles.snapchat && <div className="history-row"><b style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>SC</b><span>@{handles.snapchat}</span><small>unverified</small></div>}
+            {handles.isSelf && <p style={{ fontSize: 13, color: 'var(--muted-strong)', marginBottom: 0 }}>Shown to: {handles.visibility === 'everyone' ? 'everyone' : handles.visibility === 'followers' ? 'members who follow you' : 'nobody but you'}.</p>}
           </div>
         )}
         {backing && (

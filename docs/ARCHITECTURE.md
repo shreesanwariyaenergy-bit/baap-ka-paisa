@@ -7,7 +7,7 @@ feature status is in `docs/STATUS.md`.
 
 | Piece | Technology | Where |
 |---|---|---|
-| Website and server logic | Next.js 15 (App Router), React 19, TypeScript. Every page is rendered on the server per request | Vercel project `baap-ka-paisa`, function region `iad1` |
+| Website and server logic | Next.js 15 (App Router), React 19, TypeScript. Every page is rendered on the server per request | Vercel project `baap-ka-paisa`, function region `bom1` (Mumbai; the production build of 12 Nov predates the setting and runs in `iad1` until redeployed) |
 | Database, accounts | Supabase project `baap-ka-paisa` (Postgres 17, Supabase Auth, REST) | `ap-south-1` (Mumbai), free plan |
 | Source | GitHub `shreesanwariyaenergy-bit/baap-ka-paisa`. `main` deploys to production; `feature/website-v1` deploys a preview that uses demo data | |
 
@@ -51,6 +51,46 @@ profile per IST day.
 
 Migrations: `supabase/migrations` (applied, in order) and `supabase/pending` (written and locally tested, **not
 applied**: social actions, registration gate).
+
+## Geography (45 cities)
+
+Defined twice, and kept identical by `tests/unit/geo-sync.test.ts`:
+- **Website:** `lib/geo.ts` (`STATES`, `STATE_REGION`, `REGIONS`, `CITIES` with each city's localities, mark and
+  vehicle-series reference). Every page, picker and board name reads from here.
+- **Database:** tables `states`, `cities`, `localities`, filled by `…0100_reference_data.sql` (the five launch cities)
+  and the pending `20261118001600_city_expansion.sql` (the other 40). Registration (`create_member`) checks the chosen
+  locality against these tables, so a city that exists in only one place cannot be joined.
+
+Shape: 45 cities, 19 states and union territories, 6 regions.
+
+| Region | States / UTs (cities) |
+|---|---|
+| West | Gujarat (Surat, Ahmedabad, Vadodara, Gandhinagar, Rajkot), Maharashtra (Mumbai, Pune, Nagpur, Nashik, Thane), Rajasthan (Jaipur, Jodhpur, Udaipur, Kota) |
+| North | Delhi (NCT) (Delhi), Punjab (Ludhiana, Amritsar), Haryana (Gurugram, Faridabad, Hisar, Panipat), Uttar Pradesh (Lucknow, Kanpur, Noida, Varanasi, Agra, Ghaziabad), Chandigarh UT (Chandigarh) |
+| South | Karnataka (Bengaluru), Telangana (Hyderabad), Tamil Nadu (Chennai), Kerala (Kochi) |
+| East | West Bengal (Kolkata, Siliguri), Bihar (Patna), Jharkhand (Ranchi), Odisha (Bhubaneswar, Cuttack) |
+| Central | Madhya Pradesh (Indore, Bhopal, Jabalpur, Gwalior), Chhattisgarh (Raipur, Bhilai) |
+| North-East | Assam (Guwahati) |
+
+Rules:
+- City ids are lowercase letters only (database check); they are the URL (`?city=jaipur`) and never change.
+- "Delhi (NCT)" is a website label; the database row for DL keeps its original name "Delhi" (no function reads state
+  names). There is one Delhi board (the wider NCT); no New Delhi city and no Delhi NCR entity. Gurugram and Faridabad
+  rank in Haryana, Noida and Ghaziabad in Uttar Pradesh.
+- **Localities are major, recognisable areas only** (about five per new city, up to eight for the largest), not
+  streets, societies or landmarks. Sector-based cities use non-overlapping sector bands (Gandhinagar, Noida,
+  Chandigarh). The five launch cities keep their original lists unchanged.
+- **Every city ends with `Other`**, a real locality board for residents whose area is not listed. Registration shows
+  it as "Other"; wherever a board is named it reads "Other areas of <city>" (`localityLabel`, display only). The
+  90-day city and locality lock applies to it like any other locality.
+- Discovery: the homepage features six cities (the member's own city, the city on show, then cities with members by
+  member count and season total, then the five launch cities and Bengaluru) and links to all 45. The Cities page
+  searches city and state names, filters by the six regions and groups cities under state/UT headings. Registration
+  and board pickers group cities by state/UT with native option groups.
+- Demo data has members in the five launch cities only; the other boards are empty in demo mode.
+- Vehicle-series references are cosmetic (city index). Faridabad HR-51, Hyderabad TG-09, Siliguri WB-74 and Bhilai
+  CG-07 were checked against several secondary sources (insurance and registry guides, Telangana Today and The Hans
+  India for the 2024 TS→TG change), not the official Parivahan list.
 
 ## Application layout
 

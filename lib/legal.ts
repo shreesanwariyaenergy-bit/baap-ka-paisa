@@ -13,6 +13,9 @@ export const LEGAL_DOCS: LegalDoc[] = [
       ] },
       { heading: 'Who can use it', points: ['Members must be 18 or older.', 'One member profile per person.'] },
       { heading: 'Ranking rules', points: [
+        'What decides order is the moment the register records your payment, by the register\'s own clock. If two members reach the same score, the one the register recorded first ranks higher.',
+        'When your payment provider took the money decides only whether the payment counts for the season: it must be taken before the season closes. It never changes the order of ranks.',
+        'A payment taken before the close but confirmed to us within 10 minutes after it still counts for that season. A payment that cannot be counted is refunded; it is never carried into the next season.',
         'Entering a season starts at ₹1,000; later payments are multiples of ₹500.',
         'To pass someone, your Season Score must reach their score plus ₹500. Ties go to whoever reached the score first.',
         'Every successful payment is recorded in an append-only ledger. Ranks are calculated from that ledger; an admin cannot change a rank without a logged adjustment.',

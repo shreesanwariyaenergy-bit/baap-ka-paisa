@@ -125,9 +125,9 @@ test.describe('boards', () => {
   test('cities filter and sort work and open a board', async ({ page }) => {
     await page.goto('/cities');
     await page.getByRole('button', { name: 'North India' }).click();
-    await expect(page.locator('.city-card')).toHaveCount(1);
+    await expect(page.locator('.city-card')).toHaveCount(14);   // Delhi (NCT), Punjab, Haryana, Uttar Pradesh, Chandigarh
     await page.getByRole('button', { name: 'All cities' }).click();
-    await expect(page.locator('.city-card')).toHaveCount(5);
+    await expect(page.locator('.city-card')).toHaveCount(45);
     await page.getByTestId('city-pune').click();
     await expect(page.getByTestId('board-title')).toHaveText('Pune / City board');
   });
@@ -402,4 +402,135 @@ test('Price of the throne: every figure is labelled and nothing is an order', as
   const leader = Number((await page.getByTestId('tp-leader').innerText()).replace(/[^\d]/g, ''));
   const price = Number((await page.getByTestId('throne-price-amount').innerText()).replace(/[^\d]/g, ''));
   expect(price).toBe(leader + 500);
+});
+
+test('integrated journey: scene, gazette, board, profile, backing, declaration, bill, seal, closing', async ({ page, request }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto('/');
+  await dismissCrownMoment(page);
+  await expect(page.getByTestId('leader-feature')).toContainText('Kinjal Shah');
+  await expect(page.getByTestId('throne-price')).toBeVisible();
+  await page.getByTestId('gazette-strip').click();
+  await expect(page.getByTestId('gazette-lead')).toContainText('KINJAL SHAH TAKES SURAT');
+  expect((await request.get('/api/gazette-card/surat')).headers()['content-type']).toContain('image/png');
+  expect((await request.get('/api/gazette-card/nowhere')).status()).toBe(404);
+  await page.goto('/board?level=city&city=surat');
+  await expect(page.locator('.rank-row[data-rank="1"]')).toHaveAttribute('data-username', 'kinjal.adajan');
+  await expect(page.getByTestId('row-backers').first()).toContainText('backing');
+  await page.goto('/u/vesu.vikram');
+  await expect(page.getByTestId('dethroned-band')).toBeVisible();
+  await expect(page.getByTestId('claim')).toBeVisible();
+  await expect(page.getByTestId('backing-panel')).toBeVisible();
+  await expect(page.getByTestId('profile-declarations')).toContainText('Declared for Surat');
+  await page.getByTestId('profile-declarations').getByRole('link').first().click();
+  await expect(page.getByTestId('declaration')).toBeVisible();
+  await page.goto('/bill/vesu.vikram');
+  await expect(page.getByTestId('bill')).toContainText('1 × GUJARAT');
+  await expect(page.getByTestId('bill')).toContainText('REIGN ENDED · BY KINJAL SHAH');
+  await page.goto('/seal');
+  await expect(page.getByTestId('seal')).toBeVisible();
+  await page.getByTestId('seal-bill-link').click();
+  await expect(page.getByTestId('bill-name')).toHaveText('ISHAAN MEHTA');
+  await page.goto('/throne?level=city&city=surat&view=time');
+  await expect(page.getByTestId('throne-time-row').first()).toBeVisible();
+  await page.goto('/closing');
+  await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', /idle|live|extended|closed/);
+  for (const p of ['/archive', '/cities', '/india', '/me', '/invite', '/simulator', '/rank-up', '/legal/terms']) { expect((await page.goto(p))?.status(), p).toBe(200); }
+  await page.goto('/legal/terms');
+  await expect(page.locator('main')).toContainText('the one the register recorded first ranks higher');
+  expect(errors).toEqual([]);
+});
+
+test.describe('45-city geography', () => {
+  test('Cities page: count, state groups, search across cities and states, six regions', async ({ page }) => {
+    await page.goto('/cities');
+    await expect(page.getByText('45 cities across 19 states and UTs.', { exact: false }).first()).toBeVisible();
+    await expect(page.locator('.city-card')).toHaveCount(45);
+    await expect(page.locator('.state-group')).toHaveCount(19);
+    await expect(page.getByTestId('state-DL').locator('.state-head')).toContainText('Delhi (NCT)');
+    await expect(page.getByTestId('state-UP').locator('.state-head')).toContainText('6 cities');
+    await expect(page.getByTestId('state-UP').locator('.city-card')).toHaveCount(6);
+    // Gurugram and Faridabad under Haryana; Noida and Ghaziabad under Uttar Pradesh; no Delhi NCR anywhere
+    await expect(page.getByTestId('state-HR').getByTestId('city-gurugram')).toBeVisible();
+    await expect(page.getByTestId('state-HR').getByTestId('city-faridabad')).toBeVisible();
+    await expect(page.getByTestId('state-UP').getByTestId('city-noida')).toBeVisible();
+    await expect(page.getByTestId('state-UP').getByTestId('city-ghaziabad')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/Delhi NCR|New Delhi/i);
+    // search: city names and state names
+    await page.getByTestId('city-search').fill('jai');
+    await expect(page.locator('.city-card')).toHaveCount(1);
+    await expect(page.getByTestId('city-jaipur')).toBeVisible();
+    await page.getByTestId('city-search').fill('Uttar Pradesh');
+    await expect(page.locator('.city-card')).toHaveCount(6);
+    await page.getByTestId('city-search').fill('zzz');
+    await expect(page.getByTestId('city-empty')).toBeVisible();
+    await page.getByTestId('city-search').fill('');
+    // regions
+    for (const [r, n] of [['West', 14], ['North', 14], ['South', 4], ['East', 6], ['Central', 6], ['North-East', 1]] as const) {
+      await page.getByTestId(`region-${r}`).click();
+      await expect(page.locator('.city-card'), r).toHaveCount(n);
+    }
+    await expect(page.getByTestId('city-guwahati')).toBeVisible();
+    await page.getByTestId('region-South').click();
+    await expect(page.locator('.state-group')).toHaveCount(4);
+    // region and search combine
+    await page.getByTestId('city-search').fill('chen');
+    await expect(page.locator('.city-card')).toHaveCount(1);
+    await page.getByTestId('city-chennai').click();
+    await expect(page.getByTestId('board-title')).toHaveText('Chennai / City board');
+  });
+  test('homepage features six cities and links to all 45', async ({ page }) => {
+    await page.goto('/');
+    const tiles = page.getByTestId('featured-cities').locator('.terr');
+    await expect(tiles).toHaveCount(6);
+    await expect(tiles.first()).toContainText('Surat');   // the demo member's own city comes first
+    for (const name of ['Surat', 'Ahmedabad', 'Mumbai', 'Pune', 'Delhi', 'Bengaluru']) await expect(page.getByTestId('featured-cities')).toContainText(name);
+    await expect(page.getByTestId('featured-cities')).not.toContainText('Jaipur');
+    await page.getByTestId('explore-cities').click();
+    await expect(page).toHaveURL(/\/cities$/);
+    await expect(page.locator('.city-card')).toHaveCount(45);
+  });
+  test('board filters: cities grouped by state, new-city boards are empty and honest, Other is named for its city', async ({ page }) => {
+    await page.goto('/board?level=city&city=surat');
+    await expect(page.getByTestId('city-select').locator('optgroup')).toHaveCount(19);
+    await expect(page.getByTestId('city-select').locator('optgroup[label="Haryana"] option')).toHaveText(['Gurugram', 'Faridabad', 'Hisar', 'Panipat']);
+    await page.getByTestId('city-select').selectOption('jaipur');
+    await expect(page).toHaveURL(/city=jaipur/);
+    await expect(page.getByTestId('board-title')).toHaveText('Jaipur / City board');
+    await expect(page.locator('.rank-row')).toHaveCount(0);   // no invented members in a new city
+    await page.goto('/board?level=locality&city=jaipur&locality=Other');
+    await expect(page.getByTestId('board-title')).toHaveText('Other areas of Jaipur / Locality board');
+    await expect(page.getByTestId('locality-select').locator('option:checked')).toHaveText('Other areas of Jaipur');
+    await page.goto('/board?level=state&city=noida');
+    await expect(page.getByTestId('board-title')).toHaveText('Uttar Pradesh / State board');
+  });
+  test('existing city and locality URLs still work unchanged', async ({ page }) => {
+    await page.goto('/board?level=locality&city=surat&locality=Vesu');
+    await expect(page.getByTestId('board-title')).toHaveText('Vesu / Locality board');
+    await expect(page.locator('.rank-row').first()).toBeVisible();
+    await page.goto('/board?level=state&city=delhi');
+    await expect(page.getByTestId('board-title')).toHaveText('Delhi (NCT) / State board');
+    await page.goto('/board?level=city&city=mumbai');
+    await expect(page.getByTestId('board-title')).toHaveText('Mumbai / City board');
+    await page.goto('/?city=pune');
+    await expect(page.getByTestId('featured-cities').locator('.terr[aria-current="true"]')).toContainText('Pune');
+  });
+});
+
+test.describe('45-city geography on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test('Cities, homepage and a new-city board fit the screen', async ({ page }) => {
+    for (const path of ['/cities', '/', '/board?level=city&city=bhubaneswar', '/board?level=locality&city=gurugram&locality=Golf%20Course%20Extension%20Road']) {
+      await page.goto(path);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, path).toBeLessThanOrEqual(1);
+    }
+    await page.goto('/cities');
+    await page.getByTestId('region-North-East').click();
+    await expect(page.locator('.city-card')).toHaveCount(1);
+    await page.getByTestId('city-search').fill('');
+    await page.getByTestId('region-All').click();
+    await expect(page.locator('.city-card')).toHaveCount(45);
+  });
 });

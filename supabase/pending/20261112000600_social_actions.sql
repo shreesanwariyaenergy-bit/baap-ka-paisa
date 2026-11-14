@@ -21,9 +21,10 @@ begin
   if v_uid is null then raise exception 'Sign in first' using errcode = '28000'; end if;
   if not exists (select 1 from public.members m where m.id = v_uid) then
     raise exception 'Create your profile first' using errcode = 'no_data_found'; end if;
-  if p_action not in ('state', 'follow', 'unfollow', 'respect', 'rival', 'unrival') then
+  if p_action is null or p_action not in ('state', 'follow', 'unfollow', 'respect', 'rival', 'unrival') then
     raise exception 'Unknown action' using errcode = 'invalid_parameter_value'; end if;
 
+  if p_target is null or btrim(p_target) = '' then raise exception 'That member does not exist' using errcode = 'no_data_found'; end if;
   select m.id into v_target from public.members m
    where (m.masked and m.anon_label = p_target) or (not m.masked and m.username = p_target::extensions.citext);
   if v_target is null then raise exception 'That member does not exist' using errcode = 'no_data_found'; end if;

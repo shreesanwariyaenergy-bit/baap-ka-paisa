@@ -1,17 +1,20 @@
 'use client';
 // City, locality and search controls for The Board. They only change the URL; the server ranks the board.
 import { useRouter } from 'next/navigation';
+import { startNav } from './NavProgress';
 import { useState } from 'react';
-import type { Level } from '@/lib/geo';
+import { localityLabel, type Level } from '@/lib/geo';
 
 export function BoardFilters({ view, level, cityId, locality, query, cities, localities, basePath = '/board' }: {
-  view: string; level: Level; basePath?: string; cityId: string; locality: string; query: string; cities: { id: string; name: string }[]; localities: readonly string[];
+  view: string; level: Level; basePath?: string; cityId: string; locality: string; query: string; cities: { label: string; cities: { id: string; name: string }[] }[]; localities: readonly string[];
 }) {
   const router = useRouter();
+  const cityName = cities.flatMap((g) => g.cities).find((c) => c.id === cityId)?.name;
   const [q, setQ] = useState(query);
   const go = (p: Record<string, string>) => {
     const s = new URLSearchParams({ level, city: cityId, ...(level === 'locality' ? { locality } : {}), ...(view !== 'season' && view !== 'none' ? { view } : {}), ...p });
     if (!s.get('q')) s.delete('q');
+    startNav();
     router.push(`${basePath}?${s.toString()}`);
   };
   return (
@@ -19,14 +22,14 @@ export function BoardFilters({ view, level, cityId, locality, query, cities, loc
       {level !== 'india' && (
         <label><span className="sr-only">City</span>
           <select value={cityId} onChange={(e) => go({ city: e.target.value, locality: '', q: '' })} data-testid="city-select">
-            {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {cities.map((g) => <optgroup key={g.label} label={g.label}>{g.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}
           </select>
         </label>
       )}
       {level === 'locality' && (
         <label><span className="sr-only">Locality</span>
           <select value={locality} onChange={(e) => go({ locality: e.target.value, q: '' })} data-testid="locality-select">
-            {localities.map((l) => <option key={l} value={l}>{l}</option>)}
+            {localities.map((l) => <option key={l} value={l}>{cityName ? localityLabel({ name: cityName }, l) : l}</option>)}
           </select>
         </label>
       )}

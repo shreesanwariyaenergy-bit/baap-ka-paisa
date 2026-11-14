@@ -57,6 +57,18 @@ describe('season engine', () => {
     const r = runEngine(M, [S1], [credit('a', 5000, T0 + HOUR), credit('b', 1000, end - 5 * MINUTE)], end + HOUR);
     expect(r.seasons[0].endsAt).toBe(end);
   });
+  it('anti-snipe: an overtake below #01 on every board does not extend the national close', () => {
+    const end = S1.scheduledEnd;
+    // b passes d on the India board (3rd → 2nd) but takes #01 nowhere: a holds Vesu, Surat, Gujarat and India.
+    const r = runEngine(M, [S1], [credit('a', 5000, T0 + HOUR), credit('b', 2000, T0 + 2 * HOUR), credit('d', 3000, T0 + 3 * HOUR), credit('b', 1500, end - 5 * MINUTE)], end + HOUR);
+    expect(boardAt(r, 1, 'india', end).map((x) => x.memberId)).toEqual(['a', 'b', 'd']);
+    expect(r.seasons[0].endsAt).toBe(end);
+  });
+  it('anti-snipe: taking a #01 on a smaller board (here a vacant locality) still extends', () => {
+    const end = S1.scheduledEnd;
+    const r = runEngine(M, [S1], [credit('a', 5000, T0 + HOUR), credit('c', 1000, end - 5 * MINUTE)], end + HOUR);
+    expect(r.seasons[0].endsAt).toBe(end + 15 * MINUTE);
+  });
   it('anti-snipe: extensions stop at 2 hours in total', () => {
     const end = S1.scheduledEnd;
     const evs: EngineEvent[] = [credit('a', 1000, T0 + HOUR)];

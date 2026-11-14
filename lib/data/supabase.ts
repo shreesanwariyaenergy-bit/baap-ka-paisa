@@ -6,17 +6,27 @@ import { seasonFor, type SeasonInfo } from '../season';
 import { monthName, monthShort } from '../format';
 import { lifetimeTier, movement } from './ranking';
 import { humanizeDetail } from '../achievements';
-import type { AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
+import { tracedFetch } from '../trace';
+import { LINES, toOvertake } from '../engine/callout';
+import type { SocialHandles, BackingView, DeclarationView, AchievementView, ArchiveSeason, Board, BoardEvent, BoardRow, CitySummary, CrownMomentView, DataSource, PublicMember, ReignView, SocialSummary, Standing, ViewerSeal } from './types';
 
 interface Cfg { url: string; key: string; }
 
-async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}, token?: string | null): Promise<T> {
-  const res = await fetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
-    cache: 'no-store',
-  });
+async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {}, token?: string | null, retry = true): Promise<T> {
+  // These are read-only functions, so a connection dropped in transit is retried once instead of failing the page.
+  let res: Response;
+  try {
+    res = await tracedFetch(`${cfg.url}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    if (retry) return rpcRaw<T>(cfg, fn, args, token, false);
+    throw e;
+  }
+  if (res.status === 401 && token) return rpcRaw<T>(cfg, fn, args, null);   // token no longer valid: read as a visitor
   if (!res.ok) throw new Error(`Ranking service error (${fn}): ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -43,10 +53,46 @@ function lite(name: string, display: string | null, masked: boolean, cityId: str
     locality, memberNo: null, seasonScore: 0, lifetimeTier: null };
 }
 
+// The signed-in member's own profile, started before the season row has arrived. Keyed by token and kept only
+// until the data source for the same request picks it up.
+const early = new Map<string, Promise<unknown>>();
+export function prefetchViewer(cfg: Cfg, token: string) {
+  const key = token + 'get_me{}';
+  if (!early.has(key)) { early.set(key, rpcRaw(cfg, 'get_me', {}, token).catch(() => [])); setTimeout(() => early.delete(key), 10_000); }
+}
+
 export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string | null = null): DataSource {
   // Reads carry the member's own token when signed in, so the database can mark "your row".
   const cfg = base;
-  const rpc = <T,>(c: Cfg, fn: string, args: Record<string, unknown> = {}) => rpcRaw<T>(c, fn, args, token);
+  // One data source exists per request (lib/data/index.ts), so identical reads within a request are made once
+  // and shared. Nothing is kept between requests, so this can never serve an out-of-date rank.
+  const memo = new Map<string, Promise<unknown>>();
+  const rpc = <T,>(c: Cfg, fn: string, args: Record<string, unknown> = {}): Promise<T> => {
+    const key = fn + JSON.stringify(args);
+    let p = memo.get(key) as Promise<T> | undefined;
+    if (!p && token && early.has(token + key)) { p = early.get(token + key) as Promise<T>; early.delete(token + key); memo.set(key, p); }
+    if (!p) { p = rpcRaw<T>(c, fn, args, token); memo.set(key, p); p.catch(() => memo.delete(key)); }
+    return p;
+  };
+  let viewerP: ReturnType<DataSource['viewer']> | null = null;
+  async function loadViewer(): ReturnType<DataSource['viewer']> {
+    if (!token) return null;
+    const recordP = rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => []);   // started now, used below
+      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
+      if (!me) return null; // account exists but has no member profile yet
+      const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
+      const lifetime = Math.round(Number(me.lifetime_paise) / 100);
+      // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
+      const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
+        cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
+      const [standings, archive] = await Promise.all([src.standings(publicName), recordP]);
+      const joined = seasonFor(new Date(me.joined_at), null);
+      const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
+      for (const r of archive) { const e = bySeason.get(r.season_id) ?? { starts: r.starts_at, city: null, loc: null }; if (r.level === 'city') e.city = r.final_rank; if (r.level === 'locality') e.loc = r.final_rank; bySeason.set(r.season_id, e); }
+      const record = [...bySeason.entries()].sort((a, b) => b[0] - a[0]).map(([id, e]) => { const s = seasonFor(new Date(e.starts), null); return { seasonLabel: `Season ${id}`, monthLabel: `${monthShort(s.month)} ${s.year}`, cityRank: e.city, localityRank: e.loc, note: null }; });
+      return { member, lifetimeScore: lifetime, memberSince: `${monthShort(joined.month)} ${joined.year}`, standings, record, insignia: [], cityMovement: null } satisfies ViewerSeal;
+    }
+
   const boardArgs = (s: Scope) => ({ p_level: s.level, p_city: s.level === 'india' ? null : s.cityId, p_locality: s.level === 'locality' ? s.locality : null });
 
   const src: DataSource = {
@@ -83,27 +129,15 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       return rows[0] ? toMember(rows[0]) : null;
     },
     async standings(name) {
-      const m = await src.member(name);
+      const [m, rows] = await Promise.all([src.member(name), rpc<{ level: Level; rank: number | null; total: number }[]>(cfg, 'get_standings', { p_name: name })]);
       if (!m) return [];
-      const rows = await rpc<{ level: Level; rank: number | null; total: number }[]>(cfg, 'get_standings', { p_name: name });
       return rows.map((r): Standing => ({ level: r.level, scope: { level: r.level, cityId: m.cityId, locality: m.locality }, rank: r.rank, of: r.total }));
     },
-    async viewer() {
-      if (!token) return null;
-      const me = (await rpc<{ username: string; display_name: string; masked: boolean; anon_label: string | null; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number; joined_at: string; lifetime_paise: number; season_score_paise: number }[]>(cfg, 'get_me'))[0];
-      if (!me) return null; // account exists but has no member profile yet
-      const publicName = me.masked && me.anon_label ? me.anon_label : me.username;
-      const lifetime = Math.round(Number(me.lifetime_paise) / 100);
-      // Your own view shows your real name and number even in Mystery mode; `masked` tells the UI what others see.
-      const member: PublicMember = { username: publicName, displayName: me.display_name, masked: me.masked, publicLabel: publicName, title: me.title, flexLine: me.flex_line,
-        cityId: me.city_id, state: me.state_code as StateCode, locality: me.locality, memberNo: me.member_no, seasonScore: Math.round(Number(me.season_score_paise) / 100), lifetimeTier: lifetimeTier(lifetime) };
-      const [standings, archive] = await Promise.all([src.standings(publicName), rpc<{ season_id: number; starts_at: string; level: string; scope_key: string; final_rank: number }[]>(cfg, 'get_my_season_record').catch(() => [])]);
-      const joined = seasonFor(new Date(me.joined_at), null);
-      const bySeason = new Map<number, { starts: string; city: number | null; loc: number | null }>();
-      for (const r of archive) { const e = bySeason.get(r.season_id) ?? { starts: r.starts_at, city: null, loc: null }; if (r.level === 'city') e.city = r.final_rank; if (r.level === 'locality') e.loc = r.final_rank; bySeason.set(r.season_id, e); }
-      const record = [...bySeason.entries()].sort((a, b) => b[0] - a[0]).map(([id, e]) => { const s = seasonFor(new Date(e.starts), null); return { seasonLabel: `Season ${id}`, monthLabel: `${monthShort(s.month)} ${s.year}`, cityRank: e.city, localityRank: e.loc, note: null }; });
-      return { member, lifetimeScore: lifetime, memberSince: `${monthShort(joined.month)} ${joined.year}`, standings, record, insignia: [], cityMovement: null } satisfies ViewerSeal;
+    viewer() {
+      if (!viewerP) viewerP = loadViewer();
+      return viewerP;
     },
+
     async cities() {
       const rows = await rpc<{ city_id: string; members: number; season_total_paise: number; leader_name: string | null; leader_masked: boolean | null; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries');
       return rows.filter((r) => r.rank !== null).map((r): CitySummary => ({
@@ -139,14 +173,62 @@ export function supabaseSource(base: Cfg, seasonCache: SeasonInfo, token: string
       const rows = await rpc<{ followers: number; following: number; respect_this_season: number; rival_names: string[] }[]>(cfg, 'get_social', { p_name: name });
       const r = rows[0];
       if (!r) return null;
+      // The member's own rivals are shown with their city rank (home, /me): start those reads now, together with the profiles.
+      if (token && viewerP && (await viewerP)?.member.username === name) r.rival_names.forEach((n) => { void src.standings(n); });
       const rivals = (await Promise.all(r.rival_names.map((n) => src.member(n)))).filter((m): m is PublicMember => !!m).map((m): BoardRow => ({ rank: 0, member: m, movement: null }));
       return { followers: r.followers, following: r.following, respectThisSeason: r.respect_this_season, rivals } satisfies SocialSummary;
     },
-    // Backing is a demo prototype: not switched on for real members.
-    async backing() { return null; },
-    async mostBacked() { return []; },
-    // Declarations are a demo prototype: not switched on for real members.
-    async declarations() { return []; },
+    // Backing and Declarations read through their own database functions. Until those migrations are
+    // applied the functions do not exist: the reads then return "nothing" instead of failing the page.
+    async backing(name) {
+      const rows = await rpc<{ season_id: number | null; backers: number; contender: boolean; pick_name: string | null; pick_display: string | null; pick_masked: boolean | null; pick_city: string | null; pick_locality: string | null;
+        pick_rank: number | null; pick_of: number | null; pick_gap_paise: number | null; pick_since: string | null; history: { season_id: number; name: string; display: string | null; masked: boolean; city: string; final_rank: number | null }[] }[]>(cfg, 'get_backing', { p_name: name }).catch(() => null);
+      const r = rows?.[0];
+      if (!r) return null;
+      return {
+        open: r.season_id !== null, seasonLabel: r.season_id ? `Season ${r.season_id}` : seasonCache.label, backers: r.backers, contender: r.contender,
+        pick: r.pick_name ? { member: lite(r.pick_name, r.pick_display, !!r.pick_masked, r.pick_city!, r.pick_locality!), cityRank: r.pick_rank, cityOf: r.pick_of ?? 0, gapToFirst: Math.round(Number(r.pick_gap_paise ?? 0) / 100), since: new Date(r.pick_since!) } : null,
+        history: r.history.map((h) => ({ seasonLabel: `Season ${h.season_id}`, member: lite(h.name, h.display, h.masked, h.city, ''), finalRank: h.final_rank, crowned: h.final_rank === 1 })),
+      } satisfies BackingView;
+    },
+    async socials(name) {
+      const rows = await rpc<{ instagram: string | null; snapchat: string | null; visibility: SocialHandles['visibility']; is_self: boolean }[]>(cfg, 'get_socials', { p_name: name }).catch(() => []);
+      const r = rows[0];
+      return r && (r.instagram || r.snapchat || r.is_self) ? { instagram: r.instagram, snapchat: r.snapchat, visibility: r.visibility, isSelf: r.is_self } : null;
+    },
+    async mostBacked(cityId, limit) {
+      const rows = await rpc<{ public_name: string; display_name: string | null; masked: boolean; locality: string; backers: number; rank: number }[]>(cfg, 'get_most_backed', { p_city: cityId, p_limit: limit }).catch(() => []);
+      return rows.map((r) => ({ member: lite(r.public_name, r.display_name, r.masked, cityId, r.locality), backers: r.backers, rank: r.rank }));
+    },
+    async declarations({ cityId, username, id }) {
+      if (id !== undefined && !/^\d+$/.test(id)) return [];
+      type Row = { id: number; seq: number; season_id: number; level: Level; scope_key: string; line: number; declared_at: string; status: DeclarationView['status']; resolved_at: string | null;
+        holder_score_paise: number; challenger_score_paise: number; required_paise: number; holder_now_paise: number; challenger_now_paise: number;
+        c_name: string; c_display: string | null; c_masked: boolean; c_city: string; c_locality: string; h_name: string; h_display: string | null; h_masked: boolean; h_city: string; h_locality: string;
+        taken_by_name: string | null; moves: { at: string; who: 'holder' | 'challenger'; amount_paise: number }[] };
+      const rows = await rpc<Row[]>(cfg, 'get_declarations', { p_city: cityId ?? null, p_name: username ?? null, p_id: id ? Number(id) : null }).catch(() => [] as Row[]);
+      const rs = (p: number) => Math.round(Number(p) / 100);
+      return rows.map((r): DeclarationView => {
+        const sc = scopeFromKey(r.level, r.scope_key);
+        const code = sc.level === 'india' ? 'IN' : sc.level === 'state' ? r.scope_key : sc.level === 'city' ? (cityById(sc.cityId)?.mark ?? sc.cityId.toUpperCase()) : `${cityById(sc.cityId)?.mark ?? ''}-${sc.locality.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()}`;
+        let h = rs(r.holder_score_paise), c = rs(r.challenger_score_paise);
+        const timeline: DeclarationView['timeline'] = [{ at: new Date(r.declared_at), kind: 'declared', gap: h - c }];
+        r.moves.forEach((m, n) => {
+          if (m.who === 'holder') h += rs(m.amount_paise); else c += rs(m.amount_paise);
+          const last = n === r.moves.length - 1 && r.status === 'won' && m.who === 'challenger';   // the move that takes the throne is the last word
+          if (!last) timeline.push({ at: new Date(m.at), kind: m.who === 'holder' ? 'holder-added' : 'challenger-added', amount: rs(m.amount_paise), gap: h - c });
+        });
+        if (r.status !== 'standing' && r.resolved_at) timeline.push({ at: new Date(r.resolved_at), kind: r.status, gap: h - c, by: r.taken_by_name ? lite(r.taken_by_name, null, /^ANON-/.test(r.taken_by_name), sc.cityId, '') : undefined });
+        const hNow = rs(r.holder_now_paise), cNow = rs(r.challenger_now_paise);
+        return {
+          id: String(r.id), no: `D/S${r.season_id}/${code}/${String(r.seq).padStart(3, '0')}`, seasonLabel: `Season ${r.season_id}`, scope: sc, boardName: scopeName(sc),
+          challenger: lite(r.c_name, r.c_display, r.c_masked, r.c_city, r.c_locality), holder: lite(r.h_name, r.h_display, r.h_masked, r.h_city, r.h_locality),
+          at: new Date(r.declared_at), line: LINES[r.line] ?? LINES[0], holderScore: rs(r.holder_score_paise), challengerScore: rs(r.challenger_score_paise), required: rs(r.required_paise),
+          status: r.status, resolvedAt: r.resolved_at ? new Date(r.resolved_at) : null,
+          current: r.status === 'standing' ? { holderScore: hNow, challengerScore: cNow, required: toOvertake(hNow, cNow) } : null, timeline,
+        };
+      });
+    },
     async archive() {
       const rows = await rpc<{ season_id: number; starts_at: string; ends_at: string; level: string; scope_key: string; public_name: string; display_name: string | null; masked: boolean }[]>(cfg, 'get_archive');
       const bySeason = new Map<number, ArchiveSeason>();
@@ -178,7 +260,7 @@ export async function loadSeason(cfg: Cfg): Promise<SeasonInfo> {
   }
   const start = new Date(r.starts_at);
   const base = seasonFor(start, null);
-  return { ...base, number: r.id, startsAt: start, endsAt: new Date(r.ends_at), label: `Season ${r.id}`,
+  return { ...base, number: r.id, startsAt: start, endsAt: new Date(r.ends_at), scheduledEnd: new Date(r.scheduled_end), status: r.status === 'closed' ? 'closed' : 'open', label: `Season ${r.id}`,
     short: `S${String(r.id).padStart(2, '0')} / ${monthShort(base.month).toUpperCase()} '${String(base.year).slice(2)}`,
     monthLabel: `${monthName(base.month)} ${base.year}` };
 }

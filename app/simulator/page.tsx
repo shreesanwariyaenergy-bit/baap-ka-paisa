@@ -70,7 +70,7 @@ export default async function SimulatorPage({ searchParams }: { searchParams: Pr
               </li>
             ))}
           </ol>
-          <div className="aside-stat"><span>Anti-snipe</span><b>+15 min, max 2 hours</b></div>
+          <div className="aside-stat"><span>Anti-snipe</span><b>New #01 in last 15 min: +15 min, max 2 hours</b></div>
           <div className="aside-stat"><span>Engine time</span><b>{ist(now)}</b></div>
           <div className="aside-stat"><span>Scheduled close</span><b>{ist(SCENARIO_SEASON.scheduledEnd)}</b></div>
           <p style={{ marginBottom: 0 }}>Closes {Math.round((season.endsAt - SCENARIO_SEASON.scheduledEnd) / 60000)} minutes after schedule so far. Maximum extension: {2 * HOUR / 60000} minutes.</p>
