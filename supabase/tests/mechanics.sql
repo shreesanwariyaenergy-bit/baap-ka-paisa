@@ -90,6 +90,7 @@ begin
   select * into r from public.get_backing('mech.fan');
   assert r.pick_name is null and r.history->0->>'name' = 'mech.ch' and (r.history->0->>'final_rank')::int = 1, 'history survives the season';
   select * into r from public.get_declarations(null, 'mech.fan', null); assert r.status = 'lapsed', 'unfulfilled declaration lapses at the close';
+  assert (select count(*) from public.get_declarations(null, anon, null)) = 0, 'a blocked declaration stays hidden after the close';
   assert (select count(*) from public.ledger_invariants()) = 0, 'ledger still consistent';
   raise notice 'DECLARATIONS AND BACKING OK';
 end $$;

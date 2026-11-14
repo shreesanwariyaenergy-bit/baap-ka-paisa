@@ -39,8 +39,9 @@ language sql stable security definer set search_path = '' as $$
   select case when d.removed_at is not null then 'removed'
               when c.id is not null and c.to_member = d.challenger then 'won'
               when c.id is not null then 'throne-moved'
-              when s.status = 'closed' then 'lapsed'
+              -- A blocked challenger's unresolved declaration stays out of public view, also after the season closes.
               when exists (select 1 from public.declaration_blocks b where b.holder = d.holder and b.challenger = d.challenger) then 'withdrawn'
+              when s.status = 'closed' then 'lapsed'
               else 'standing' end,
          case when d.removed_at is not null then d.removed_at when c.id is not null then c.at when s.status = 'closed' then s.ends_at end,
          case when c.id is not null and c.to_member <> d.challenger then c.to_member end
