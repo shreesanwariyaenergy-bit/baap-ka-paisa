@@ -1,4 +1,5 @@
 // Server-side page timing against a running app (default http://localhost:3300) pointed at STAGING, with
+if (!process.env.BKP_STAGING_PASSWORD && process.env.BKP_MEMBER !== '0') console.warn('BKP_STAGING_PASSWORD not set: member runs will fail to sign in.');
 // BKP_TRACE=1 so the server log records every database/auth call. Prints, per page: median server time and
 // the calls the page made. Usage: node tests/perf/baseline.mjs <server-log-file> [label]
 import { readFileSync, statSync } from 'node:fs';
@@ -10,7 +11,7 @@ const SIGNED_IN = ['/', '/seal', '/me', '/u/stg.king', '/board?level=city&city=s
 
 async function cookieFor(who) {
   const b = await chromium.launch(); const c = await b.newContext(); const p = await c.newPage();
-  await p.goto(B + '/signin'); await p.locator('input[type=email]').fill(`stg-${who}@test.invalid`); await p.locator('input[type=password]').fill('Staging-test-1');
+  await p.goto(B + '/signin'); await p.locator('input[type=email]').fill(`stg-${who}@test.invalid`); await p.locator('input[type=password]').fill(process.env.BKP_STAGING_PASSWORD);
   await p.getByTestId('signin-submit').click(); await p.waitForURL((u) => !u.pathname.startsWith('/signin'), { timeout: 30000 });
   const ck = (await c.cookies()).map((x) => `${x.name}=${x.value}`).join('; '); await b.close(); return ck;
 }

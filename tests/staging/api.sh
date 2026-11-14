@@ -2,7 +2,7 @@
 # Real-stack checks against the STAGING Supabase project (never production): real Auth sign-in, real REST, real roles.
 # Usage: tests/staging/api.sh <phase>   phases: auth | social | mechanics
 set -uo pipefail
-U=https://wxrhwkdymjipaftipbgy.supabase.co; K=sb_publishable_T2yGhTLU0MHEGYLVbkzi2w_rl7lRZYM; PW=Staging-test-1
+U=https://wxrhwkdymjipaftipbgy.supabase.co; K=sb_publishable_T2yGhTLU0MHEGYLVbkzi2w_rl7lRZYM; PW=${BKP_STAGING_PASSWORD:?Set BKP_STAGING_PASSWORD (staging test accounts only)}
 tok() { curl -s --max-time 30 -X POST "$U/auth/v1/token?grant_type=password" -H "apikey: $K" -H "Content-Type: application/json" -d "{\"email\":\"stg-$1@test.invalid\",\"password\":\"${2:-$PW}\"}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token') or 'ERR:'+str(d.get('error_code') or d.get('msg') or d)[:60])"; }
 rpc() { # name json [token]  -> "HTTP body"
   local t="${3:-$K}"; curl -s --max-time 30 -w " [%{http_code}]" -X POST "$U/rest/v1/rpc/$1" -H "apikey: $K" -H "Authorization: Bearer $t" -H "Content-Type: application/json" -d "$2" | cut -c1-230; echo; }
@@ -13,7 +13,7 @@ auth)
   say "sign-in, correct password";             T=$(tok king); echo "${T:0:3}… (${#T} chars)"
   say "sign-in, wrong password";               tok king nope-nope-1
   say "sign-in, unconfirmed email";            tok unconf
-  say "sign-up through real Auth (email needed)"; curl -s --max-time 30 -w " [%{http_code}]" -X POST "$U/auth/v1/signup" -H "apikey: $K" -H "Content-Type: application/json" -d '{"email":"stg-newperson@test.invalid","password":"Staging-test-1"}' | cut -c1-160; echo
+  say "sign-up through real Auth (email needed)"; curl -s --max-time 30 -w " [%{http_code}]" -X POST "$U/auth/v1/signup" -H "apikey: $K" -H "Content-Type: application/json" -d '{"email":"stg-newperson@test.invalid","password":"'"$PW"'"}' | cut -c1-160; echo
   say "anon: create_member";                   rpc create_member '{"p_username":"stg.anon","p_display_name":"A","p_date_of_birth":"1990-01-01","p_city":"surat","p_locality":"Vesu"}'
   say "not on allow-list: create_member";      rpc create_member '{"p_username":"stg.outsider","p_display_name":"Out Sider","p_date_of_birth":"1990-01-01","p_city":"surat","p_locality":"Vesu"}' "$(tok outsider)"
   for m in "king surat Vesu false" "ch surat Adajan false" "third surat Vesu true" "fan surat Pal false" "away pune Baner false"; do set -- $m

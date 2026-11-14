@@ -211,7 +211,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
         <Link className="textlink" href="/archive">Open the archive ↗</Link></div>
       <div className="season-band">
         <div><small>Now</small><b>{open ? season.label : 'Not open'}</b><span>{open ? season.monthLabel : 'Season 1 has not started'}</span></div>
-        <div><small>Closes in</small><b>{!open ? '—' : left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Last-minute overtakes extend the close by 15 minutes</span></div>
+        <div><small>Closes in</small><b>{!open ? '—' : left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Taking a #01 in the last 15 minutes extends the close by 15 minutes</span></div>
         <div><small>Then</small><b>Boards reset</b><span>Every throne is empty again on the 1st</span></div>
         <div><small>Forever</small><b>{archive.length} {archive.length === 1 ? 'season' : 'seasons'} archived</b><span><Link href="/board?view=hall">Hall of Fame</Link> and <Link href="/archive">past champions</Link></span></div>
       </div>

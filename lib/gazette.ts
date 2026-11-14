@@ -119,7 +119,7 @@ export function buildEdition(i: GazetteInput): Edition {
   const loved = respect.rows[0];
   if (loved && (loved.score ?? 0) > 0) stories.push({ kicker: 'Cannot be bought', headline: `MOST RESPECTED: ${who(loved.member).toUpperCase()}`, body: `${loved.score} Respect this season. Respect is free, limited to one per person per day, and is the only number here that money does not move.`, href: '/board?view=respect&level=city&city=' + city.id });
   if (i.open && daysLeft <= 7) stories.push({ kicker: 'The closing', headline: daysLeft <= 1 ? 'THE BOARD CLOSES TONIGHT' : `${daysLeft} DAYS TO THE CLOSING`, tone: 'hot',
-    body: `At 11:59 pm on the last day the board freezes and whoever holds #01 is entered as Season Crown. An overtake in the final 15 minutes extends the season by 15 minutes.` });
+    body: `At 11:59 pm on the last day the board freezes and whoever holds #01 is entered as Season Crown. Taking #01 on any board in the final 15 minutes extends the season by 15 minutes (2 hours at most).` });
 
   // Notices: every change of throne this season, numbered in order. reigns arrive newest first.
   const seasonReigns = reigns.filter((r) => r.seasonLabel === season.label || !season.number).slice().reverse();

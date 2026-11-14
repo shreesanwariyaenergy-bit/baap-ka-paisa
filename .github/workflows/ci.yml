@@ -1,0 +1,35 @@
+# Every push and pull request: types, lint, unit tests, production build, browser tests on demo data, and the
+# database suite on a throwaway Postgres. No secrets are used; nothing here touches Supabase or Vercel.
+name: CI
+on:
+  push:
+  pull_request:
+concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+permissions: { contents: read }
+jobs:
+  app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env: { BKP_DATA_SOURCE: demo }
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --trace off
+  database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Database lifecycle, permissions, ledger, mechanics, anti-snipe and operations
+        run: |
+          bash scripts/db-test.sh | tee db.log
+          ! grep -E "^psql:.*ERROR" db.log
+      - name: Ledger audit (concurrency, duplicates, late payments)
+        run: bash scripts/db-audit.sh | tee audit.log

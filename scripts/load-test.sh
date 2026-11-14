@@ -3,9 +3,9 @@
 # Never touches the Supabase project. Numbers describe THIS machine; use them for relative bottlenecks.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-BIN=${PG_BIN:-/usr/lib/postgresql/16/bin}; D=$(mktemp -d /var/tmp/bkp-load.XXXXXX); PORT=${PG_TEST_PORT:-5547}
+BIN=${PG_BIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}; D=$(mktemp -d /var/tmp/bkp-load.XXXXXX); PORT=${PG_TEST_PORT:-5547}
 run() { if [ "$(id -u)" = 0 ]; then chown -R postgres "$D"; su postgres -c "$*"; else bash -c "$*"; fi; }
-run "$BIN/initdb -D $D -A trust >/dev/null && $BIN/pg_ctl -D $D -o '-p $PORT -k /tmp -c max_connections=${MAXC:-60} -c shared_buffers=${SB:-224MB}' -l $D/log -w start >/dev/null"
+run "$BIN/initdb -D $D -U postgres -A trust >/dev/null && $BIN/pg_ctl -D $D -o '-p $PORT -k /tmp -c max_connections=${MAXC:-60} -c shared_buffers=${SB:-224MB}' -l $D/log -w start >/dev/null"
 trap 'run "$BIN/pg_ctl -D $D -m immediate stop >/dev/null"; rm -rf "$D"' EXIT
 P="psql -q -h /tmp -p $PORT -U postgres -v ON_ERROR_STOP=1"; B="$BIN/pgbench -h /tmp -p $PORT -U postgres -n bkp"
 $P -c "create database bkp"; $P -d bkp -f supabase/tests/platform_stub.sql >/dev/null

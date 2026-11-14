@@ -179,13 +179,10 @@ export function runEngine(members: EngineMember[], seasonDefs: SeasonDef[], even
       if (!pioneers.has(lk)) { pioneers.add(lk); award({ memberId: m.id, id: 'pioneer', label: `Pioneer of ${m.locality}`, detail: `First member ever to rank in ${m.locality}`, at: ev.at }); }
     }
 
-    // Overtake: someone who was ahead of this member is now behind. India covers everyone.
-    const indiaBefore = before.get('india')!;
-    const myBefore = indiaBefore.find((r) => r.memberId === m.id)?.rank ?? Infinity;
-    const aheadBefore = new Set(indiaBefore.filter((r) => r.rank < myBefore).map((r) => r.memberId));
-    const myAfter = after.get('india')!.find((r) => r.memberId === m.id)!.rank;
-    const overtook = after.get('india')!.some((r) => r.rank > myAfter && aheadBefore.has(r.memberId));
-    if (overtook && ev.at >= s.endsAt - ANTI_SNIPE_WINDOW) {
+    // Anti-snipe: taking #01 on any of this member's boards (locality, city, state or India) in the last
+    // 15 minutes extends the season. Overtakes below #01 do not move the national close.
+    const tookThrone = keys.some((k) => (before.get(k)![0]?.memberId ?? null) !== after.get(k)![0].memberId);
+    if (tookThrone && ev.at >= s.endsAt - ANTI_SNIPE_WINDOW) {
       const newEnd = Math.min(s.endsAt + ANTI_SNIPE_STEP, s.scheduledEnd + ANTI_SNIPE_MAX);
       if (newEnd > s.endsAt) { s.endsAt = newEnd; s.extensions.push({ at: ev.at, newEnd, byEvent: ev.id }); }
     }

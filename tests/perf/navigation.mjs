@@ -1,4 +1,5 @@
 // Browser-side navigation timing. Clicks through the main sections like a member would and records, per click:
+if (!process.env.BKP_STAGING_PASSWORD && process.env.BKP_MEMBER !== '0') console.warn('BKP_STAGING_PASSWORD not set: member runs will fail to sign in.');
 //   feedback  - time until the screen visibly responds (loading state or new page)
 //   complete  - time until the new page's content is in place
 //   reload    - whether the click caused a full page reload (it should not)
@@ -13,7 +14,7 @@ const ROUTE = [
   ['Profile', 'url', '/u/stg.king'], ['The Bill', 'url', '/bill/stg.king'], ['The Seal', 'nav', /\/seal/, '/seal'], ['The scene', 'nav', /^\/$/, '/'],
 ];
 const b = await chromium.launch(); const ctx = await b.newContext(); const p = await ctx.newPage();
-if (MEMBER) { await p.goto(B + '/signin'); await p.locator('input[type=email]').fill('stg-fan@test.invalid'); await p.locator('input[type=password]').fill('Staging-test-1'); await p.getByTestId('signin-submit').click(); await p.waitForURL((u) => !u.pathname.startsWith('/signin'), { timeout: 30000 }); }
+if (MEMBER) { await p.goto(B + '/signin'); await p.locator('input[type=email]').fill('stg-fan@test.invalid'); await p.locator('input[type=password]').fill(process.env.BKP_STAGING_PASSWORD); await p.getByTestId('signin-submit').click(); await p.waitForURL((u) => !u.pathname.startsWith('/signin'), { timeout: 30000 }); }
 await p.goto(B + '/'); await p.waitForLoadState('networkidle');
 const res = Object.fromEntries(ROUTE.map(([n]) => [n, { fb: [], done: [], reloads: 0 }]));
 for (let r = 0; r < ROUNDS; r++) for (const [name, kind, target, href] of ROUTE) {

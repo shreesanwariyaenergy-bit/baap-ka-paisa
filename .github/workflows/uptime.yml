@@ -1,0 +1,21 @@
+# Uptime and integrity check every 15 minutes. Calls /api/health on the URL in the repository variable
+# BKP_HEALTH_URL (Settings → Secrets and variables → Actions → Variables). A failed run means the site is
+# down, the season clock stopped, a season was not closed or an integrity check raised an alert. GitHub emails
+# the repository owner about failed scheduled runs. Skips quietly until the variable is set.
+name: Uptime
+on:
+  schedule: [{ cron: '*/15 * * * *' }]
+  workflow_dispatch:
+permissions: {}
+jobs:
+  health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check /api/health
+        env: { URL: '${{ vars.BKP_HEALTH_URL }}' }
+        run: |
+          if [ -z "$URL" ]; then echo "BKP_HEALTH_URL not set: skipping"; exit 0; fi
+          code=$(curl -sS -o body.json -w '%{http_code}' --max-time 20 "$URL/api/health" || echo 000)
+          cat body.json 2>/dev/null; echo
+          [ "$code" = 200 ] || { echo "::error::Health check returned $code"; exit 1; }

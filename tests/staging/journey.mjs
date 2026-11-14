@@ -1,7 +1,8 @@
 // Integrated journey through the real app against the STAGING Supabase project (real Auth, real database).
 // Usage: start the app pointed at staging on :3300, then  node tests/staging/journey.mjs
 import { chromium } from 'playwright';
-const B = 'http://localhost:3300', PW = 'Staging-test-1';
+const B = 'http://localhost:3300', PW = process.env.BKP_STAGING_PASSWORD;
+if (!PW) { console.error('Set BKP_STAGING_PASSWORD (staging test accounts only).'); process.exit(2); }
 const browser = await chromium.launch();
 const results = [];
 const step = async (name, fn) => { try { const note = await fn(); results.push(`PASS  ${name}${note ? `  [${note}]` : ''}`); } catch (e) { results.push(`FAIL  ${name}  [${String(e).split('\n')[0].slice(0, 170)}]`); } };

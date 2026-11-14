@@ -3,9 +3,9 @@
 # Uses real concurrent connections. Never touches the Supabase project.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-BIN=${PG_BIN:-/usr/lib/postgresql/16/bin}; D=$(mktemp -d /var/tmp/bkp-audit.XXXXXX); PORT=${PG_TEST_PORT:-5546}
+BIN=${PG_BIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}; D=$(mktemp -d /var/tmp/bkp-audit.XXXXXX); PORT=${PG_TEST_PORT:-5546}
 run() { if [ "$(id -u)" = 0 ]; then chown -R postgres "$D"; su postgres -c "$*"; else bash -c "$*"; fi; }
-run "$BIN/initdb -D $D -A trust >/dev/null && $BIN/pg_ctl -D $D -o '-p $PORT -k /tmp' -l $D/log -w start >/dev/null"
+run "$BIN/initdb -D $D -U postgres -A trust >/dev/null && $BIN/pg_ctl -D $D -o '-p $PORT -k /tmp' -l $D/log -w start >/dev/null"
 trap 'run "$BIN/pg_ctl -D $D -m immediate stop >/dev/null"; rm -rf "$D"' EXIT
 P="psql -q -h /tmp -p $PORT -U postgres -v ON_ERROR_STOP=1"
 $P -c "create database bkp"; $P -d bkp -f supabase/tests/platform_stub.sql
