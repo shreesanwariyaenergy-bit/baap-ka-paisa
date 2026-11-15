@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import './fonts.css';
 import './globals.css';
-import { getDataSource, rankingsOpen } from '@/lib/data';
-import { timeLeft } from '@/lib/season';
+import { getDataSource } from '@/lib/data';
 import { initials, memberNo } from '@/lib/format';
 import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
-import { indexingAllowed, testSeason } from '@/lib/flags';
+import { indexingAllowed } from '@/lib/flags';
 import { MainNav } from '@/components/MainNav';
+import { FooterNav } from '@/components/SiteFooter';
 import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
@@ -27,28 +27,9 @@ export const dynamic = 'force-dynamic';
 
 export const viewport: Viewport = { themeColor: '#0C251F', width: 'device-width', initialScale: 1 };
 
-// The shell (navigation, page skeleton) streams at once. The three parts that need the database (season line,
-// season pill and account area, footer line) stream in their own boundaries, so the first paint and the page's
+// The shell (navigation, page skeleton) streams at once. The parts that need the database (season pill and
+// account area, footer year) stream in their own boundaries, so the first paint and the page's
 // own loading state never wait for a database round trip.
-async function SeasonLine() {
-  const ds = await getDataSource();
-  const season = ds.season();
-  const left = timeLeft(season, ds.now());
-  const open = rankingsOpen(ds);
-  return (
-    <>
-      {open && <>
-        <span className="opt">{season.label}</span>
-        <span className="opt" aria-hidden="true">•</span>
-        <span className="opt">{left.closed ? 'Season closed' : `${left.days} days left`}</span>
-      </>}
-      {ds.availability === 'demo' && <span className="demo-flag" data-testid="demo-flag">Demo data</span>}
-      {!open && <span className="demo-flag">Rankings not open yet</span>}
-      {open && ds.availability === 'live' && testSeason() && <span className="demo-flag" data-testid="test-season-flag">Test season</span>}
-    </>
-  );
-}
-
 async function HeaderAccount() {
   const ds = await getDataSource();
   const season = ds.season();
@@ -88,14 +69,9 @@ const HeaderAccountFallback = () => (
   </>
 );
 
-async function FooterLine() {
+async function FooterYear() {
   const ds = await getDataSource();
-  return (
-    <>
-      <span>BAAP KA PAISA © {ds.season().year}</span>
-      <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
-    </>
-  );
+  return <>© {ds.season().year}</>;
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -103,10 +79,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-IN">
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
-        <div className="topline">
-          <div className="live"><i className="dot" aria-hidden="true" /> The public status register <span style={{ opacity: .5 }}>/</span> India</div>
-          <div className="rightline"><Suspense fallback={null}><SeasonLine /></Suspense></div>
-        </div>
         <Suspense fallback={null}><NavProgress /></Suspense>
         <ProfileDialogProvider>
           <div className="shell">
@@ -122,13 +94,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </header>
             <main id="main">{children}</main>
             <footer className="site-footer">
-              <Suspense fallback={<span>BAAP KA PAISA</span>}><FooterLine /></Suspense>
-              <nav aria-label="Explore" className="footer-links">
-                <Link href="/join">Create profile</Link><Link href="/invite">Invite</Link><Link href="/archive">Archive</Link><Link href="/throne">Throne history</Link><Link href="/closing">The Closing</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
-              </nav>
-              <nav aria-label="Policies" className="footer-links">
-                <Link href="/legal/terms">Terms</Link><Link href="/legal/privacy">Privacy</Link><Link href="/legal/refunds">Refunds</Link><Link href="/legal/community">Guidelines</Link><Link href="/legal/grievance">Grievance</Link>
-              </nav>
+              <div className="footer-top">
+                <span className="footer-wordmark">BAAP KA PAISA</span>
+                <span className="footer-copy"><Suspense fallback={null}><FooterYear /></Suspense></span>
+              </div>
+              <FooterNav />
             </footer>
           </div>
         </ProfileDialogProvider>

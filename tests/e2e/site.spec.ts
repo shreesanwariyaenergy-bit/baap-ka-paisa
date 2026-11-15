@@ -28,7 +28,6 @@ test.describe('navigation', () => {
       await page.goto(p.path);
       await expect(page.getByRole('heading', { level: 1 })).toContainText(p.heading);
       await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: p.nav })).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('demo-flag')).toBeVisible();
       expect(errors).toEqual([]);
     });
   }
@@ -224,7 +223,7 @@ test.describe('policy pages', () => {
   test('footer links reach the policies', async ({ page }) => {
     await page.goto('/');
     await dismissCrownMoment(page);
-    await page.getByRole('navigation', { name: 'Policies' }).getByRole('link', { name: 'Privacy' }).click();
+    await page.getByRole('navigation', { name: 'Legal' }).getByRole('link', { name: 'Privacy' }).click();
     await expect(page).toHaveURL(/\/legal\/privacy$/);
   });
 });
