@@ -31,6 +31,25 @@ async function rpcRaw<T>(cfg: Cfg, fn: string, args: Record<string, unknown> = {
   return res.json() as Promise<T>;
 }
 
+// City summaries (members, season total and city rank per city) are the same for every visitor, and the database
+// computes them by walking all 45 city boards (100-250 ms). One result is shared by the requests of a server
+// instance for at most 15 s, then read again; it is never served older than that. Only these viewer-independent
+// numbers are kept: no names (leader is not used) and no per-member data.
+const SUMMARIES_TTL_MS = 15_000;
+let summariesShared: { url: string; at: number; p: Promise<CitySummary[]> } | null = null;
+function sharedCitySummaries(cfg: Cfg): Promise<CitySummary[]> {
+  const now = Date.now();
+  if (summariesShared && summariesShared.url === cfg.url && now - summariesShared.at < SUMMARIES_TTL_MS) return summariesShared.p;
+  const p = rpcRaw<{ city_id: string; members: number; season_total_paise: number; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries', {}, null)
+    .then((rows) => rows.filter((r) => r.rank !== null).map((r): CitySummary => ({
+      cityId: r.city_id, members: r.members, seasonTotal: Math.round(Number(r.season_total_paise) / 100), leader: null, rank: r.rank!, previousRank: r.prev_rank,
+    })));
+  const entry = { url: cfg.url, at: now, p };
+  summariesShared = entry;
+  p.catch(() => { if (summariesShared === entry) summariesShared = null; });
+  return p;
+}
+
 interface MemberRow { public_name: string; display_name: string | null; masked: boolean; title: string | null; flex_line: string | null; city_id: string; state_code: string; locality: string; member_no: number | null; season_score_paise: number; lifetime_tier: PublicMember['lifetimeTier']; }
 interface BoardDbRow extends MemberRow { rank: number; prev_rank: number | null; total: number; is_viewer: boolean; }
 
@@ -157,12 +176,7 @@ export function supabaseSource(base: Cfg, seasonP: Promise<SeasonInfo>, token: s
     },
     async viewerMember() { return (await loadMe())?.member ?? null; },
 
-    async cities() {
-      const rows = await rpc<{ city_id: string; members: number; season_total_paise: number; leader_name: string | null; leader_masked: boolean | null; rank: number | null; prev_rank: number | null }[]>(cfg, 'get_city_summaries');
-      return rows.filter((r) => r.rank !== null).map((r): CitySummary => ({
-        cityId: r.city_id, members: r.members, seasonTotal: Math.round(Number(r.season_total_paise) / 100), leader: null, rank: r.rank!, previousRank: r.prev_rank,
-      }));
-    },
+    async cities() { return sharedCitySummaries(cfg); },
     async respectBoard(scope, opts = {}) {
       const rows = await rpc<{ rank: number; total: number; public_name: string; display_name: string | null; masked: boolean; city_id: string; state_code: string; locality: string; respect_count: number }[]>(cfg, 'get_respect_board', { ...boardArgs(scope), p_limit: opts.limit ?? 100 });
       return { scope, unit: 'count', total: rows[0]?.total ?? 0, viewerRow: null,
