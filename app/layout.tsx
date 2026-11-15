@@ -9,6 +9,7 @@ import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
 import { indexingAllowed, testSeason } from '@/lib/flags';
 import { MainNav } from '@/components/MainNav';
+import { FooterNav } from '@/components/SiteFooter';
 import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
@@ -28,7 +29,7 @@ export const dynamic = 'force-dynamic';
 export const viewport: Viewport = { themeColor: '#0C251F', width: 'device-width', initialScale: 1 };
 
 // The shell (navigation, page skeleton) streams at once. The three parts that need the database (season line,
-// season pill and account area, footer line) stream in their own boundaries, so the first paint and the page's
+// season pill and account area, footer year) stream in their own boundaries, so the first paint and the page's
 // own loading state never wait for a database round trip.
 async function SeasonLine() {
   const ds = await getDataSource();
@@ -88,14 +89,9 @@ const HeaderAccountFallback = () => (
   </>
 );
 
-async function FooterLine() {
+async function FooterYear() {
   const ds = await getDataSource();
-  return (
-    <>
-      <span>BAAP KA PAISA © {ds.season().year}</span>
-      <span>{ds.availability === 'demo' ? 'Demo data · not live · no payments' : 'Payments are not open'}</span>
-    </>
-  );
+  return <>© {ds.season().year}</>;
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -122,13 +118,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </header>
             <main id="main">{children}</main>
             <footer className="site-footer">
-              <Suspense fallback={<span>BAAP KA PAISA</span>}><FooterLine /></Suspense>
-              <nav aria-label="Explore" className="footer-links">
-                <Link href="/join">Create profile</Link><Link href="/invite">Invite</Link><Link href="/archive">Archive</Link><Link href="/throne">Throne history</Link><Link href="/closing">The Closing</Link><Link href="/simulator">Season simulator</Link><Link href="/rank-up">Rank Up preview</Link>
-              </nav>
-              <nav aria-label="Policies" className="footer-links">
-                <Link href="/legal/terms">Terms</Link><Link href="/legal/privacy">Privacy</Link><Link href="/legal/refunds">Refunds</Link><Link href="/legal/community">Guidelines</Link><Link href="/legal/grievance">Grievance</Link>
-              </nav>
+              <div className="footer-top">
+                <span className="footer-wordmark">BAAP KA PAISA</span>
+                <span className="footer-copy"><Suspense fallback={null}><FooterYear /></Suspense></span>
+              </div>
+              <FooterNav />
             </footer>
           </div>
         </ProfileDialogProvider>

@@ -224,7 +224,7 @@ test.describe('policy pages', () => {
   test('footer links reach the policies', async ({ page }) => {
     await page.goto('/');
     await dismissCrownMoment(page);
-    await page.getByRole('navigation', { name: 'Policies' }).getByRole('link', { name: 'Privacy' }).click();
+    await page.getByRole('navigation', { name: 'Legal' }).getByRole('link', { name: 'Privacy' }).click();
     await expect(page).toHaveURL(/\/legal\/privacy$/);
   });
 });
