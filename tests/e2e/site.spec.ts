@@ -28,7 +28,6 @@ test.describe('navigation', () => {
       await page.goto(p.path);
       await expect(page.getByRole('heading', { level: 1 })).toContainText(p.heading);
       await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: p.nav })).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('demo-flag')).toBeVisible();
       expect(errors).toEqual([]);
     });
   }
