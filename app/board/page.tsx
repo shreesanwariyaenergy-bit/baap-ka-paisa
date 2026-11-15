@@ -7,6 +7,7 @@ import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
 import { BoardFilters } from '@/components/BoardFilters';
+import { IntentLink } from '@/components/IntentLink';
 import { CITY_NAMES } from '@/components/cityNames';
 
 export const metadata: Metadata = { title: 'The Board' };
@@ -48,13 +49,13 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
       </section>
       <div className="filterbar">
         <span role="group" aria-label="Board level" style={{ display: 'contents' }}>
-          {LEVELS.map((l) => <Link key={l} href={levelHref(l)} aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
+          {LEVELS.map((l) => <Link key={l} href={levelHref(l)} prefetch aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
         </span>
         <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
           cities={cityOptionGroups()} localities={city.localities} />
       </div>
       <nav className="view-tabs" aria-label="Board view">
-        {BOARD_VIEWS.map((vw) => <Link key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</Link>)}
+        {BOARD_VIEWS.map((vw) => <IntentLink key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</IntentLink>)}
       </nav>
       <p className="view-note">{view === 'season' ? `Season Score, ${season.label}. Resets when the season ends.` : view === 'movers' ? 'Members who climbed or entered this board in the last 24 hours, biggest climb first. Numbers are their current season rank.' : view === 'respect' ? 'Free Respect received this season. One Respect per profile per day. No money involved, so no gold crown.' : 'Lifetime Score across every season. Never resets. The gold crown belongs only to the current season #01.'}</p>
       <div className="board-layout">

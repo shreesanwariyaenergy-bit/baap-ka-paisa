@@ -3,6 +3,11 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: { unoptimized: true },
+  // Browser-side router cache (per visitor, in memory). Pages are rendered per request (force-dynamic); without
+  // this, Next.js 15 throws every visited page away at once (dynamic: 0), so even going back to the page just seen
+  // waited for a fresh server render. Visited pages are reused for 30 s; full prefetches (main navigation, board
+  // levels) for 60 s. Any server action that changes data revalidates or sets cookies, which clears this cache.
+  experimental: { staleTimes: { dynamic: 30, static: 60 } },
   async headers() {
     return [{
       source: '/:path*',

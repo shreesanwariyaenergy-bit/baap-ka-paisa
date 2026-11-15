@@ -1,7 +1,7 @@
 'use client';
 // City index: search, region filter and sort, with cities grouped under their state or union territory.
 // Sorting here only orders cities for browsing; it never decides a member's rank.
-import Link from 'next/link';
+import { IntentLink } from './IntentLink';
 import { useMemo, useState } from 'react';
 
 export interface CityCardData { id: string; name: string; stateCode: string; stateName: string; region: string; mark: string; nickname: string; members: number | null; total: number | null; isViewerCity: boolean; }
@@ -45,12 +45,12 @@ export function CityIndex({ cities, regions, states }: { cities: CityCardData[];
           <h2 className="state-head" id={`state-${g.code}`}>{g.name}<span>{g.cities.length} {g.cities.length === 1 ? 'city' : 'cities'}</span></h2>
           <div className="city-grid">
             {g.cities.map((c) => (
-              <Link key={c.id} className="city-card" href={`/board?level=city&city=${c.id}`} data-testid={`city-${c.id}`}>
+              <IntentLink key={c.id} className="city-card" href={`/board?level=city&city=${c.id}`} data-testid={`city-${c.id}`}>
                 <span className="watermark" aria-hidden="true">{c.mark}</span>
                 <span className="city-rank">{c.stateCode} / {c.region} India</span>
                 <span><h3>{c.name}</h3><p>{c.nickname}{c.members !== null ? ` · ${c.members} on the board` : ''}</p></span>
                 <span className="city-footer"><span>{c.isViewerCity ? 'Your city' : 'Season open'}</span><b>Open board ↗</b></span>
-              </Link>
+              </IntentLink>
             ))}
           </div>
         </section>
