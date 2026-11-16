@@ -11,6 +11,7 @@ import { MainNav } from '@/components/MainNav';
 import { FooterNav } from '@/components/SiteFooter';
 import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
+import { preload } from 'react-dom';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
 
 
@@ -75,6 +76,11 @@ async function FooterYear() {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // The three font files every first screen needs (body text, mono labels, the display headline) are requested with
+  // the page instead of after the stylesheet has been parsed. All other weights and subsets load on demand.
+  for (const f of ['ibm-plex-sans-latin-wght-normal', 'ibm-plex-mono-latin-700-normal', 'barlow-condensed-latin-900-normal']) {
+    preload(`/fonts/${f}.woff2`, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' });
+  }
   return (
     <html lang="en-IN">
       <body>
