@@ -75,7 +75,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
             {isDemo && <span className="tagchip hot">Demo data</span>}
           </div>
           <h1 id="hero-title">Who owns<br /><span className="outline">your city?</span></h1>
-          <p className="hero-sub">Your city. Your rank. <b>Your place on the register.</b> India&apos;s public status board, ranked by locality, city, state and country.</p>
+          <p className="hero-sub"><span className="hero-sub-key">Your city. Your rank. <b>Your place on the register.</b></span> India&apos;s public status board, ranked by locality, city, state and country.</p>
           <div className="hero-cta">
             {viewer
               ? <Link className="btn" href="/seal" data-testid="hero-primary">Open The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
