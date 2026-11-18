@@ -34,13 +34,17 @@ export default async function ArchivePage({ searchParams }: { searchParams: Prom
         <div><div className="eyebrow">The history books / 05</div><h1>The ones<br />who held it.</h1></div>
         <p>Seasons end. The record stays. Past champions carry an outline mark; the gold crown belongs only to whoever holds #01 right now.</p>
       </section>
+      {/* Year and city filters only once there is a finished season to filter. */}
+      {all.length > 0 && (
       <div className="filterbar" role="group" aria-label="Filter the archive">
         <Link href={href({ year: null })} aria-current={year === null ? 'true' : undefined}>All seasons</Link>
         {years.map((y) => <Link key={y} href={href({ year: y })} aria-current={year === y ? 'true' : undefined}>{y}</Link>)}
         {CITIES.map((c) => <Link key={c.id} href={href({ city: c.id })} aria-current={cityId === c.id ? 'true' : undefined}>{c.name}</Link>)}
       </div>
+      )}
       {seasons.length === 0 ? (
-        <div className="board-panel" style={{ marginBottom: 70 }}><div className="state-box"><h4>No finished seasons yet.</h4><p>The archive fills when the first season closes. Final standings are frozen and kept here permanently.</p></div></div>
+        <div className="board-panel" style={{ margin: '22px 0 70px' }}><div className="state-box" data-testid="archive-empty"><h4>No finished seasons yet.</h4><p>The archive fills when the first season closes. Final standings and every city&apos;s champion are frozen and kept here permanently.</p>
+          <div className="hero-cta" style={{ marginTop: 18 }}><Link className="btn light" href="/board">See the current board <span className="arrow" aria-hidden="true">↗</span></Link></div></div></div>
       ) : (
         <div className="archive-list">
           {seasons.map((s) => {

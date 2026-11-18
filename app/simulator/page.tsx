@@ -33,7 +33,7 @@ export default async function SimulatorPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <section className="page-intro">
-        <div><div className="eyebrow">Season engine / simulation</div><h1>Season<br />simulator.</h1></div>
+        <div><div className="eyebrow">Demonstration / invented members</div><h1>Season<br />simulator.</h1></div>
         <p>A fixed practice season with three simulated members on the Surat board. Each step is replayed on the server by the same season engine that runs the boards. Nothing here is a real member or payment.</p>
       </section>
       <p className="notice"><span className="sim-flag">Simulation</span> Practice season with invented members. No money moves and no real board changes.</p>

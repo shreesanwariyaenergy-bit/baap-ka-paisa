@@ -28,6 +28,7 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
   const city = cityById(scope.cityId)!;
   const name = scopeName(scope);
   const reigns = await ds.throneHistory({ scope, limit: 100 });
+  const open = rankingsOpen(ds);
   const href = (l: string) => `/throne?level=${l}&city=${scope.cityId}${l === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`;
   const byTime = throneTime(reigns);
   const timeView = sp.view === 'time';
@@ -42,13 +43,25 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
         <div><div className="eyebrow">Throne history / {LEVEL_LABEL[scope.level]}</div><h1>Who held<br />the crown.</h1></div>
         <p>Every #01 on the {name} board, when they took it, how long they held it and how it ended. The gold crown marks only the current holder.{ds.availability === 'demo' ? ' Simulated history.' : ''}</p>
       </section>
-      <div className="filterbar">
-        <span role="group" aria-label="Board level" style={{ display: 'contents' }}>
-          {LEVELS.map((l) => <Link key={l} href={href(l)} aria-current={scope.level === l ? 'true' : undefined}>{LEVEL_LABEL[l]}</Link>)}
-        </span>
-        <BoardFilters view="none" basePath="/throne" level={scope.level} cityId={scope.cityId} locality={scope.locality} query=""
-          cities={cityOptionGroups()} localities={city.localities} />
-      </div>
+      {open && (
+        <div className="filterbar">
+          <span role="group" aria-label="Board level" style={{ display: 'contents' }}>
+            {LEVELS.map((l) => <Link key={l} href={href(l)} aria-current={scope.level === l ? 'true' : undefined}>{LEVEL_LABEL[l]}</Link>)}
+          </span>
+          <BoardFilters view="none" basePath="/throne" level={scope.level} cityId={scope.cityId} locality={scope.locality} query=""
+            cities={cityOptionGroups()} localities={city.localities} />
+        </div>
+      )}
+      {reigns.length === 0 ? (
+        // No history on this board yet: one panel. Before Season 1 there is no history anywhere, so no board pickers either.
+        <div className="board-panel" style={{ margin: '22px 0 70px' }}>
+          <div className="panel-head"><h3 data-testid="throne-title">{name} / {LEVEL_LABEL[scope.level]} throne</h3><span>No reigns yet</span></div>
+          <div className="state-box" data-testid="throne-empty"><h4>{open ? `No one has held ${name} yet.` : 'No throne history yet.'}</h4>
+            <p>{open ? 'The first member to reach #01 on this board starts its history. Every reign is recorded here: who held it, for how long and how it ended.' : 'The history starts when Season 1 opens. Every #01 on every board is recorded here: who held it, for how long and how it ended.'}</p>
+            <div className="hero-cta" style={{ marginTop: 18 }}><Link className="btn light" href={`/board?level=${scope.level}&city=${scope.cityId}${scope.level === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`}>Open the {name} board <span className="arrow" aria-hidden="true">↗</span></Link></div>
+          </div>
+        </div>
+      ) : (
       <div className="board-layout">
         <div className="board-panel">
           <div className="panel-head"><h3 data-testid="throne-title">{name} / {LEVEL_LABEL[scope.level]} throne</h3><span>{reigns.length} {reigns.length === 1 ? 'reign' : 'reigns'}</span></div>
@@ -65,9 +78,7 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
               </div>
               <div className="dur">{dur(t.hours)}<small>on the throne</small></div>
             </div>
-          )) : reigns.length === 0 ? (
-            <div className="state-box" data-testid="throne-empty"><h4>{rankingsOpen(ds) ? `No one has held ${name} yet.` : 'No throne history yet.'}</h4><p>The first member to reach #01 on this board starts its history.</p></div>
-          ) : reigns.map((r) => (
+          )) : reigns.map((r) => (
             <div className={`reign${r.current ? ' current' : ''}`} key={`${r.member.username}-${r.from.getTime()}`} data-testid="reign">
               <span className="mark">{r.current ? <><Crown variant="compact" /><span className="sr-only">Current number-one holder</span></> : <PastChampionMark label={r.seasonLabel.replace('Season ', 'S')} />}</span>
               <div style={{ minWidth: 0 }}>
@@ -91,6 +102,7 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
           <Link className="btn block" href={`/board?level=${scope.level}&city=${scope.cityId}${scope.level === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`}>Open this board <span className="arrow" aria-hidden="true">↗</span></Link>
         </aside>
       </div>
+      )}
     </>
   );
 }

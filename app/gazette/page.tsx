@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
-import { CITIES, DEFAULT_CITY_ID, cityById, type Scope } from '@/lib/geo';
+import { DEFAULT_CITY_ID, cityById, cityOptionGroups, type Scope } from '@/lib/geo';
+import { GazetteCityPicker } from '@/components/GazetteCityPicker';
 import { noindexMetadata, pageMetadata } from '@/lib/seo';
 import { buildEdition } from '@/lib/gazette';
 import { inr, inrShort } from '@/lib/format';
@@ -31,15 +32,18 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
   ]);
   await ds.ready();
   const ed = buildEdition({ city, season: ds.season(), now, open: rankingsOpen(ds), board, reigns, moments, events, cities, respect, backed, declarations });
+  const showPrices = rankingsOpen(ds) && ed.prices.some((c) => c.price > 1000);
+  const showStanding = ed.standing.some((c) => c.total > 0);
+  const hasStories = ed.stories.length > 0;
+  const hasSide = ed.notices.length > 0 || ed.declarations.length > 0 || showPrices || showStanding;
+  const hasBody = hasStories || hasSide;
   return (
     <article className="gazette" data-testid="gazette">
       <header className="gz-mast">
         <div className="gz-ears"><span>{ed.issue}</span><span>Late city edition</span><span>Price: your pride</span></div>
         <h1>The {city.name} Gazette</h1>
         <div className="gz-rule"><span>{ed.dateline}</span><span>Published by order of the Register</span>{ds.availability === 'demo' && <span className="gz-demo">Demo data: invented members</span>}</div>
-        <nav className="gz-cities" aria-label="City editions">
-          {CITIES.map((c) => <Link key={c.id} href={`/gazette?city=${c.id}`} aria-current={c.id === city.id ? 'page' : undefined}>{c.name}</Link>)}
-        </nav>
+        <GazetteCityPicker currentId={city.id} currentName={city.name} groups={cityOptionGroups()} />
       </header>
 
       <section className={`gz-lead${ed.lead.tone === 'hot' ? ' hot' : ''}`} data-testid="gazette-lead">
@@ -53,36 +57,41 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
         </div>
       </section>
 
-      <div className="gz-body">
-        <section className="gz-stories" aria-label="More from the register">
-          {ed.stories.length === 0 && <p className="gz-quiet">No further news. The register is quiet, which is exactly when thrones get taken.</p>}
-          {ed.stories.map((s) => (
-            <div className={`gz-story${s.tone === 'hot' ? ' hot' : ''}`} key={s.headline}>
-              <div className="gz-kicker">{s.kicker}</div>
-              <h3>{s.href ? <Link href={s.href}>{s.headline}</Link> : s.headline}</h3>
-              <p>{s.body}</p>
-            </div>
-          ))}
-        </section>
-        <aside className="gz-side">
-          <section aria-labelledby="gz-notices">
-            <h3 id="gz-notices" className="gz-sidehead">Notices of dethronement</h3>
-            {ed.notices.length === 0 && <p className="gz-quiet">None issued this season. Every change of #01 is recorded here, numbered, permanently.</p>}
-            {ed.notices.slice(0, 6).map((n) => (
-              <div className="gz-notice" key={n.no} data-testid="gazette-notice">
-                <b>Notice No. {n.no}</b>
-                <p>{n.text}</p>
+      {/* Only sections with records are shown; an edition with no news is the lead story alone, not a page of "none" boxes. */}
+      {hasBody && (
+      <div className={hasStories && hasSide ? 'gz-body' : 'gz-body single'}>
+        {hasStories && (
+          <section className="gz-stories" aria-label="More from the register">
+            {ed.stories.map((s) => (
+              <div className={`gz-story${s.tone === 'hot' ? ' hot' : ''}`} key={s.headline}>
+                <div className="gz-kicker">{s.kicker}</div>
+                <h3>{s.href ? <Link href={s.href}>{s.headline}</Link> : s.headline}</h3>
+                <p>{s.body}</p>
               </div>
             ))}
-            <Link className="gz-more" href={`/throne?level=city&city=${city.id}`}>Full throne history ↗</Link>
           </section>
+        )}
+        {hasSide && (
+        <aside className="gz-side">
+          {ed.notices.length > 0 && (
+            <section aria-labelledby="gz-notices">
+              <h3 id="gz-notices" className="gz-sidehead">Notices of dethronement</h3>
+              {ed.notices.slice(0, 6).map((n) => (
+                <div className="gz-notice" key={n.no} data-testid="gazette-notice">
+                  <b>Notice No. {n.no}</b>
+                  <p>{n.text}</p>
+                </div>
+              ))}
+              <Link className="gz-more" href={`/throne?level=city&city=${city.id}`}>Full throne history ↗</Link>
+            </section>
+          )}
           {ed.declarations.length > 0 && (
             <section aria-labelledby="gz-decl">
               <h3 id="gz-decl" className="gz-sidehead">Declarations</h3>
               {ed.declarations.map((d) => <Link className="gz-notice" style={{ display: 'block' }} key={d.id} href={`/declare/${d.id}`} data-testid="gazette-declaration"><b>No. {d.no} · {d.status === 'won' ? 'made good' : d.status === 'standing' ? 'standing' : d.status === 'lapsed' ? 'lapsed' : 'throne moved'}</b><p>{d.text}</p></Link>)}
             </section>
           )}
-          {rankingsOpen(ds) && ed.prices.some((c) => c.price > 1000) && (
+          {showPrices && (
             <section aria-labelledby="gz-prices">
               <h3 id="gz-prices" className="gz-sidehead">Price of each throne today</h3>
               <ol className="gz-table" data-testid="gazette-prices">
@@ -90,7 +99,7 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
               </ol>
             </section>
           )}
-          {ed.standing.some((c) => c.total > 0) && (
+          {showStanding && (
             <section aria-labelledby="gz-cities">
               <h3 id="gz-cities" className="gz-sidehead">City against city</h3>
               <ol className="gz-table">
@@ -99,7 +108,9 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
             </section>
           )}
         </aside>
+        )}
       </div>
+      )}
       <footer className="gz-foot">Every line in this edition is written from the register&apos;s own records. No prizes. No cash-outs. The record stays.</footer>
     </article>
   );
