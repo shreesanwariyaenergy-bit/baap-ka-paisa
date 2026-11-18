@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { currentAccount } from '@/lib/supabase-server';
 import { NewPasswordForm } from '@/components/PasswordForms';
 
-export const metadata: Metadata = { title: 'Set a new password' };
+export const metadata: Metadata = noindexMetadata('Set a new password');
 
 export default async function ResetPage() {
   const account = await currentAccount();

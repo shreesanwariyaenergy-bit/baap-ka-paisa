@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { cityById, DEFAULT_CITY_ID } from '@/lib/geo';
@@ -6,7 +7,11 @@ import { inrShort, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
 import { CITY_NAMES } from '@/components/cityNames';
 
-export const metadata: Metadata = { title: 'India' };
+export const metadata: Metadata = pageMetadata({
+  title: 'India',
+  path: '/india',
+  description: "Zoom out. See how the cities compare on combined Season Score, who leads the national table, and where your city stands on the BAAP KA PAISA register.",
+});
 
 export default async function IndiaPage() {
   // Every read starts in the same round trip as the season row. The India board is the same for everyone (the city

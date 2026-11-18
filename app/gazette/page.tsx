@@ -2,11 +2,19 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, DEFAULT_CITY_ID, cityById, type Scope } from '@/lib/geo';
+import { noindexMetadata, pageMetadata } from '@/lib/seo';
 import { buildEdition } from '@/lib/gazette';
 import { inr, inrShort } from '@/lib/format';
 import { CopyLink } from '@/components/CopyLink';
 
-export const metadata: Metadata = { title: 'The Gazette' };
+// /gazette (the default edition) is indexable; each city edition (/gazette?city=…) is named but kept out of search
+// results while editions carry no members' news.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const sp = await searchParams;
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'The Gazette', path: '/gazette', description: "The Gazette is the register's front page for each city: who holds the throne, who moved on the board and the notices of the day, from board records only." });
+  const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
+  return noindexMetadata(city ? `The ${city} Gazette` : 'The Gazette');
+}
 
 export default async function GazettePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;

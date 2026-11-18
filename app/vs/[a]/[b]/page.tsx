@@ -1,5 +1,6 @@
 // Head-to-head: a shareable page comparing two members on the boards they share.
 import type { Metadata } from 'next';
+import { NOINDEX } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
@@ -14,7 +15,7 @@ type P = { params: Promise<{ a: string; b: string }> };
 export async function generateMetadata({ params }: P): Promise<Metadata> {
   const { a, b } = await params; const ds = await getDataSource();
   const [x, y] = await Promise.all([ds.member(decodeURIComponent(a)), ds.member(decodeURIComponent(b))]);
-  return { title: x && y ? `${nm(x)} vs ${nm(y)}` : 'Head to head' };
+  return { title: x && y ? `${nm(x)} vs ${nm(y)}` : 'Head to head', robots: NOINDEX };
 }
 
 export default async function VsPage({ params }: P) {

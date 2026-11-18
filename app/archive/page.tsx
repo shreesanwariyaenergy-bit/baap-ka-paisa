@@ -1,11 +1,16 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSource } from '@/lib/data';
 import { CITIES } from '@/lib/geo';
 import { CITY_NAMES } from '@/components/cityNames';
 import { PastChampionMark } from '@/components/Crown';
 
-export const metadata: Metadata = { title: 'Archive' };
+export const metadata: Metadata = pageMetadata({
+  title: 'Archive',
+  path: '/archive',
+  description: "The archive of past seasons on the BAAP KA PAISA register. Seasons end. The record stays. Past champions carry an outline mark; the gold crown belongs only to whoever holds #01 right now.",
+});
 
 const fmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).toUpperCase();
 

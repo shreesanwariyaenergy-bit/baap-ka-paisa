@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: (k: string) => (k === 'bkp_tester' ? { value: jar.code } : undefined) }), headers: async () => new Map() }));
 const jar: { code?: string } = {};
-import { canRegister, codeMatches, indexingAllowed, paymentsEnabled, registrationMode } from '@/lib/flags';
+import { canRegister, codeMatches, paymentsEnabled, registrationMode } from '@/lib/flags';
 import { siteUrl } from '@/lib/site';
 import { sendEmail } from '@/lib/email';
 
@@ -25,8 +25,8 @@ describe('launch switches', () => {
     expect(codeMatches('')).toBe(false);
   });
   it('demo registration is a test run and always available', () => { vi.stubEnv('BKP_DATA_SOURCE', 'demo'); expect(registrationMode()).toBe('open'); });
-  it('payments and indexing are off by default', () => {
-    expect(paymentsEnabled()).toBe(false); expect(indexingAllowed()).toBe(false);
+  it('payments are off by default (indexing rules: seo.test.ts)', () => {
+    expect(paymentsEnabled()).toBe(false);
     vi.stubEnv('PAYMENTS_ENABLED', 'true'); expect(paymentsEnabled()).toBe(false);
   });
   it('site address is taken from one setting and validated', () => {

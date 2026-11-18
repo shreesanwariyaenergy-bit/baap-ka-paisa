@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
 import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
+import { noindexMetadata, pageMetadata } from '@/lib/seo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -10,7 +11,15 @@ import { BoardFilters } from '@/components/BoardFilters';
 import { IntentLink } from '@/components/IntentLink';
 import { CITY_NAMES } from '@/components/cityNames';
 
-export const metadata: Metadata = { title: 'The Board' };
+// The plain /board address is the indexable page. City, locality, level and view addresses (/board?city=…, Hall of
+// Fame, Most Respected, Today's Movers) are named but kept out of search results until boards have members.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const sp = await searchParams;
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'The Board', path: '/board', description: 'One city. Four territories. The BAAP KA PAISA boards rank members by Season Score on locality, city, state and India boards; ties go to whoever reached the score first.' });
+  const view = typeof sp.view === 'string' && sp.view in VIEW_LABEL && sp.view !== 'season' ? VIEW_LABEL[sp.view as keyof typeof VIEW_LABEL] : null;
+  const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
+  return noindexMetadata([view ?? 'The Board', city].filter(Boolean).join(' · '));
+}
 
 export default async function BoardPage({ searchParams }: { searchParams: Promise<{ level?: string; city?: string; locality?: string; q?: string; view?: string }> }) {
   const sp = await searchParams;

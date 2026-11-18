@@ -1,5 +1,6 @@
 // The Bill: a member's standing as an itemised bill that only gets longer. Public fields only.
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
@@ -8,7 +9,7 @@ import { inr, memberNo } from '@/lib/format';
 import { heldFor, who } from '@/lib/gazette';
 import { groupAchievements } from '@/lib/achievements';
 
-export const metadata: Metadata = { title: 'The Bill' };
+export const metadata: Metadata = noindexMetadata('The Bill');
 const day = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: '2-digit' }).format(d).toUpperCase();
 const time = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' }).format(d).toUpperCase();
 

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { ForgotForm } from '@/components/PasswordForms';
 
-export const metadata: Metadata = { title: 'Reset your password' };
+export const metadata: Metadata = noindexMetadata('Reset your password');
 
 export default function ForgotPage() {
   return (

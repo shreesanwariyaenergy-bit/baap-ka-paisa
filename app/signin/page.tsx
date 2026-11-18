@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
 import { SignInForm } from '@/components/SignInForm';
 
-export const metadata: Metadata = { title: 'Sign in' };
+export const metadata: Metadata = noindexMetadata('Sign in');
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ confirmed?: string }> }) {
   const sp = await searchParams;
