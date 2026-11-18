@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { CANONICAL_ORIGIN, SITE_NAME, pageMetadata } from '@/lib/seo';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent, CitySummary } from '@/lib/data/types';
 import { Suspense } from 'react';
@@ -23,6 +25,22 @@ function eventText(e: BoardEvent) {
   if (e.kind === 'down') return { mark: '↓', text: <><b>{who}</b> slipped {e.by} to #{pad2(e.rank)}.</>, tag: `−${e.by}`, ticker: '' };
   return { mark: '+', text: <><b>{who}</b> entered the board at #{pad2(e.rank)}.</>, tag: 'New', ticker: `${e.member.locality} has a new entry` };
 }
+
+export const metadata: Metadata = pageMetadata({
+  path: '/',
+  description: "Your city. Your rank. Your place on the register. BAAP KA PAISA is India's public status board, ranked by locality, city, state and country in monthly seasons. The record stays.",
+});
+
+// Structured data: the site itself (schema.org WebSite). Only facts shown on the site; no ratings, counts or organisation details.
+const WEBSITE_JSON_LD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  alternateName: 'BAAP KA PAISA — The Public Status Register',
+  url: `${CANONICAL_ORIGIN}/`,
+  description: "India's public status board, ranked by locality, city, state and country. Monthly seasons; the record stays.",
+  inLanguage: 'en-IN',
+});
 
 export default async function ScenePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;
@@ -67,6 +85,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE_JSON_LD }} />
       <section className="hero" aria-labelledby="hero-title">
         <div>
           <div className="hero-tags">

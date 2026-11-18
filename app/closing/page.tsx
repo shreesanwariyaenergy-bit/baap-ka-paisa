@@ -1,11 +1,16 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { cookies } from 'next/headers';
 import { CLOSING_OPENS, CLOSING_SPEED, closingInstant, closingStateAt } from '@/lib/closing';
 import { ClosingStage } from '@/components/ClosingStage';
 import { liveClosingState } from '@/lib/closing-live';
 import { getDataSource } from '@/lib/data';
 
-export const metadata: Metadata = { title: 'The Closing' };
+export const metadata: Metadata = pageMetadata({
+  title: 'The Closing',
+  path: '/closing',
+  description: "The Closing: the last twenty minutes of a season, replayed as a practice season with invented members. Taking #01 in the final fifteen minutes pushes the close back.",
+});
 export const dynamic = 'force-dynamic';
 
 export default async function ClosingPage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {

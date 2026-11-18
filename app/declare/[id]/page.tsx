@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { NOINDEX } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
@@ -13,7 +14,7 @@ const when = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kol
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const d = (await (await getDataSource()).declarations({ id: (await params).id }))[0];
-  return { title: d ? `${who(d.challenger)} declares for ${d.boardName}` : 'Declaration not found' };
+  return { title: d ? `${who(d.challenger)} declares for ${d.boardName}` : 'Declaration not found', robots: NOINDEX };
 }
 
 export default async function DeclarationPage({ params }: { params: Promise<{ id: string }> }) {

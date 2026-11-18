@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import { amountToPass, projectedRank, validTopUp } from '@/lib/data/ranking';
@@ -6,7 +7,7 @@ import type { Board } from '@/lib/data/types';
 import { LEVEL_LABEL, LEVELS, cityById, scopeName } from '@/lib/geo';
 import { inr, pad2 } from '@/lib/format';
 
-export const metadata: Metadata = { title: 'Rank Up' };
+export const metadata: Metadata = noindexMetadata('Rank Up');
 
 export default async function RankUpPage({ searchParams }: { searchParams: Promise<{ target?: string; add?: string }> }) {
   const sp = await searchParams;

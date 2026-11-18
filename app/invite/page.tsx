@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSource } from '@/lib/data';
 import { CopyLink } from '@/components/CopyLink';
 
-export const metadata: Metadata = { title: 'Invite' };
+export const metadata: Metadata = noindexMetadata('Invite');
 
 export default async function InvitePage() {
   const ds = await getDataSource();

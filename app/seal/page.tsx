@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSourceEarly } from '@/lib/data';
 import { LEVEL_LABEL, STATES, cityById, scopeName } from '@/lib/geo';
@@ -11,7 +12,11 @@ import { groupAchievements } from '@/lib/achievements';
 import { strongestClaim } from '@/lib/claim';
 import { Crown, PastChampionMark } from '@/components/Crown';
 
-export const metadata: Metadata = { title: 'The Seal' };
+export const metadata: Metadata = pageMetadata({
+  title: 'The Seal',
+  path: '/seal',
+  description: "The Seal is your permanent member identity on the BAAP KA PAISA register. Your number stays; your rank, achievements and history change with every season.",
+});
 
 export default async function SealPage() {
   // The member's own profile and standings load in the same round trip as the season row.

@@ -6,8 +6,15 @@ import { throneTime } from '@/lib/claim';
 import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { Crown, PastChampionMark } from '@/components/Crown';
 import { BoardFilters } from '@/components/BoardFilters';
+import { noindexMetadata, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = { title: 'Throne History' };
+// /throne is indexable; board-specific addresses (/throne?level=…&city=…) are named but kept out of search results.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const sp = await searchParams;
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'Throne History', path: '/throne', description: 'Throne History: every #01 on a BAAP KA PAISA board, when they took it, how long they held it and how it ended. The gold crown marks only the current holder.' });
+  const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
+  return noindexMetadata(city ? `Throne History · ${city}` : 'Throne History');
+}
 
 const fmt = (d: Date) => d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
 const dur = (h: number) => (h >= 48 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h`);

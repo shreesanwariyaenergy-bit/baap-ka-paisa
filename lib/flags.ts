@@ -1,6 +1,6 @@
 import 'server-only';
-// Launch switches. Everything that touches real members, money or search engines is off unless
-// an environment variable turns it on, so a missing setting can never open something by accident.
+// Launch switches. Everything that touches real members or money is off unless an environment variable turns it on,
+// so a missing setting can never open something by accident. (Search indexing is decided in lib/seo.ts.)
 import { cookies } from 'next/headers';
 import { dataSourceName } from './config';
 
@@ -36,7 +36,6 @@ export async function canRegister(): Promise<boolean> {
 }
 /** Paid rank purchases. Needs both switches and stays off: no payment code exists in this app. */
 export const paymentsEnabled = () => process.env.PAYMENTS_ENABLED === 'true' && process.env.RANK_PURCHASES_ENABLED === 'true';
-/** Search engines stay blocked until BKP_ALLOW_INDEXING=true. */
-export const indexingAllowed = () => process.env.BKP_ALLOW_INDEXING === 'true';
+/** Search engine indexing: see indexingAllowed() in lib/seo.ts (production, canonical host, BKP_ALLOW_INDEXING not 'false'). */
 /** BKP_SEASON_MODE=test labels the running season as a test season across the site. */
 export const testSeason = () => process.env.BKP_SEASON_MODE === 'test';

@@ -1,9 +1,14 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, REGIONS, STATES, STATE_ORDER } from '@/lib/geo';
 import { CityIndex, type CityCardData } from '@/components/CityIndex';
 
-export const metadata: Metadata = { title: 'Cities' };
+export const metadata: Metadata = pageMetadata({
+  title: 'Cities',
+  path: '/cities',
+  description: "Find your territory. 45 cities across 19 states and union territories, grouped by state, each with its own locality, city, state and India boards on the BAAP KA PAISA register.",
+});
 
 export default async function CitiesPage() {
   // Reads start in the same round trip as the season row; only the member's own profile (one prefetched read) is needed.

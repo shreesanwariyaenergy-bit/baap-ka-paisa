@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { HOUR, boardAt, runEngine, seasonStatus } from '@/lib/engine/engine';
 import { SCENARIO_MEMBERS, SCENARIO_SEASON, SCENARIO_STEPS, stepTime } from '@/lib/engine/scenario';
@@ -6,7 +7,11 @@ import { inr, pad2 } from '@/lib/format';
 import { RankNumber } from '@/components/RankNumber';
 import { CrownMoment } from '@/components/CrownMoment';
 
-export const metadata: Metadata = { title: 'Season simulator' };
+export const metadata: Metadata = pageMetadata({
+  title: 'Season simulator',
+  path: '/simulator',
+  description: "Step through a practice season on the Surat board, replayed on the server by the same season engine that runs the BAAP KA PAISA boards. No real members or payments.",
+});
 const ist = (t: number) => new Date(t).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
 
 export default async function SimulatorPage({ searchParams }: { searchParams: Promise<{ step?: string }> }) {

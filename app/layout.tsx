@@ -6,22 +6,31 @@ import { getDataSource } from '@/lib/data';
 import { initials, memberNo } from '@/lib/format';
 import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
-import { indexingAllowed } from '@/lib/flags';
 import { MainNav } from '@/components/MainNav';
 import { FooterNav } from '@/components/SiteFooter';
 import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
 import { preload } from 'react-dom';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
+import { SITE_NAME, canonicalOrigin, indexingAllowed } from '@/lib/seo';
 
 
-// Search engines stay blocked until BKP_ALLOW_INDEXING=true (public launch approval).
-export function generateMetadata(): Metadata {
-  return { ...baseMetadata, robots: indexingAllowed() ? { index: true, follow: true } : { index: false, follow: false } };
+// Indexing is allowed only in production on the canonical host (lib/seo.ts); previews, local development and other
+// hosts stay noindex. Canonical and Open Graph addresses always resolve against https://baapkapaisa.com.
+export async function generateMetadata(): Promise<Metadata> {
+  const index = await indexingAllowed();
+  return {
+    ...baseMetadata,
+    metadataBase: new URL(canonicalOrigin()),
+    robots: index ? { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' } } : { index: false, follow: false },
+  };
 }
 const baseMetadata: Metadata = {
   title: { default: 'BAAP KA PAISA — The Public Status Register', template: '%s · BAAP KA PAISA' },
   description: 'City-first status rankings across locality, city, state and India. Monthly seasons; the record stays.',
+  applicationName: SITE_NAME,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_IN' },
+  twitter: { card: 'summary_large_image' },
 };
 // Rankings change constantly: render every request on the server, never from a build-time snapshot.
 export const dynamic = 'force-dynamic';

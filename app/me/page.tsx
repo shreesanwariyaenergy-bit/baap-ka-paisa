@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSource } from '@/lib/data';
 import { myBlocks } from '@/app/actions';
@@ -9,7 +10,7 @@ import { placeLockedUntil } from '@/lib/profile-rules';
 import { readDemoSocial } from '@/lib/demo-social';
 import { EditProfileForm } from '@/components/ProfileForms';
 
-export const metadata: Metadata = { title: 'Edit profile' };
+export const metadata: Metadata = noindexMetadata('Edit profile');
 
 export default async function MePage() {
   const ds = await getDataSource();

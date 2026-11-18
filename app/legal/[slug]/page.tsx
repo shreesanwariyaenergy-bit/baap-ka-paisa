@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { NOINDEX } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LEGAL_DOCS } from '@/lib/legal';
@@ -8,7 +9,7 @@ export function generateStaticParams() { return LEGAL_DOCS.map((d) => ({ slug: d
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const doc = LEGAL_DOCS.find((d) => d.slug === slug);
-  return { title: doc ? `${doc.title} (draft)` : 'Not found' };
+  return { title: doc ? `${doc.title} (draft)` : 'Not found', robots: NOINDEX };   // draft legal text stays out of search results
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ slug: string }> }) {

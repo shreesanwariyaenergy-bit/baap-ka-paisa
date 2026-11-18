@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { NOINDEX } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDataSource, getDataSourceEarly } from '@/lib/data';
@@ -18,7 +19,7 @@ import { istDay } from '@/lib/engine/engine';
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
   const m = await (await getDataSource()).member(decodeURIComponent(username));
-  return { title: m ? (m.masked ? m.publicLabel : m.displayName ?? m.username) : 'Member not found' };
+  return { title: m ? (m.masked ? m.publicLabel : m.displayName ?? m.username) : 'Member not found', robots: NOINDEX };   // member pages stay out of search results
 }
 
 export default async function MemberPage({ params }: { params: Promise<{ username: string }> }) {

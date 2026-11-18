@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { noindexMetadata } from '@/lib/seo';
 import { redirect } from 'next/navigation';
 import { getDataSource } from '@/lib/data';
 import { citiesByState } from '@/lib/geo';
@@ -7,7 +8,7 @@ import { JoinWizard } from '@/components/JoinWizard';
 import { TesterCodeForm } from '@/components/TesterCodeForm';
 import { canRegister, registrationMode } from '@/lib/flags';
 
-export const metadata: Metadata = { title: 'Create your profile' };
+export const metadata: Metadata = noindexMetadata('Create your profile');
 
 export default async function JoinPage({ searchParams }: { searchParams: Promise<{ ref?: string }> }) {
   const sp = await searchParams;
