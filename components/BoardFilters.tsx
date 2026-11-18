@@ -5,7 +5,9 @@ import { startNav } from './NavProgress';
 import { useState } from 'react';
 import { localityLabel, type Level } from '@/lib/geo';
 
-export function BoardFilters({ view, level, cityId, locality, query, cities, localities, basePath = '/board' }: {
+export function BoardFilters({ view, level, cityId, locality, query, cities, localities, basePath = '/board', search = true }: {
+  /** False before rankings open: there is no one to search for yet. */
+  search?: boolean;
   view: string; level: Level; basePath?: string; cityId: string; locality: string; query: string; cities: { label: string; cities: { id: string; name: string }[] }[]; localities: readonly string[];
 }) {
   const router = useRouter();
@@ -33,7 +35,7 @@ export function BoardFilters({ view, level, cityId, locality, query, cities, loc
           </select>
         </label>
       )}
-      {view === 'season' && <form role="search" onSubmit={(e) => { e.preventDefault(); go({ q }); }} style={{ display: 'contents' }}>
+      {search && view === 'season' && <form role="search" onSubmit={(e) => { e.preventDefault(); go({ q }); }} style={{ display: 'contents' }}>
         <label><span className="sr-only">Find a member on this board</span>
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a member on this board" />
         </label>

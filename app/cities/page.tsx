@@ -17,7 +17,7 @@ export default async function CitiesPage() {
   const viewer = me ? { member: me } : null;
   const cards: CityCardData[] = CITIES.map((c) => {
     const s = summaries.find((x) => x.cityId === c.id);
-    return { id: c.id, name: c.name, stateCode: c.state, stateName: STATES[c.state], region: c.region, mark: c.mark, nickname: c.nickname ?? STATES[c.state],
+    return { id: c.id, name: c.name, stateCode: c.state, stateName: STATES[c.state], region: c.region, mark: c.mark, nickname: c.nickname ?? '',
       members: s ? s.members : null, total: s ? s.seasonTotal : null, isViewerCity: viewer?.member.cityId === c.id };
   });
   const states = STATE_ORDER.map((code) => ({ code, name: STATES[code] }));
@@ -27,7 +27,7 @@ export default async function CitiesPage() {
         <div><div className="eyebrow">The geographic index / 02</div><h1>Find your<br />territory.</h1></div>
         <p>Start where you live. Follow the local scene. {CITIES.length} cities across {STATE_ORDER.length} states and UTs.{!rankingsOpen(ds) ? ' Member counts appear once rankings open.' : ''}</p>
       </section>
-      <CityIndex cities={cards} regions={[...REGIONS]} states={states} />
+      <CityIndex cities={cards} regions={[...REGIONS]} states={states} open={rankingsOpen(ds)} />
     </>
   );
 }

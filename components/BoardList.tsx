@@ -14,7 +14,9 @@ function metaFor(row: BoardRow, mode: RowMetaMode, cityNames: Record<string, str
   return place;
 }
 
-export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, emptyTitle, emptyText, crownLive = true, valueLabel = 'season', backers }: {
+export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, emptyTitle, emptyText, emptyAction, crownLive = true, valueLabel = 'season', backers }: {
+  /** Shown under the empty-state message (for example the profile action before rankings open). */
+  emptyAction?: React.ReactNode;
   /** Backers this season by username, shown on the row. Display only. */
   backers?: Record<string, number>;
   board: Board; scopeLabel: string; metaMode: RowMetaMode; cityNames: Record<string, string>; limit?: number; emptyTitle: string; emptyText: string;
@@ -23,7 +25,7 @@ export function BoardList({ board, scopeLabel, metaMode, cityNames, limit, empty
 }) {
   const rows = limit ? board.rows.slice(0, limit) : board.rows;
   if (board.total === 0) {
-    return <div className="state-box" data-testid="board-empty"><h4>{emptyTitle}</h4><p>{emptyText}</p></div>;
+    return <div className="state-box" data-testid="board-empty"><h4>{emptyTitle}</h4><p>{emptyText}</p>{emptyAction}</div>;
   }
   if (rows.length === 0) {
     return <div className="state-box" data-testid="board-no-rows"><h4>Nothing to show</h4><p>{emptyText}</p></div>;

@@ -57,3 +57,42 @@ test('Declarations are not switched on outside the demo', async ({ page }) => {
 test('The Bill prototype is not reachable outside the demo', async ({ page }) => {
   expect((await page.goto('/bill/anyone'))?.status()).toBe(404);
 });
+
+test('Before Season 1: one competition message on the home page, no empty panels or locality list', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('No one rules Surat yet.')).toHaveCount(1);
+  await expect(page.locator('body')).not.toContainText('Rank movement');
+  await expect(page.locator('body')).not.toContainText('Ghod Dod Road');   // localities live in the city experience
+  await expect(page.getByTestId('gazette-strip')).toHaveCount(0);
+  await expect(page.getByTestId('season-band')).not.toContainText('Not open');
+  await expect(page.getByTestId('featured-cities').locator('.terr')).toHaveCount(6);
+});
+test('Before Season 1: the board keeps levels and city choice, one panel, season views wait', async ({ page }) => {
+  await page.goto('/board?level=city&city=jaipur');
+  await expect(page.locator('a[data-level]')).toHaveCount(4);
+  await expect(page.getByTestId('city-select')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Board view' })).toHaveCount(0);
+  await expect(page.getByRole('search')).toHaveCount(0);
+  await expect(page.getByTestId('board-empty').getByRole('link', { name: /Create your profile/ })).toBeVisible();
+  await page.goto('/board?view=respect');            // season view addresses still answer
+  await expect(page.getByTestId('board-empty')).toContainText('Rankings are not open yet.');
+});
+test('Before Season 1: cities say when they open, India is one section, history pages are one panel', async ({ page }) => {
+  await page.goto('/cities');
+  await expect(page.getByTestId('city-surat')).toContainText('Opens with Season 1');
+  await expect(page.locator('body')).not.toContainText('Season open');
+  await page.goto('/india');
+  await expect(page.getByTestId('india-prelaunch')).toContainText('The national table opens with Season 1.');
+  await expect(page.locator('.national-card')).toHaveCount(1);
+  await page.goto('/throne');
+  await expect(page.getByTestId('throne-empty')).toBeVisible();
+  await expect(page.locator('.filterbar')).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText('Longest reign');
+  await page.goto('/archive');
+  await expect(page.getByTestId('archive-empty')).toBeVisible();
+  await expect(page.locator('.filterbar')).toHaveCount(0);
+  await page.goto('/seal');
+  await expect(page.getByTestId('seal-signed-out')).toContainText('Your Seal is waiting.');
+  await expect(page.locator('main')).toContainText('not an official identity document');
+});
+

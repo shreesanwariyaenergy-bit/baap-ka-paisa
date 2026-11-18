@@ -349,6 +349,10 @@ test('The Gazette: front page written from the board, notices numbered, city edi
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/The Surat Gazette/i);
   await expect(page.getByTestId('gazette-lead')).toContainText("Vikram Desai's reign ended");
   await expect(page.getByTestId('gazette-notice').first()).toContainText(/Notice No\. S4\/ST\/\d{3}/i);
+  // City editions sit behind one picker: open it, search, choose.
+  await page.getByTestId('gazette-city-toggle').click();
+  await page.getByTestId('gazette-city-search').fill('mum');
+  await expect(page.getByRole('navigation', { name: 'City editions' }).getByRole('link')).toHaveCount(1);
   await page.getByRole('navigation', { name: 'City editions' }).getByRole('link', { name: 'Mumbai' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/The Mumbai Gazette/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -549,3 +553,20 @@ test.describe('45-city geography on a phone', () => {
     await expect(page.locator('.city-card')).toHaveCount(45);
   });
 });
+
+test('Season open: the full board, home board preview and national view come back', async ({ page }) => {
+  await page.goto('/board?level=city&city=surat');
+  await expect(page.getByRole('navigation', { name: 'Board view' }).getByRole('link')).toHaveCount(4);
+  await expect(page.getByRole('search')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Your place on this board' })).toBeVisible();
+  await page.goto('/');
+  await expect(page.locator('#home-board')).toBeVisible();
+  await expect(page.getByTestId('gazette-strip')).toBeVisible();
+  await expect(page.getByTestId('season-band')).toContainText('Closes in');
+  await page.goto('/india');
+  await expect(page.getByTestId('india-prelaunch')).toHaveCount(0);
+  await expect(page.locator('.national-card.wide')).toBeVisible();
+  await page.goto('/cities');
+  await expect(page.getByTestId('city-surat')).toContainText(/Season open|Your city/);
+});
+

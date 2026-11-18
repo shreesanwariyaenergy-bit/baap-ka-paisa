@@ -26,17 +26,31 @@ export default async function SealPage() {
   const intro = (
     <section className="page-intro">
       <div><div className="eyebrow">Permanent member identity / 04</div><h1>The Seal.<br />Your status.</h1></div>
-      <p>The Seal is your permanent member identity. Your number stays; your rank, achievements and history change with every season. It is a membership credential, not an official identity document.</p>
+      <p>Your permanent member identity on the register. It is a membership credential, not an official identity document.</p>
     </section>
   );
   if (!viewer) {
     return (
       <>
         {intro}
-        <div className="board-panel" style={{ margin: '26px 0 70px' }}>
-          <div className="state-box" data-testid="seal-signed-out"><h4>Your Seal is waiting.</h4>
-            <p>The Seal is issued the moment you create your profile: a permanent member ID, your live rank and every achievement you earn.</p>
-            <div className="hero-cta" style={{ marginTop: 16 }}><Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link><Link className="btn light" href="/signin">Sign in</Link></div></div>
+        {/* One explanation: what the number is, what changes each season, what stays. The card is a preview, not a member. */}
+        <div className="seal-intro seal-waiting" data-testid="seal-signed-out">
+          <div className="member-preview" aria-hidden="true">
+            <small>BAAP KA PAISA · The Seal</small>
+            <span>Member ID</span>
+            <b style={{ fontFamily: 'var(--font-mono)', color: 'var(--lime)', fontSize: 40, letterSpacing: '.08em' }}>— — — — —</b>
+            <b>Your name here</b>
+            <span>Your locality, your city</span>
+          </div>
+          <div>
+            <h3>Your Seal is waiting.</h3>
+            <dl className="seal-facts">
+              <div><dt>The number</dt><dd>A permanent member ID, issued the moment you create your profile. It never changes.</dd></div>
+              <div><dt>Every season</dt><dd>Your rank on the locality, city, state and India boards moves, and starts again when the season resets.</dd></div>
+              <div><dt>Forever</dt><dd>Every crown and achievement you earn stays on your Seal.</dd></div>
+            </dl>
+            <div className="hero-cta"><Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link><Link className="btn light" href="/signin">Sign in</Link></div>
+          </div>
         </div>
       </>
     );

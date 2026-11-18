@@ -75,7 +75,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
   const open = rankingsOpen(ds);
   const reign = reigns.slice(0, 1);
   const second = cityBoard.rows[1];
-  const ranked = new Set(boards.city.rows.map((r) => r.member.locality));
+  // Board preview and side panels are shown only when they have something to show.
+  const anyRanked = LEVELS.some((l) => boards[l].rows.length > 0);
+  const hasSide = events.length > 0 || !!viewer;
 
   const editionInput = { city, season, now: ds.now(), open, board: cityBoard, reigns, moments: latestMoment ? [latestMoment] : [], events, respect };
   const myCity = viewer?.standings.find((s) => s.level === 'city');
@@ -115,9 +117,6 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       {open && season.endsAt.getTime() - ds.now().getTime() < 86_400_000 && (
         <Link className="gz-strip" href={`/closing?city=${city.id}`} data-testid="closing-strip"><small>The Closing</small><b>The board closes within a day. Watch the final stretch.</b><span>Open ↗</span></Link>
       )}
-      <Suspense fallback={<GazetteStripView cityId={city.id} cityName={city.name} headline={'\u00a0'} pending />}>
-        <GazetteStrip summariesP={summariesP} input={editionInput} />
-      </Suspense>
 
       {latestMoment && (
         <CrownMoment moment={{ id: `${latestMoment.boardName}-${latestMoment.at.getTime()}`, boardName: latestMoment.boardName, toName: nm(latestMoment.to),
@@ -125,8 +124,9 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           whenLabel: hoursAgo < 1 ? 'just now' : `${hoursAgo} ${hoursAgo === 1 ? 'hour' : 'hours'} ago`, simulated: isDemo }} autoPlay={!!viewer} />
       )}
 
-      <div className="section-head"><div><p>The throne</p><h2>Who holds {city.name} right now</h2></div>
-        <Link className="textlink" href={`/throne?level=city&city=${city.id}`}>Throne history ↗</Link></div>
+      {/* The competition: who holds the city, and its board. One section; before anyone is ranked it is one panel. */}
+      <div className="section-head"><div><p>The competition</p><h2>Who holds {city.name} right now</h2></div>
+        <Link className="textlink" href={`/board?level=city&city=${city.id}`}>See the full board ↗</Link></div>
       {leader ? (
         <div className="throne" data-testid="leader-feature">
           <div className="big01"><CrownMark size="large" /><b aria-hidden="true">01</b><span className="sr-only">Rank 01, current number-one holder</span></div>
@@ -137,6 +137,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
             <div className="acts">
               <Link className="btn light" href={`/u/${encodeURIComponent(leader.member.username)}`}>View profile</Link>
               {second && <Link className="btn light" href={`/vs/${encodeURIComponent(leader.member.username)}/${encodeURIComponent(second.member.username)}`}>#01 vs #02</Link>}
+              <Link className="textlink" href={`/throne?level=city&city=${city.id}`}>Throne history ↗</Link>
             </div>
           </div>
           <div className="facts side">
@@ -149,8 +150,15 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="throne empty" data-testid="leader-feature">
           <div className="who"><small>{city.name} · unclaimed</small><h3>No one rules {city.name} yet.</h3>
-            <p style={{ margin: 0, maxWidth: '52ch' }}>{open ? 'The first ranked member takes the crown.' : 'Rankings are not open yet. Create your profile now and be on the register before Season 1 opens.'}</p>
-            <div className="acts"><Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link></div></div>
+            <p style={{ margin: 0, maxWidth: '52ch' }}>{open
+              ? `The first ranked member takes the crown. The ${city.name} board fills as members are ranked.`
+              : 'Rankings open with Season 1. Create your profile now and you are on the register the day it starts: locality, city, state and India boards at once.'}</p>
+            <div className="acts">
+              {viewer
+                ? <Link className="btn" href="/seal">Open The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
+                : <Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link>}
+              <Link className="btn light" href={`/board?level=city&city=${city.id}`}>See the {city.name} board</Link>
+            </div></div>
         </div>
       )}
 
@@ -167,45 +175,45 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
-      <div className="section-head"><div><p>The board</p><h2>{city.name}&apos;s pecking order</h2></div>
-        <Link className="textlink" href={`/board?level=city&city=${city.id}`}>See full board ↗</Link></div>
-      <div className="home-grid">
-        <HomeBoard boards={boards} names={names} initial="city" note={isDemo ? 'Demo data · not live' : season.label} />
-        <div className="side-stack">
-          <div className="activity-panel">
-            <div className="activity-title"><h3>Rank movement</h3><span>Last 24 hours</span></div>
-            {events.length === 0 && <p className="activity-empty">No ranking changes in {city.name} in the last 24 hours.</p>}
-            {events.map((e) => { const t = eventText(e); return (
-              <div className="activity" key={e.member.username + e.kind}><div className="activity-mark" aria-hidden="true">{t.mark}</div><div><p>{t.text}</p><small>{e.member.locality} · last 24 hours</small></div><em>{t.tag}</em></div>
-            ); })}
-          </div>
-          {viewer && (
-            <div className="activity-panel" data-testid="home-rivals">
-              <div className="activity-title"><h3>Your rivals</h3><span>You #{myCity?.rank ? pad2(myCity.rank) : '--'}</span></div>
-              {rivals.length === 0 && <p className="activity-empty">No rivals yet. Add up to five from any profile.</p>}
-              {rivals.map(({ m, s }) => (
-                <Link className="activity" key={m!.username} href={`/vs/${encodeURIComponent(viewer.member.username)}/${encodeURIComponent(m!.username)}`}>
-                  <div className="activity-mark" aria-hidden="true">{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? '↑' : '↓') : '·'}</div>
-                  <div><p><b>{nm(m!)}</b> is #{s?.rank ? pad2(s.rank) : '--'} in {cityById(m!.cityId)?.name}.</p><small>{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? `${myCity.rank - s.rank} ahead of you` : `${s.rank - myCity.rank} behind you`) : 'Different board'}</small></div>
-                  <em>VS</em>
-                </Link>
-              ))}
+      {/* Board preview, rank movement and rivals appear only when there is something on them. */}
+      {anyRanked && (
+        <div className={hasSide ? 'home-grid' : 'home-grid solo'} style={{ marginTop: 26 }}>
+          <HomeBoard boards={boards} names={names} initial="city" note={isDemo ? 'Demo data · not live' : season.label} />
+          {hasSide && (
+            <div className="side-stack">
+              {events.length > 0 && (
+                <div className="activity-panel">
+                  <div className="activity-title"><h3>Rank movement</h3><span>Last 24 hours</span></div>
+                  {events.map((e) => { const t = eventText(e); return (
+                    <div className="activity" key={e.member.username + e.kind}><div className="activity-mark" aria-hidden="true">{t.mark}</div><div><p>{t.text}</p><small>{e.member.locality} · last 24 hours</small></div><em>{t.tag}</em></div>
+                  ); })}
+                </div>
+              )}
+              {viewer && (
+                <div className="activity-panel" data-testid="home-rivals">
+                  <div className="activity-title"><h3>Your rivals</h3><span>You #{myCity?.rank ? pad2(myCity.rank) : '--'}</span></div>
+                  {rivals.length === 0 && <p className="activity-empty">No rivals yet. Add up to five from any profile.</p>}
+                  {rivals.map(({ m, s }) => (
+                    <Link className="activity" key={m!.username} href={`/vs/${encodeURIComponent(viewer.member.username)}/${encodeURIComponent(m!.username)}`}>
+                      <div className="activity-mark" aria-hidden="true">{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? '↑' : '↓') : '·'}</div>
+                      <div><p><b>{nm(m!)}</b> is #{s?.rank ? pad2(s.rank) : '--'} in {cityById(m!.cityId)?.name}.</p><small>{s?.rank && myCity?.rank ? (s.rank < myCity.rank ? `${myCity.rank - s.rank} ahead of you` : `${s.rank - myCity.rank} behind you`) : 'Different board'}</small></div>
+                      <em>VS</em>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
+      )}
 
+      {/* Explore cities: six featured cities and the way to all 45. Localities are found inside each city. */}
       <div className="section-head"><div><p>Territories</p><h2>Pick your ground</h2></div>
         <Link className="textlink" href="/cities">All {CITIES.length} cities ↗</Link></div>
       <Suspense fallback={<FeaturedCitiesView viewerCityId={me?.cityId ?? null} currentCityId={city.id} summaries={null} />}>
         <FeaturedCities summariesP={summariesP} viewerCityId={me?.cityId ?? null} currentCityId={city.id} />
       </Suspense>
       <Link className="btn explore-cities" href="/cities" data-testid="explore-cities">Explore all {CITIES.length} cities <span className="arrow">→</span></Link>
-      <div className="loc-chips" aria-label={`Localities in ${city.name}`}>
-        {city.localities.filter((l) => l !== 'Other').map((l) => (
-          <Link key={l} href={`/board?level=locality&city=${city.id}&locality=${encodeURIComponent(l)}`} className={ranked.has(l) ? '' : 'open'}>{l}{ranked.has(l) ? '' : ' · unclaimed'}</Link>
-        ))}
-      </div>
 
       <div className="section-head"><div><p>The Seal</p><h2>Your permanent identity</h2></div></div>
       <div className="seal-intro">
@@ -214,27 +222,42 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
           <span>Member ID</span>
           <b style={{ fontFamily: 'var(--font-mono)', color: 'var(--lime)', fontSize: 40, letterSpacing: '.08em' }}>{viewer?.member.memberNo ? String(viewer.member.memberNo).padStart(5, '0') : '— — — — —'}</b>
           <b>{viewer ? nm(viewer.member) : 'Your name here'}</b>
-          <span>{viewer ? `${viewer.member.locality}, ${cityById(viewer.member.cityId)?.name}` : `${city.localities[0]}, ${city.name}`} · {season.label}</span>
+          <span>{viewer ? `${viewer.member.locality}, ${cityById(viewer.member.cityId)?.name}` : `${city.localities[0]}, ${city.name}`}{open ? ` · ${season.label}` : ''}</span>
         </div>
         <div>
           <h3>The number stays. The rank moves.</h3>
           <ul>
             <li>A permanent member ID that never changes.</li>
-            <li>Your live rank on all four boards, updated as it moves.</li>
-            <li>Every crown, streak and achievement you earn, kept for good.</li>
-            <li>A story-sized card to post on Instagram and WhatsApp.</li>
+            <li>Your live rank on all four boards, reset every season.</li>
+            <li>Every crown and achievement you earn, kept for good.</li>
           </ul>
           <Link className="btn" href={viewer ? '/seal' : '/join'}>{viewer ? 'Open The Seal' : 'Get your Seal'} <span className="arrow" aria-hidden="true">↗</span></Link>
         </div>
       </div>
 
+      {/* One supporting module. Season open: today's Gazette and the close. Before Season 1: how a season works. */}
       <div className="section-head"><div><p>The season</p><h2>Monthly reset. Permanent record.</h2></div>
-        <Link className="textlink" href="/archive">Open the archive ↗</Link></div>
-      <div className="season-band">
-        <div><small>Now</small><b>{open ? season.label : 'Not open'}</b><span>{open ? season.monthLabel : 'Season 1 has not started'}</span></div>
-        <div><small>Closes in</small><b>{!open ? '—' : left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Taking a #01 in the last 15 minutes extends the close by 15 minutes</span></div>
-        <div><small>Then</small><b>Boards reset</b><span>Every throne is empty again on the 1st</span></div>
-        <div><small>Forever</small><b>{archive.length} {archive.length === 1 ? 'season' : 'seasons'} archived</b><span><Link href="/board?view=hall">Hall of Fame</Link> and <Link href="/archive">past champions</Link></span></div>
+        {archive.length > 0 && <Link className="textlink" href="/archive">Open the archive ↗</Link>}</div>
+      {open && (
+        <Suspense fallback={<GazetteStripView cityId={city.id} cityName={city.name} headline={'\u00a0'} pending />}>
+          <GazetteStrip summariesP={summariesP} input={editionInput} />
+        </Suspense>
+      )}
+      <div className={`season-band${open ? '' : ' prelaunch'}`} data-testid="season-band">
+        {open ? (
+          <>
+            <div><small>Now</small><b>{season.label}</b><span>{season.monthLabel}</span></div>
+            <div><small>Closes in</small><b>{left.closed ? 'Closed' : `${left.days}d ${pad2(left.hours)}h`}</b><span>Taking a #01 in the last 15 minutes extends the close by 15 minutes</span></div>
+            <div><small>Then</small><b>Boards reset</b><span>Every throne is empty again on the 1st</span></div>
+            <div><small>Forever</small><b>{archive.length} {archive.length === 1 ? 'season' : 'seasons'} archived</b><span><Link href="/board?view=hall">Hall of Fame</Link> and <Link href="/archive">past champions</Link></span></div>
+          </>
+        ) : (
+          <>
+            <div><small>Every month</small><b>A new season</b><span>Boards reset on the 1st and every throne is empty again.</span></div>
+            <div><small>The final 15 minutes</small><b>No sniping</b><span>Taking a #01 in the last 15 minutes extends the close by 15 minutes.</span></div>
+            <div><small>Forever</small><b>The record stays</b><span>Final standings and every past champion are kept in the archive.</span></div>
+          </>
+        )}
       </div>
     </>
   );

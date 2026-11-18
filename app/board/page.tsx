@@ -60,14 +60,17 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
         <span role="group" aria-label="Board level" style={{ display: 'contents' }}>
           {LEVELS.map((l) => <Link key={l} href={levelHref(l)} prefetch aria-current={scope.level === l ? 'true' : undefined} data-level={l}>{LEVEL_LABEL[l]}</Link>)}
         </span>
-        <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query}
+        <BoardFilters view={view} level={scope.level} cityId={scope.cityId} locality={scope.locality} query={query} search={!unavailable}
           cities={cityOptionGroups()} localities={city.localities} />
       </div>
+      {/* Season views (movers, Hall of Fame, Most Respected) and their note appear once rankings open; their addresses keep working. */}
+      {!unavailable && <>
       <nav className="view-tabs" aria-label="Board view">
         {BOARD_VIEWS.map((vw) => <IntentLink key={vw} href={href(scope.level, vw)} aria-current={view === vw ? 'true' : undefined} data-view={vw}>{VIEW_LABEL[vw]}</IntentLink>)}
       </nav>
       <p className="view-note">{view === 'season' ? `Season Score, ${season.label}. Resets when the season ends.` : view === 'movers' ? 'Members who climbed or entered this board in the last 24 hours, biggest climb first. Numbers are their current season rank.' : view === 'respect' ? 'Free Respect received this season. One Respect per profile per day. No money involved, so no gold crown.' : 'Lifetime Score across every season. Never resets. The gold crown belongs only to the current season #01.'}</p>
-      <div className="board-layout">
+      </>}
+      <div className={unavailable ? 'board-layout solo' : 'board-layout'}>
         <div className="board-panel">
           <div className="panel-head">
             <h3 data-testid="board-title">{name} / {LEVEL_LABEL[scope.level]} board</h3>
@@ -80,32 +83,42 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
               : view === 'movers' ? `Nobody climbed or entered the ${name} board in the last 24 hours.`
               : view === 'hall' ? 'The Hall of Fame lists Lifetime Score from every season once members have ranked.'
               : view === 'respect' ? `Nobody in ${name} has received Respect this season yet.`
-              : `Be the first. The first ranked member in ${name} earns the Pioneer of ${name} flag.`} />
+              : `Be the first. The first ranked member in ${name} earns the Pioneer of ${name} flag.`}
+            emptyAction={unavailable ? (
+              <div className="hero-cta" style={{ marginTop: 18 }}>
+                {me ? <Link className="btn" href="/seal">Open The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
+                  : <Link className="btn" href="/join">Create your profile <span className="arrow" aria-hidden="true">↗</span></Link>}
+                <Link className="btn light" href="/cities">Explore cities</Link>
+              </div>
+            ) : undefined} />
           {board.rows.length > 0 && <div className="board-foot">{view === 'movers' ? `${board.rows.length} ${board.rows.length === 1 ? 'mover' : 'movers'} of ${board.total} on this board` : `Showing ${board.rows.length} of ${board.total}`}{query ? ` matching “${query}”` : ''}. Select a row to open the profile.</div>}
         </div>
-        <aside className="board-aside" aria-label="Your place on this board">
-          <div className="eyebrow">Your season place in {name}</div>
-          {v ? (
-            <>
-              <div className="big">#{pad2(v.rank)}</div>
-              <h3>{v.rank === 1 ? <>You hold<br />the crown.</> : <>On the board.<br />Not yet on top.</>}</h3>
-              <p>You are listed at {inr(v.member.seasonScore)} this season, #{v.rank} of {seasonBoard.total} in {name}.</p>
-            </>
-          ) : (
-            <>
-              <div className="big">—</div>
-              <h3>{me ? <>Not on<br />this board.</> : <>Not on the<br />register yet.</>}</h3>
-              <p>{me ? `Your boards are ${me.locality}, ${CITY_NAMES[me.cityId]}, and their state and India boards.` : 'Create a profile to see your own row here.'}</p>
-            </>
-          )}
-          <div className="aside-stat"><span>Season</span><b>{season.label}</b></div>
-          <div className="aside-stat"><span>Scheduled close</span><b>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days} days`}</b></div>
-          <div className="aside-stat"><span>Rank up</span><b>Not open</b></div>
-          <p style={{ marginBottom: 0 }}>Rank purchases stay switched off until legal and payment-provider approval is in place.</p>
-          <Link className="btn light block" href={`/throne?level=${scope.level}&city=${scope.cityId}${scope.level === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`} style={{ marginBottom: 10 }}>Throne history <span className="arrow" aria-hidden="true">↗</span></Link>
-          <Link className="btn block" href="/rank-up">Preview Rank Up <span className="arrow" aria-hidden="true">↗</span></Link>
-          <Link className="btn light block" href="/seal" style={{ marginTop: 10 }}>View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
-        </aside>
+        {/* Before rankings open the aside would only repeat "not open" three times: the panel above carries the one message. */}
+        {!unavailable && (
+          <aside className="board-aside" aria-label="Your place on this board">
+            <div className="eyebrow">Your season place in {name}</div>
+            {v ? (
+              <>
+                <div className="big">#{pad2(v.rank)}</div>
+                <h3>{v.rank === 1 ? <>You hold<br />the crown.</> : <>On the board.<br />Not yet on top.</>}</h3>
+                <p>You are listed at {inr(v.member.seasonScore)} this season, #{v.rank} of {seasonBoard.total} in {name}.</p>
+              </>
+            ) : (
+              <>
+                <div className="big">—</div>
+                <h3>{me ? <>Not on<br />this board.</> : <>Not on the<br />register yet.</>}</h3>
+                <p>{me ? `Your boards are ${me.locality}, ${CITY_NAMES[me.cityId]}, and their state and India boards.` : 'Create a profile to see your own row here.'}</p>
+              </>
+            )}
+            <div className="aside-stat"><span>Season</span><b>{season.label}</b></div>
+            <div className="aside-stat"><span>Scheduled close</span><b>{!rankingsOpen(ds) ? 'Not open' : left.closed ? 'Closed' : `${left.days} days`}</b></div>
+            <div className="aside-stat"><span>Rank up</span><b>Not open</b></div>
+            <p style={{ marginBottom: 0 }}>Rank purchases stay switched off until legal and payment-provider approval is in place.</p>
+            <Link className="btn light block" href={`/throne?level=${scope.level}&city=${scope.cityId}${scope.level === 'locality' ? `&locality=${encodeURIComponent(scope.locality)}` : ''}`} style={{ marginBottom: 10 }}>Throne history <span className="arrow" aria-hidden="true">↗</span></Link>
+            <Link className="btn block" href="/rank-up">Preview Rank Up <span className="arrow" aria-hidden="true">↗</span></Link>
+            <Link className="btn light block" href="/seal" style={{ marginTop: 10 }}>View The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
+          </aside>
+        )}
       </div>
     </>
   );
