@@ -36,7 +36,7 @@ describe('sitemap and metadata', () => {
     const urls = sitemap().map((e) => e.url);
     expect(urls.length).toBe(PUBLIC_PAGES.length);
     expect(new Set(urls).size).toBe(urls.length);
-    for (const u of urls) { expect(u.startsWith(`${CANONICAL_ORIGIN}/`)).toBe(true); expect(u).not.toMatch(/[?#]|vercel\.app|\/(api|auth|me|join|signin|u|vs|bill|declare|legal|rank-up)\b/); }
+    for (const u of urls) { expect(u.startsWith(`${CANONICAL_ORIGIN}/`)).toBe(true); expect(u).not.toMatch(/[?#]|vercel\.app|\/(api|auth|me|join|signin|u|vs|bill|declare|legal|rank-up|closing|simulator)\b/); }
     expect(sitemap().every((e) => !('lastModified' in e))).toBe(true);
   });
   it('the canonical origin is the production domain even where BKP_SITE_URL is not set (previews)', () => {
@@ -45,7 +45,7 @@ describe('sitemap and metadata', () => {
   it('page metadata carries a canonical path and matching Open Graph fields; noindex pages keep links followed', () => {
     const m = pageMetadata({ title: 'Cities', description: 'd', path: '/cities' });
     expect(m.alternates?.canonical).toBe('/cities');
-    expect(m.openGraph).toMatchObject({ url: '/cities', title: 'Cities · BAAP KA PAISA', description: 'd' });
+    expect(m.openGraph).toMatchObject({ url: '/cities', title: 'Cities | BAAP KA PAISA', description: 'd' });
     expect(noindexMetadata('Sign in').robots).toEqual({ index: false, follow: true });
   });
 });

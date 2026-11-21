@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { JsonLd } from '@/components/JsonLd';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { BOARD_VIEWS, VIEW_LABEL, movers, parseView } from '@/lib/data/views';
 import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
-import { noindexMetadata, pageMetadata } from '@/lib/seo';
+import { noindexMetadata, pageMetadata, pageJsonLd } from '@/lib/seo';
 import { timeLeft } from '@/lib/season';
 import { inr, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
@@ -13,9 +14,12 @@ import { CITY_NAMES } from '@/components/cityNames';
 
 // The plain /board address is the indexable page. City, locality, level and view addresses (/board?city=…, Hall of
 // Fame, Most Respected, Today's Movers) are named but kept out of search results until boards have members.
+const SEO_TITLE = 'The Board: City, State and India Rankings';
+const SEO_DESCRIPTION = "Who holds #01? The BAAP KA PAISA boards rank members by Season Score on locality, city, state and India boards. Ties go to whoever got there first.";
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const sp = await searchParams;
-  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'The Board', path: '/board', description: 'One city. Four territories. The BAAP KA PAISA boards rank members by Season Score on locality, city, state and India boards; ties go to whoever reached the score first.' });
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: SEO_TITLE, path: '/board', description: SEO_DESCRIPTION });
   const view = typeof sp.view === 'string' && sp.view in VIEW_LABEL && sp.view !== 'season' ? VIEW_LABEL[sp.view as keyof typeof VIEW_LABEL] : null;
   const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
   return noindexMetadata([view ?? 'The Board', city].filter(Boolean).join(' · '));
@@ -52,6 +56,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
+      <JsonLd data={pageJsonLd({ name: 'The Board', path: '/board', description: SEO_DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">The public record / 01</div><h1>The board.</h1></div>
         <p>One city. Four territories. Ranked by Season Score; ties go to whoever reached the score first. {ds.availability === 'demo' ? `This is ${name}'s demo board for ${season.label}.` : ''}</p>

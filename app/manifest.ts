@@ -4,9 +4,9 @@ import type { MetadataRoute } from 'next';
 // logo artwork. The maskable icon keeps the whole logo inside the 80% safe area.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'BAAP KA PAISA — The Public Status Register',
+    name: 'BAAP KA PAISA – Who Owns the Throne?',
     short_name: 'BAAP KA PAISA',
-    description: "India's public status board, ranked by locality, city, state and country. Monthly seasons; the record stays.",
+    description: 'Who owns the throne? The public status register: locality, city, state and national boards. Monthly seasons; the record stays.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

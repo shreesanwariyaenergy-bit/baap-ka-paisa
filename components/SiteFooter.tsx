@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 const GROUPS: { id: string; title: string; links: { href: string; label: string }[] }[] = [
-  { id: 'explore', title: 'Explore', links: [{ href: '/archive', label: 'Archive' }, { href: '/throne', label: 'Throne history' }] },
+  { id: 'explore', title: 'Explore', links: [{ href: '/how-it-works', label: 'How it works' }, { href: '/archive', label: 'Archive' }, { href: '/throne', label: 'Throne history' }] },
   { id: 'competition', title: 'Competition', links: [{ href: '/closing', label: 'The Closing' }, { href: '/simulator', label: 'Season simulator · demo' }, { href: '/rank-up', label: 'Rank Up preview' }] },
   { id: 'account', title: 'Account & Invite', links: [{ href: '/join', label: 'Create profile' }, { href: '/invite', label: 'Invite' }] },
   { id: 'legal', title: 'Legal', links: [{ href: '/legal/terms', label: 'Terms' }, { href: '/legal/privacy', label: 'Privacy' }, { href: '/legal/refunds', label: 'Refunds' }, { href: '/legal/community', label: 'Guidelines' }, { href: '/legal/grievance', label: 'Grievance' }] },

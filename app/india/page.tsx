@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { pageMetadata } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
+import { pageMetadata, pageJsonLd } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, cityById, DEFAULT_CITY_ID } from '@/lib/geo';
@@ -9,11 +10,10 @@ import { inrShort, pad2 } from '@/lib/format';
 import { BoardList } from '@/components/BoardList';
 import { CITY_NAMES } from '@/components/cityNames';
 
-export const metadata: Metadata = pageMetadata({
-  title: 'India',
-  path: '/india',
-  description: "Zoom out. See how the cities compare on combined Season Score, who leads the national table, and where your city stands on the BAAP KA PAISA register.",
-});
+const SEO_TITLE = 'India: The National Table';
+const SEO_DESCRIPTION = "Zoom out. See how the cities compare on combined Season Score, who leads the national table and where your city stands on BAAP KA PAISA.";
+
+export const metadata: Metadata = pageMetadata({ title: SEO_TITLE, path: '/india', description: SEO_DESCRIPTION });
 
 export default async function IndiaPage() {
   // Every read starts in the same round trip as the season row. The India board is the same for everyone (the city
@@ -31,6 +31,7 @@ export default async function IndiaPage() {
   const hasData = summaries.length > 0 || national.total > 0;
   return (
     <>
+      <JsonLd data={pageJsonLd({ name: 'India', path: '/india', description: SEO_DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">The national register / 03</div><h1>Big country.<br />Big egos.</h1></div>
         <p>Zoom out. See how the cities compare on combined Season Score, who leads the national table, and where your city stands.</p>

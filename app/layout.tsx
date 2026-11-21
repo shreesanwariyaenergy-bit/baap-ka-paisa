@@ -13,7 +13,7 @@ import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
 import { preload } from 'react-dom';
 import { ProfileDialogProvider } from '@/components/ProfileDialog';
-import { SITE_NAME, canonicalOrigin, indexingAllowed } from '@/lib/seo';
+import { HOME_TITLE, SITE_NAME, canonicalOrigin, indexingAllowed } from '@/lib/seo';
 
 
 // Indexing is allowed only in production on the canonical host (lib/seo.ts); previews, local development and other
@@ -27,8 +27,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 const baseMetadata: Metadata = {
-  title: { default: 'BAAP KA PAISA — The Public Status Register', template: '%s · BAAP KA PAISA' },
-  description: 'City-first status rankings across locality, city, state and India. Monthly seasons; the record stays.',
+  title: { default: HOME_TITLE, template: '%s | BAAP KA PAISA' },
+  description: 'Who owns the throne? Locality, city, state and national boards on BAAP KA PAISA, the public status register. Monthly seasons; the record stays.',
+  // Stable icon addresses (no content hashes): the full logo on paper. Google uses a square icon in multiples of 48 px.
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
+      { url: '/brand/favicon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/brand/favicon-96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/brand/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   applicationName: SITE_NAME,
   openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_IN' },
   twitter: { card: 'summary_large_image' },
