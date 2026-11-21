@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ city: s
           <div style={{ ...label, justifyContent: 'space-between' }}><span>{ed.issue}</span><span>Price: your pride</span></div>
           <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 118, lineHeight: 0.9, textTransform: 'uppercase', marginTop: 22, justifyContent: 'center' }}>{`The ${city.name} Gazette`}</div>
           <div style={{ display: 'flex', height: 6, background: ink, marginTop: 18 }} /><div style={{ display: 'flex', height: 2, background: ink, marginTop: 6 }} />
-          <div style={{ ...label, marginTop: 14, justifyContent: 'space-between' }}><span>{ed.dateline}</span><span>{ds.availability === 'demo' ? 'Demo data' : 'By order of the register'}</span></div>
+          <div style={{ ...label, fontSize: 20, marginTop: 14, justifyContent: 'space-between', gap: 24 }}><span>{ed.dateline}</span><span>{ds.availability === 'demo' ? 'Demo data' : 'By order of the register'}</span></div>
           <div style={{ ...label, fontSize: 28, color: '#B43A0A', marginTop: 64 }}>{ed.lead.kicker}</div>
           <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: big, lineHeight: 0.92, textTransform: 'uppercase', marginTop: 16 }}>{ed.lead.headline}</div>
           <div style={{ display: 'flex', width: 320, height: 22, background: lime, marginTop: 20 }} />
