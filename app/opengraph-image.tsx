@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'nodejs';
-export const alt = 'BAAP KA PAISA. Who owns the throne? The public status register.';
+export const alt = 'BAAP KA PAISA. Who owns the throne? Your city. Your rank. Your throne.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -26,7 +26,7 @@ export default async function OpengraphImage() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 48, background: paper, color: ink, padding: '0 56px' }}>
           <img src={logoSrc} width={logoW} height={logoH} alt="" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
-            <div style={label}>The public status register</div>
+            <div style={label}>Locality · City · State · India</div>
             <div style={{ display: 'flex' }}>
               <span style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 56, lineHeight: 1, textTransform: 'uppercase', background: lime, padding: '6px 16px', border: `4px solid ${ink}` }}>Who owns the throne?</span>
             </div>

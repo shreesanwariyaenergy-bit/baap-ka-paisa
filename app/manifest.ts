@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'BAAP KA PAISA – Who Owns the Throne?',
     short_name: 'BAAP KA PAISA',
-    description: 'Who owns the throne? The public status register: locality, city, state and national boards. Monthly seasons; the record stays.',
+    description: 'Who owns the throne? Locality, city, state and national boards. Monthly seasons; the record stays.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

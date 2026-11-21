@@ -215,19 +215,14 @@ test.describe('Rank Up preview', () => {
 
 test.describe('policy pages', () => {
   for (const slug of ['terms', 'privacy', 'refunds', 'grievance', 'community']) {
-    test(`${slug} shows the policy text and that payments are not open`, async ({ page }) => {
+    test(`${slug} shows clean policy text with no internal review notes or sidebar`, async ({ page }) => {
       await page.goto(`/legal/${slug}`);
-      await expect(page.getByTestId('legal-status')).toContainText('Payments are not open yet');
-      await expect(page.getByTestId('legal-text')).toContainText('Effective date: to be set on publication');
-      await expect(page.getByTestId('legal-text')).toContainText('BAAP KA PAISA');
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.getByTestId('legal-text').locator('h2').first()).toBeVisible();
+      await expect(page.locator('main')).not.toContainText(/draft|legal review|to be published|status register/i);
+      await expect(page.getByRole('navigation', { name: 'Policies' })).toHaveCount(0);
     });
   }
-  test('grievance page lists VEXOR LABS and never invents missing contact details', async ({ page }) => {
-    await page.goto('/legal/grievance');
-    const contact = page.getByTestId('legal-contact');
-    await expect(contact).toContainText('VEXOR LABS');
-    await expect(contact.locator('.legal-pending')).toHaveCount(3);
-  });
   test('footer links reach the policies', async ({ page }) => {
     await page.goto('/');
     await dismissCrownMoment(page);

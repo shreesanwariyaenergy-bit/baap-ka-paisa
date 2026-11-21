@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 const baseMetadata: Metadata = {
   title: { default: HOME_TITLE, template: '%s | BAAP KA PAISA' },
-  description: 'Who owns the throne? Locality, city, state and national boards on BAAP KA PAISA, the public status register. Monthly seasons; the record stays.',
+  description: 'Who owns the throne? Locality, city, state and national boards on BAAP KA PAISA. Monthly seasons; the record stays.',
   // Stable icon addresses (no content hashes): the full logo on paper. Google uses a square icon in multiples of 48 px.
   icons: {
     icon: [

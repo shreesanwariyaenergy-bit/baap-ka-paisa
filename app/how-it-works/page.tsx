@@ -25,7 +25,7 @@ export default function HowItWorksPage() {
       <JsonLd data={pageJsonLd({ name: 'How It Works', path: '/how-it-works', description: DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">The rules of the register / 06</div><h1>How it<br />works.</h1></div>
-        <p>Who owns the throne? The public status register decides it in the open, board by board, season by season.</p>
+        <p>Who owns the throne? BAAP KA PAISA decides it in the open, board by board, season by season.</p>
       </section>
       <ol className="how-steps">
         {STEPS.map((s) => (

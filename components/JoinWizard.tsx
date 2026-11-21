@@ -63,7 +63,7 @@ export function JoinWizard({ cities, live, hasAccount, accountEmail, referrer }:
           <p>BAAP KA PAISA is for adults only.</p>
           <label className="field"><span className="field-label">Date of birth</span><input type="date" value={d.dateOfBirth} onChange={(e) => set({ dateOfBirth: e.target.value })} aria-invalid={!!errors.dateOfBirth} data-testid="f-dob" /><span className="field-hint">Used only to confirm you are 18 or older. Never shown publicly.</span></label><Err e={errors.dateOfBirth} />
           <label className="check"><input type="checkbox" checked={!!d.adult} onChange={(e) => set({ adult: e.target.checked })} data-testid="f-adult" /><span>I confirm that I am 18 years of age or older.</span></label><Err e={errors.adult} />
-          <label className="check"><input type="checkbox" checked={!!d.terms} onChange={(e) => set({ terms: e.target.checked })} data-testid="f-terms" /><span>I accept the <Link href="/legal/terms" target="_blank" style={{ textDecoration: 'underline' }}>Terms</Link> and <Link href="/legal/privacy" target="_blank" style={{ textDecoration: 'underline' }}>Privacy Policy</Link> (both pending legal review).</span></label><Err e={errors.terms} />
+          <label className="check"><input type="checkbox" checked={!!d.terms} onChange={(e) => set({ terms: e.target.checked })} data-testid="f-terms" /><span>I accept the <Link href="/legal/terms" target="_blank" style={{ textDecoration: 'underline' }}>Terms</Link> and <Link href="/legal/privacy" target="_blank" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>.</span></label><Err e={errors.terms} />
         </>}
         {step === 4 && <>
           <h2>Check your profile.</h2>

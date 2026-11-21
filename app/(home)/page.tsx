@@ -90,7 +90,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
             {isDemo && <span className="tagchip hot">Demo data</span>}
           </div>
           <h1 id="hero-title">Who owns<br /><span className="outline">the throne?</span></h1>
-          <p className="hero-sub"><span className="hero-sub-key">Your city. Your rank. <b>Your throne.</b></span> The public status register, ranked by locality, city, state and India.</p>
+          <p className="hero-sub"><span className="hero-sub-key">Your city. Your rank. <b>Your throne.</b></span> Ranked by locality, city, state and India.</p>
           <div className="hero-cta">
             {viewer
               ? <Link className="btn" href="/seal" data-testid="hero-primary">Open The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
