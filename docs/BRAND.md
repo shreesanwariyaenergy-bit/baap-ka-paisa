@@ -45,6 +45,7 @@ supplied file fall to zero opacity and do not appear in any derivative.
    (SVG/PDF) of the exact approved lettering. No automatic tracing has been done, to avoid altering the letters.
 2. **Favicon decision (final).** Every icon uses the whole logo, as on the website; no simplified mark, monogram,
    crown or single letter. Browser and search favicons (16, 24, 32, 48, 64 px in `/favicon.ico`; 48 and 96 px PNGs)
-   fill 99% of the square and are reduced from the full-resolution artwork with light sharpening so the letter gaps
-   stay open; home-screen icons (180, 192, 512 px) keep a margin for rounded corners. At 16 px the three lines are
+   are reduced from the full-resolution artwork, centred with a clear 1 px border on every side so no letter touches
+   the edge or is cut (logo height 87.5% at 16 px, 89.5% at 24, 92.5% at 32, then 96–98%), and sharpened so the
+   strokes stay as dark as the artwork's (stronger at 16 and 24 px, where downscaling softens most); home-screen icons (180, 192, 512 px) keep a margin for rounded corners. At 16 px the three lines are
    necessarily small; that is accepted. An SVG favicon depends on task 1.
