@@ -19,7 +19,7 @@ The logo's own forest-green lettering is kept exactly as supplied.
 | `public/brand/baap-ka-paisa-logo-{240,480}.webp`, `-480.png` | Web sizes of the cut-out (header, footer, Bill, share images). |
 | `public/brand/baap-ka-paisa-logo-cream*.{png,webp}` | Cream lettering, same alpha (same geometry), for dark surfaces such as The Seal. |
 | `public/brand/icon-{192,512}.png`, `icon-maskable-512.png` | App / PWA icons: complete logo on paper; the maskable icon keeps it inside the 80% safe area. |
-| `app/favicon.ico` (16, 32, 48), `app/icon.png` (192), `app/apple-icon.png` (180) | Browser and home-screen icons. |
+| `public/favicon.ico` (16, 24, 32, 48, 64), `public/brand/favicon-{48,96}.png`, `public/brand/apple-touch-icon.png` (180) | Browser, search and home-screen icons: the whole logo, at stable addresses. |
 | `assets/brand/baap-ka-paisa-logo-480.png` | Copy of the 480 px cut-out read by the share-image routes (bundled with server functions, like `assets/fonts`). |
 
 ### How the cut-out was made
@@ -43,6 +43,8 @@ supplied file fall to zero opacity and do not appear in any derivative.
 1. **Vector master.** The approved artwork exists only as a raster (about 750 px square for the lettering). It is
    sufficient for the website; print, signage and very large displays need a professionally drawn vector master
    (SVG/PDF) of the exact approved lettering. No automatic tracing has been done, to avoid altering the letters.
-2. **Simplified small-size mark.** At 16 px the full three-line logo reduces to texture. The 16 px favicon keeps the
-   full logo as the fallback until a dedicated simplified mark is designed and approved. No monogram, crown or
-   substitute icon is to be invented in the meantime. An SVG favicon depends on task 1.
+2. **Favicon decision (final).** Every icon uses the whole logo, as on the website; no simplified mark, monogram,
+   crown or single letter. Browser and search favicons (16, 24, 32, 48, 64 px in `/favicon.ico`; 48 and 96 px PNGs)
+   fill 99% of the square and are reduced from the full-resolution artwork with light sharpening so the letter gaps
+   stay open; home-screen icons (180, 192, 512 px) keep a margin for rounded corners. At 16 px the three lines are
+   necessarily small; that is accepted. An SVG favicon depends on task 1.
