@@ -32,7 +32,7 @@ const baseMetadata: Metadata = {
   // Stable icon addresses (no content hashes): the full logo on paper. Google uses a square icon in multiples of 48 px.
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
+      { url: '/favicon.ico', sizes: '16x16 24x24 32x32 48x48 64x64', type: 'image/x-icon' },
       { url: '/brand/favicon-48.png', sizes: '48x48', type: 'image/png' },
       { url: '/brand/favicon-96.png', sizes: '96x96', type: 'image/png' },
       { url: '/brand/icon-192.png', sizes: '192x192', type: 'image/png' },
