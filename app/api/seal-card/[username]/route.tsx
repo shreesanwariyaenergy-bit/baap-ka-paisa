@@ -1,4 +1,5 @@
 // Renders The Seal share image (1080 × 1920, PNG) on the server from public profile fields only.
+/* eslint-disable @next/next/no-img-element -- ImageResponse renders plain <img> elements; next/image does not apply here */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ImageResponse } from 'next/og';
@@ -6,6 +7,7 @@ import { getDataSource } from '@/lib/data';
 import { STATES, cityById } from '@/lib/geo';
 import { memberNo, pad2 } from '@/lib/format';
 import { CROWN_GEOMETRY } from '@/components/Crown';
+import { shareLogo } from '@/lib/brand-image';
 
 export const runtime = 'nodejs';
 
@@ -47,22 +49,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ usernam
   const season = ds.season();
   const name = m.masked ? m.publicLabel : m.displayName ?? m.username;
   const rank = cityStanding?.rank ?? null;
-  const [barlow, changa, mono] = await fonts;
+  const [[barlow, changa, mono], logo] = await Promise.all([fonts, shareLogo(196)]);
   const label = { display: 'flex' as const, fontFamily: 'DM Mono', fontSize: 30, letterSpacing: 4, textTransform: 'uppercase' as const };
 
   return new ImageResponse(
     (
       <div style={{ width: 1080, height: 1920, display: 'flex', flexDirection: 'column', background: C.paper, color: C.ink, padding: 72 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-          <div style={{ width: 104, height: 104, background: C.orange, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Changa One', fontSize: 56, transform: 'rotate(-5deg)', boxShadow: `10px 10px 0 ${C.forest}` }}><span>B</span>
-            {/* Rupee sign drawn as a path: none of the bundled fonts include U+20B9. */}
-            <svg width="40" height="52" viewBox="0 0 24 30" style={{ marginLeft: 2 }}><path d="M5 4h14M5 10h14M9 4c5 0 7 2.2 7 5.5S13.5 15 9 15H6l11 12" fill="none" stroke={C.white} strokeWidth="3.4" strokeLinecap="square" strokeLinejoin="miter" /></svg></div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontFamily: 'Changa One', fontSize: 64, lineHeight: 0.9 }}>BAAP KA PAISA</div>
-            <div style={{ ...label, fontSize: 24, color: '#78847A', marginTop: 12 }}>The status register</div>
-          </div>
+        {/* The finalised logo; the old orange B-rupee mark and the typed name are gone. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+          <img src={logo.src} width={logo.width} height={logo.height} alt="" />
+          <div style={{ ...label, fontSize: 24, color: '#78847A' }}>The status register</div>
         </div>
-        <div style={{ ...label, color: '#24584C', marginTop: 96, alignItems: 'center', gap: 20 }}><div style={{ width: 64, height: 5, background: C.orange }} />The Seal / permanent identity</div>
+        <div style={{ ...label, color: '#24584C', marginTop: 72, alignItems: 'center', gap: 20 }}><div style={{ width: 64, height: 5, background: C.orange }} />The Seal / permanent identity</div>
         <div style={{ flex: 1, marginTop: 40, background: C.forest, color: C.white, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 64 }}>
           <div style={{ ...label, justifyContent: 'space-between', color: C.muted }}><span>{`${city.name} / city standing`}</span><span>{season.label}</span></div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>

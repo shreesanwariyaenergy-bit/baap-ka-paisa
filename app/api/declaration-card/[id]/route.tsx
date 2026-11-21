@@ -1,9 +1,11 @@
 // The declaration card (1080 × 1350, PNG): a poster of a public declaration, from public fields only.
+/* eslint-disable @next/next/no-img-element -- ImageResponse renders plain <img> elements; next/image does not apply here */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ImageResponse } from 'next/og';
 import { getDataSource } from '@/lib/data';
 import { who } from '@/lib/gazette';
+import { shareLogo } from '@/lib/brand-image';
 
 export const runtime = 'nodejs';
 const fontDir = path.join(process.cwd(), 'assets', 'fonts');
@@ -14,7 +16,7 @@ const rs = (n: number) => `Rs ${n.toLocaleString('en-IN')}`; // the bundled font
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const d = (await (await getDataSource()).declarations({ id: (await params).id }))[0];
   if (!d) return new Response('Declaration not found', { status: 404 });
-  const [barlow, mono] = await fonts;
+  const [[barlow, mono], logo] = await Promise.all([fonts, shareLogo(96)]);
   const won = d.status === 'won';
   const ink = '#0C251F', hot = '#FF4500', lime = '#CCFF00', paper = '#F1EFE6';
   const label = { display: 'flex' as const, fontFamily: 'DM Mono', fontSize: 26, letterSpacing: 4, textTransform: 'uppercase' as const };
@@ -22,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     (
       <div style={{ width: 1080, height: 1350, display: 'flex', flexDirection: 'column', background: ink, padding: 28 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: paper, color: ink, border: `6px solid ${ink}`, padding: 56 }}>
-          <div style={{ ...label, justifyContent: 'space-between' }}><span>{`Declaration No. ${d.no}`}</span><span>BAAP KA PAISA</span></div>
+          <div style={{ ...label, justifyContent: 'space-between', alignItems: 'center' }}><span>{`Declaration No. ${d.no}`}</span><img src={logo.src} width={logo.width} height={logo.height} alt="" /></div>
           <div style={{ display: 'flex', height: 6, background: ink, marginTop: 20 }} />
           <div style={{ display: 'flex', fontFamily: 'Barlow Condensed', fontSize: 132, lineHeight: 0.9, textTransform: 'uppercase', marginTop: 56 }}>{who(d.challenger)}</div>
           <div style={{ ...label, fontSize: 34, color: '#C23A00', marginTop: 26 }}>{won ? 'declared for, and took, the throne of' : 'declares for the throne of'}</div>
