@@ -215,11 +215,19 @@ test.describe('Rank Up preview', () => {
 
 test.describe('policy pages', () => {
   for (const slug of ['terms', 'privacy', 'refunds', 'grievance', 'community']) {
-    test(`${slug} is marked as a draft`, async ({ page }) => {
+    test(`${slug} shows the policy text and that payments are not open`, async ({ page }) => {
       await page.goto(`/legal/${slug}`);
-      await expect(page.getByTestId('legal-draft')).toContainText('DRAFT — LEGAL REVIEW REQUIRED');
+      await expect(page.getByTestId('legal-status')).toContainText('Payments are not open yet');
+      await expect(page.getByTestId('legal-text')).toContainText('Effective date: to be set on publication');
+      await expect(page.getByTestId('legal-text')).toContainText('BAAP KA PAISA');
     });
   }
+  test('grievance page lists VEXOR LABS and never invents missing contact details', async ({ page }) => {
+    await page.goto('/legal/grievance');
+    const contact = page.getByTestId('legal-contact');
+    await expect(contact).toContainText('VEXOR LABS');
+    await expect(contact.locator('.legal-pending')).toHaveCount(3);
+  });
   test('footer links reach the policies', async ({ page }) => {
     await page.goto('/');
     await dismissCrownMoment(page);
@@ -457,7 +465,7 @@ test('integrated journey: scene, gazette, board, profile, backing, declaration, 
   await expect(page.getByTestId('closing')).toHaveAttribute('data-phase', /idle|live|extended|closed/);
   for (const p of ['/archive', '/cities', '/india', '/me', '/invite', '/simulator', '/rank-up', '/legal/terms']) { expect((await page.goto(p))?.status(), p).toBe(200); }
   await page.goto('/legal/terms');
-  await expect(page.locator('main')).toContainText('the one the register recorded first ranks higher');
+  await expect(page.locator('main')).toContainText('the member who reached that score first ranks higher');
   expect(errors).toEqual([]);
 });
 
