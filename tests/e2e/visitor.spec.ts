@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 // A first-time visitor on the demo site: signed out, no sample member shown as real.
 test('header shows Sign in and Create profile; no sample member or "your row"', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/who owns\s*your city\?/i);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/who owns\s*the throne\?/i);
   await expect(page.getByTestId('auth-actions').getByRole('link', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByTestId('create-profile')).toBeVisible();
   await expect(page.getByTestId('profile-menu')).toHaveCount(0);

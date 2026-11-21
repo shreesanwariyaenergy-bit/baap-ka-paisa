@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { pageMetadata } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
+import { pageMetadata, pageJsonLd } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSourceEarly } from '@/lib/data';
 import { LEVEL_LABEL, STATES, cityById, scopeName } from '@/lib/geo';
@@ -12,11 +13,10 @@ import { groupAchievements } from '@/lib/achievements';
 import { strongestClaim } from '@/lib/claim';
 import { Crown, PastChampionMark } from '@/components/Crown';
 
-export const metadata: Metadata = pageMetadata({
-  title: 'The Seal',
-  path: '/seal',
-  description: "The Seal is your permanent member identity on the BAAP KA PAISA register. Your number stays; your rank, achievements and history change with every season.",
-});
+const SEO_TITLE = 'The Seal: Your Permanent Member Identity';
+const SEO_DESCRIPTION = "The Seal is your permanent member identity on BAAP KA PAISA. The number stays forever, your rank moves every season, and every crown you take is kept.";
+
+export const metadata: Metadata = pageMetadata({ title: SEO_TITLE, path: '/seal', description: SEO_DESCRIPTION });
 
 export default async function SealPage() {
   // The member's own profile and standings load in the same round trip as the season row.
@@ -24,10 +24,13 @@ export default async function SealPage() {
   const [viewer] = await Promise.all([ds.viewer(), ds.ready()]);
   const season = ds.season();
   const intro = (
+    <>
+    <JsonLd data={pageJsonLd({ name: 'The Seal', path: '/seal', description: SEO_DESCRIPTION })} />
     <section className="page-intro">
       <div><div className="eyebrow">Permanent member identity / 04</div><h1>The Seal.<br />Your status.</h1></div>
       <p>Your permanent member identity on the register. It is a membership credential, not an official identity document.</p>
     </section>
+    </>
   );
   if (!viewer) {
     return (

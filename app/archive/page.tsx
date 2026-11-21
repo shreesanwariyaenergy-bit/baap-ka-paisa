@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
-import { pageMetadata } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
+import { pageMetadata, pageJsonLd } from '@/lib/seo';
 import Link from 'next/link';
 import { getDataSource } from '@/lib/data';
 import { CITIES } from '@/lib/geo';
 import { CITY_NAMES } from '@/components/cityNames';
 import { PastChampionMark } from '@/components/Crown';
 
-export const metadata: Metadata = pageMetadata({
-  title: 'Archive',
-  path: '/archive',
-  description: "The archive of past seasons on the BAAP KA PAISA register. Seasons end. The record stays. Past champions carry an outline mark; the gold crown belongs only to whoever holds #01 right now.",
-});
+const SEO_TITLE = 'Archive: Past Seasons and Champions';
+const SEO_DESCRIPTION = "Seasons end. The record stays. The BAAP KA PAISA archive keeps every finished season and every city's champion, frozen for good.";
+
+export const metadata: Metadata = pageMetadata({ title: SEO_TITLE, path: '/archive', description: SEO_DESCRIPTION });
 
 const fmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).toUpperCase();
 
@@ -30,6 +30,7 @@ export default async function ArchivePage({ searchParams }: { searchParams: Prom
   };
   return (
     <>
+      <JsonLd data={pageJsonLd({ name: 'Archive', path: '/archive', description: SEO_DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">The history books / 05</div><h1>The ones<br />who held it.</h1></div>
         <p>Seasons end. The record stays. Past champions carry an outline mark; the gold crown belongs only to whoever holds #01 right now.</p>

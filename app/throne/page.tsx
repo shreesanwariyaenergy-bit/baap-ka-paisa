@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { JsonLd } from '@/components/JsonLd';
 import Link from 'next/link';
 import { getDataSource, rankingsOpen } from '@/lib/data';
 import type { ReignView } from '@/lib/data/types';
@@ -6,12 +7,15 @@ import { throneTime } from '@/lib/claim';
 import { cityOptionGroups, LEVELS, LEVEL_LABEL, cityById, parseScope, scopeName } from '@/lib/geo';
 import { Crown, PastChampionMark } from '@/components/Crown';
 import { BoardFilters } from '@/components/BoardFilters';
-import { noindexMetadata, pageMetadata } from '@/lib/seo';
+import { noindexMetadata, pageMetadata, pageJsonLd } from '@/lib/seo';
 
 // /throne is indexable; board-specific addresses (/throne?level=…&city=…) are named but kept out of search results.
+const SEO_TITLE = 'Throne History: Every #01, Every Reign';
+const SEO_DESCRIPTION = "Every #01 on every BAAP KA PAISA board: who took the throne, how long they held it and how it ended. The gold crown marks only the current holder.";
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const sp = await searchParams;
-  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'Throne History', path: '/throne', description: 'Throne History: every #01 on a BAAP KA PAISA board, when they took it, how long they held it and how it ended. The gold crown marks only the current holder.' });
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: SEO_TITLE, path: '/throne', description: SEO_DESCRIPTION });
   const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
   return noindexMetadata(city ? `Throne History · ${city}` : 'Throne History');
 }
@@ -39,6 +43,7 @@ export default async function ThronePage({ searchParams }: { searchParams: Promi
 
   return (
     <>
+      <JsonLd data={pageJsonLd({ name: 'Throne History', path: '/throne', description: SEO_DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">Throne history / {LEVEL_LABEL[scope.level]}</div><h1>Who held<br />the crown.</h1></div>
         <p>Every #01 on the {name} board, when they took it, how long they held it and how it ended. The gold crown marks only the current holder.{ds.availability === 'demo' ? ' Simulated history.' : ''}</p>

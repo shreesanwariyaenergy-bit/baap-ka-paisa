@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { CANONICAL_ORIGIN, SITE_NAME, pageMetadata } from '@/lib/seo';
+import { HOME_TITLE, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD, pageMetadata } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import type { Board, BoardEvent, CitySummary } from '@/lib/data/types';
 import { Suspense } from 'react';
@@ -26,21 +27,13 @@ function eventText(e: BoardEvent) {
   return { mark: '+', text: <><b>{who}</b> entered the board at #{pad2(e.rank)}.</>, tag: 'New', ticker: `${e.member.locality} has a new entry` };
 }
 
-export const metadata: Metadata = pageMetadata({
-  path: '/',
-  description: "Your city. Your rank. Your place on the register. BAAP KA PAISA is India's public status board, ranked by locality, city, state and country in monthly seasons. The record stays.",
-});
-
-// Structured data: the site itself (schema.org WebSite). Only facts shown on the site; no ratings, counts or organisation details.
-const WEBSITE_JSON_LD = JSON.stringify({
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: SITE_NAME,
-  alternateName: 'BAAP KA PAISA — The Public Status Register',
-  url: `${CANONICAL_ORIGIN}/`,
-  description: "India's public status board, ranked by locality, city, state and country. Monthly seasons; the record stays.",
-  inLanguage: 'en-IN',
-});
+export const metadata: Metadata = {
+  ...pageMetadata({
+    path: '/',
+    description: 'Who owns the throne? Discover locality, city, state and national rankings on BAAP KA PAISA. Explore your city, follow the competition and see who holds the top position.',
+  }),
+  title: { absolute: HOME_TITLE },
+};
 
 export default async function ScenePage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   const sp = await searchParams;
@@ -87,7 +80,8 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE_JSON_LD }} />
+      <JsonLd data={ORGANIZATION_JSON_LD} />
+      <JsonLd data={WEBSITE_JSON_LD} />
       <section className="hero" aria-labelledby="hero-title">
         <div>
           <div className="hero-tags">
@@ -95,8 +89,8 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
             <span className="tagchip">{city.name} · {STATES[city.state]}</span>
             {isDemo && <span className="tagchip hot">Demo data</span>}
           </div>
-          <h1 id="hero-title">Who owns<br /><span className="outline">your city?</span></h1>
-          <p className="hero-sub"><span className="hero-sub-key">Your city. Your rank. <b>Your place on the register.</b></span> India&apos;s public status board, ranked by locality, city, state and country.</p>
+          <h1 id="hero-title">Who owns<br /><span className="outline">the throne?</span></h1>
+          <p className="hero-sub"><span className="hero-sub-key">Your city. Your rank. <b>Your throne.</b></span> The public status register, ranked by locality, city, state and India.</p>
           <div className="hero-cta">
             {viewer
               ? <Link className="btn" href="/seal" data-testid="hero-primary">Open The Seal <span className="arrow" aria-hidden="true">↗</span></Link>
@@ -112,6 +106,7 @@ export default async function ScenePage({ searchParams }: { searchParams: Promis
             <li><div><b>Take a rank</b><span>One entry places you on four boards at once: locality, city, state, India.</span></div></li>
             <li><div><b>Hold it or lose it</b><span>Anyone can pass you. Boards reset monthly; your record stays forever.</span></div></li>
           </ol>
+          <Link className="how-more" href="/how-it-works">How the register works, in full ↗</Link>
         </aside>
       </section>
       {open && season.endsAt.getTime() - ds.now().getTime() < 86_400_000 && (

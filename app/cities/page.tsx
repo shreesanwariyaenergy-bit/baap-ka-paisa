@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
-import { pageMetadata } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
+import { pageMetadata, pageJsonLd } from '@/lib/seo';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { CITIES, REGIONS, STATES, STATE_ORDER } from '@/lib/geo';
 import { CityIndex, type CityCardData } from '@/components/CityIndex';
 
-export const metadata: Metadata = pageMetadata({
-  title: 'Cities',
-  path: '/cities',
-  description: "Find your territory. 45 cities across 19 states and union territories, grouped by state, each with its own locality, city, state and India boards on the BAAP KA PAISA register.",
-});
+const SEO_TITLE = 'Cities: Find Your Territory in 45 Cities';
+const SEO_DESCRIPTION = "Find your territory: 45 cities across 19 states and union territories, each with its own locality, city, state and India boards on BAAP KA PAISA.";
+
+export const metadata: Metadata = pageMetadata({ title: SEO_TITLE, path: '/cities', description: SEO_DESCRIPTION });
 
 export default async function CitiesPage() {
   // Reads start in the same round trip as the season row; only the member's own profile (one prefetched read) is needed.
@@ -23,6 +23,7 @@ export default async function CitiesPage() {
   const states = STATE_ORDER.map((code) => ({ code, name: STATES[code] }));
   return (
     <>
+      <JsonLd data={pageJsonLd({ name: 'Cities', path: '/cities', description: SEO_DESCRIPTION })} />
       <section className="page-intro">
         <div><div className="eyebrow">The geographic index / 02</div><h1>Find your<br />territory.</h1></div>
         <p>Start where you live. Follow the local scene. {CITIES.length} cities across {STATE_ORDER.length} states and UTs.{!rankingsOpen(ds) ? ' Member counts appear once rankings open.' : ''}</p>

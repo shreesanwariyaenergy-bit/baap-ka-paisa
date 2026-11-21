@@ -1,18 +1,22 @@
 import type { Metadata } from 'next';
+import { JsonLd } from '@/components/JsonLd';
 import Link from 'next/link';
 import { getDataSourceEarly, rankingsOpen } from '@/lib/data';
 import { DEFAULT_CITY_ID, cityById, cityOptionGroups, type Scope } from '@/lib/geo';
 import { GazetteCityPicker } from '@/components/GazetteCityPicker';
-import { noindexMetadata, pageMetadata } from '@/lib/seo';
+import { noindexMetadata, pageMetadata, pageJsonLd } from '@/lib/seo';
 import { buildEdition } from '@/lib/gazette';
 import { inr, inrShort } from '@/lib/format';
 import { CopyLink } from '@/components/CopyLink';
 
 // /gazette (the default edition) is indexable; each city edition (/gazette?city=…) is named but kept out of search
 // results while editions carry no members' news.
+const SEO_TITLE = 'The Gazette: Throne News for Every City';
+const SEO_DESCRIPTION = "The Gazette reports the fight for the throne in every city: who holds #01, who took it and every notice of dethronement, from the register's own records.";
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const sp = await searchParams;
-  if (Object.keys(sp).length === 0) return pageMetadata({ title: 'The Gazette', path: '/gazette', description: "The Gazette is the register's front page for each city: who holds the throne, who moved on the board and the notices of the day, from board records only." });
+  if (Object.keys(sp).length === 0) return pageMetadata({ title: SEO_TITLE, path: '/gazette', description: SEO_DESCRIPTION });
   const city = cityById(typeof sp.city === 'string' ? sp.city : undefined)?.name;
   return noindexMetadata(city ? `The ${city} Gazette` : 'The Gazette');
 }
@@ -39,6 +43,7 @@ export default async function GazettePage({ searchParams }: { searchParams: Prom
   const hasBody = hasStories || hasSide;
   return (
     <article className="gazette" data-testid="gazette">
+      <JsonLd data={pageJsonLd({ name: 'The Gazette', path: '/gazette', description: SEO_DESCRIPTION })} />
       <header className="gz-mast">
         <div className="gz-ears"><span>{ed.issue}</span><span>Late city edition</span><span>Price: your pride</span></div>
         <h1>The {city.name} Gazette</h1>

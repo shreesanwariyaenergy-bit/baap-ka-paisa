@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   // waited for a fresh server render. Visited pages are reused for 30 s; full prefetches (main navigation, board
   // levels) for 60 s. Any server action that changes data revalidates or sets cookies, which clears this cache.
   experimental: { staleTimes: { dynamic: 30, static: 60 } },
+  // Icon addresses served before the stable /brand icons existed: permanent redirects so nothing that cached them breaks.
+  async redirects() {
+    return [
+      { source: '/icon.png', destination: '/brand/icon-192.png', permanent: true },
+      { source: '/apple-icon.png', destination: '/brand/apple-touch-icon.png', permanent: true },
+    ];
+  },
   async headers() {
     return [{
       source: '/:path*',
