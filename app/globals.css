@@ -218,7 +218,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Inner pages ---------- */
 .page-intro { padding: 48px 0 28px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.page-intro h1 { font: 800 clamp(58px, 8vw, 100px)/.82 var(--font-display); text-transform: uppercase; margin: 17px 0 0; letter-spacing: -.03em; }
+.page-intro h1, .page-intro .page-title { font: 800 clamp(58px, 8vw, 100px)/.82 var(--font-display); text-transform: uppercase; margin: 17px 0 0; letter-spacing: -.03em; }
 .page-intro p { max-width: 36ch; color: var(--text-secondary); line-height: var(--leading-copy); margin: 0 0 4px; font-size: var(--type-body); }
 .filterbar { display: flex; align-items: center; gap: 9px; margin: 23px 0; flex-wrap: wrap; }
 .filterbar a, .filterbar button, .filterbar select, .filterbar input { border: 1px solid var(--line); background: var(--white); padding: 11px 13px; color: var(--ink); font: 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; min-height: 40px; }
@@ -390,7 +390,7 @@ a { color: inherit; text-decoration: none; }
   .bottom-cards { grid-template-columns: 1fr; gap: 10px; margin-bottom: 40px; }
   .mini-card { min-height: 125px; }
   .page-intro { padding: 35px 0 22px; display: block; }
-  .page-intro h1 { font-size: 66px; margin: 15px 0; }
+  .page-intro h1, .page-intro .page-title { font-size: 66px; margin: 15px 0; }
   .page-intro p { margin-top: 15px; }
   .city-grid { grid-template-columns: 1fr 1fr; }
   .city-card { min-height: 180px; }
@@ -585,7 +585,7 @@ h1, h2, h3, h4 { text-wrap: balance; }
 .section-head h2 { font-weight: 800; font-size: 48px; }
 .section-head p { font-weight: 700; color: var(--orange-ink); }
 .page-intro { border-bottom: 4px solid var(--ink); }
-.page-intro h1 { font-weight: 900; }
+.page-intro h1, .page-intro .page-title { font-weight: 900; }
 .mini-card, .mini-card:nth-child(2), .mini-card:nth-child(3) { background: var(--white); box-shadow: var(--hard); }
 .city-card { border: var(--rule); box-shadow: var(--hard); }
 .city-card:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
