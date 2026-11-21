@@ -7,6 +7,7 @@ import { initials, memberNo } from '@/lib/format';
 import { signOut } from './auth-actions';
 import { currentAccount } from '@/lib/supabase-server';
 import { MainNav } from '@/components/MainNav';
+import { BrandLogo } from '@/components/BrandLogo';
 import { FooterNav } from '@/components/SiteFooter';
 import { NavProgress } from '@/components/NavProgress';
 import { Suspense } from 'react';
@@ -99,8 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="shell">
             <header className="site-header">
               <Link className="brand" href="/" aria-label="BAAP KA PAISA home">
-                <span className="brandmark" aria-hidden="true">B₹</span>
-                <span className="brandname">BAAP KA PAISA<small>The status register</small></span>
+                <BrandLogo height={58} priority decorative className="header-logo" />
               </Link>
               <MainNav />
               <div className="header-right">
@@ -110,7 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main id="main">{children}</main>
             <footer className="site-footer">
               <div className="footer-top">
-                <span className="footer-wordmark">BAAP KA PAISA</span>
+                <BrandLogo height={64} className="footer-logo" />
                 <span className="footer-copy"><Suspense fallback={null}><FooterYear /></Suspense></span>
               </div>
               <FooterNav />

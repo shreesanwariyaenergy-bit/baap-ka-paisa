@@ -1,5 +1,6 @@
 // The Bill: a member's standing as an itemised bill that only gets longer. Public fields only.
 import type { Metadata } from 'next';
+import { BrandLogo } from '@/components/BrandLogo';
 import { noindexMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -46,7 +47,7 @@ export default async function BillPage({ params }: { params: Promise<{ username:
       </div>
       <article className="bill" data-testid="bill">
         <header>
-          <b>BAAP KA PAISA</b><span>THE STATUS REGISTER</span>
+          <BrandLogo height={96} className="bill-logo" /><span>THE STATUS REGISTER</span>
           <span>{city.name.toUpperCase()} · {STATES[city.state].toUpperCase()}</span>
           <hr /><div className="bill-row"><span>BILL NO.</span><span>{m.masked ? 'WITHHELD' : memberNo(m.memberNo)}</span></div>
           <div className="bill-row"><span>ISSUED TO</span><span data-testid="bill-name">{name.toUpperCase()}</span></div>
